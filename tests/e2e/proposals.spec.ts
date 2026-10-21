@@ -106,8 +106,34 @@ test.describe("vendor proposals (P4.4–P4.5, P5.1 first cut)", () => {
       "Harborline Systems",
     );
 
+    // Compact project header on a proposal page (P5.3): no description, no header actions
+    await expect(page.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
+
+    // Deep link with an evidence quote (P5.7): jumps to the page and highlights it
+    const proposalUrl = page.url().split("?")[0];
+    await page.goto(
+      `${proposalUrl}?tab=technical&reader=1&q=${encodeURIComponent("Harborline is the OEM of all inspection systems offered (Form F-3 not applicable)")}`,
+    );
+    const quoted = page.getByRole("dialog", { name: "Harborline Systems" });
+    await expect(quoted.getByText("Evidence:")).toBeVisible({ timeout: 20_000 });
+    await expect(page).toHaveURL(/page=3/);
+    await expect(quoted.getByLabel(/Page number/)).toHaveValue("3");
+    await expect(quoted.locator("mark.marsa-hit").first()).toBeAttached({ timeout: 20_000 });
+    await page.keyboard.press("Escape");
+    await expect(page).not.toHaveURL(/[?&]q=/);
+
+    // Analyse & process panel under the table (P5.2): one proposal → 5 steps, comparison skipped
+    await page.goto(`/projects/${project.id}/proposals`);
+    const panel = page.getByRole("region", { name: /Analyse & process/ });
+    await expect(panel).toContainText("5 (3 × 1 + 2)");
+    await expect(panel).toContainText(
+      "Only one proposal: the vendor comparison step will be skipped.",
+    );
+    await expect(panel).toContainText("Free (demo AI)");
+    await expect(panel.getByRole("button", { name: "Analyse & process" })).toBeDisabled();
+
     // A published tender with proposals can no longer go back to draft
-    await page.getByRole("button", { name: "More actions" }).click();
+    await page.getByRole("button", { name: "More actions", exact: true }).click();
     await expect(page.getByRole("menuitem", { name: "Move back to draft" })).toHaveCount(0);
     await page.keyboard.press("Escape");
 
@@ -153,5 +179,70 @@ test.describe("vendor proposals (P4.4–P4.5, P5.1 first cut)", () => {
     await expect(page.getByText(/Two sample tenders/)).toBeVisible();
     await page.goto("/projects");
     await expect(page.getByText("No projects yet")).toBeVisible();
+  });
+
+  test("reader opens Excel, Word, image and single-page files (P5.6)", async ({ page }) => {
+    const project = await openTender(page);
+    const add = async (f: string, mimeType: string) =>
+      page.request.post(`/api/projects/${project.id}/documents`, {
+        multipart: {
+          file: {
+            name: f,
+            mimeType,
+            buffer: fs.readFileSync(path.join(ROOT, "phase-1/rfp-pack", f)),
+          },
+        },
+      });
+    await add(
+      "03-Annex-B-Technical-Specifications.xlsx",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    await add(
+      "04-Annex-C-Draft-Contract.docx",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    await add("02-Annex-A-2-T2-Site-Plan.png", "image/png");
+    await add("05-Addendum-No-1.pdf", "application/pdf");
+    await page.goto(`/projects/${project.id}`);
+
+    const open = async (name: string) => {
+      await page.getByRole("button", { name: `Preview ${name}` }).click();
+      return page.getByRole("dialog", { name });
+    };
+
+    let reader = await open("03-Annex-B-Technical-Specifications.xlsx");
+    await expect(
+      reader.getByRole("img", { name: /xlsx, page 1/ }).getByText("Sheet: Read me"),
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(reader.getByText("/ 6")).toBeVisible();
+    await page.keyboard.press("ArrowRight");
+    // Scope to the main sheet: thumbnails render the same text.
+    await expect(
+      reader.getByRole("img", { name: /xlsx, page 2/ }).getByText("Sheet: Technical specs"),
+    ).toBeVisible();
+    await expect(reader.getByText("Steel penetration (ANSI N42.46-2008)").first()).toBeAttached();
+    await page.keyboard.press("Escape");
+
+    reader = await open("04-Annex-C-Draft-Contract.docx");
+    await expect(reader.getByText("Part A — General Conditions (GC)").first()).toBeAttached({
+      timeout: 20_000,
+    });
+    await expect(reader.getByText(/^\/ \d+$/)).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    reader = await open("02-Annex-A-2-T2-Site-Plan.png");
+    await expect(
+      reader.getByRole("img", { name: "02-Annex-A-2-T2-Site-Plan.png" }).last(),
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(reader.getByText("1 page", { exact: true })).toBeVisible();
+    await expect(reader.getByLabel(/Page number/)).toHaveCount(0); // no pagination for a single page
+    await page.keyboard.press("Escape");
+
+    reader = await open("05-Addendum-No-1.pdf");
+    await expect(reader.getByRole("img", { name: /05-Addendum-No-1\.pdf, page 1/ })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(reader.getByText("1 page", { exact: true })).toBeVisible();
+    await expect(reader.getByRole("navigation", { name: "Pages" })).toHaveCount(0);
   });
 });

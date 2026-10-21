@@ -21,23 +21,22 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
 5. **Don't push to GitHub until the user has tested the phase themselves** (user, after Phase 3: "next time dont push unless i test the phase myself"). Commit locally; push when they confirm. Each phase hand-over also includes the **exact click-by-click main working case** (go here → press this → paste this → expect that).
 
 ## 1. Where we are (update every session)
-- **Last session:** 2026-10-21 (session 5: Phases 3 + 4 + feedback round "categories + reader").
-- **Done:** Planning · P0–P4 (P4 tested by the user; they submitted the 4 vendors) · **feedback round 1 after P4**:
-  - **Project categories = standard categories.** A project offers its own category + General standards; a General project offers all. Migration 0002 remapped legacy categories: PRJ-2026-001 became IT & security.
-  - **Full-screen document reader** (P5.4–P5.6 pulled forward). It replaces the browser PDF iframe everywhere: proposal page, RFP and standard documents.
-- **Git:** P4 + this round are committed locally only; push after the user confirms testing (§0 rule 5).
+- **Last session:** 2026-10-21 (session 5: Phases 3–5).
+- **Done:** Planning · P0–P4 · **P5 built, waiting for the user's test** (P5.8 viewer checkpoint 🧑):
+  - categories + full-screen reader (feedback round);
+  - Analyse & process panel (P5.2);
+  - compact project header on proposal pages (P5.3);
+  - DOCX / XLSX / CSV / TXT / image reader sources (P5.6);
+  - pdf.js text layer + evidence deep links `?q=` with highlight and pulse (P5.7);
+  - fullscreen (F), scrubber, collapsible filmstrip, single-page mode.
+- **Git:** P4 + P5 are committed locally only; push after the user confirms testing (§0 rule 5). `origin/main` is at P3 (8c61011).
 - **User's own data (`data/`):**
   - CITS-2026.
-  - PRJ-2026-001 (IT & security, open, 2 RFP PDFs incl. Addendum, 4 vendor proposals via the simulator).
-  - Backup from before migration 0002: `data/backups/before-categories-app.db*`.
-- **Next:** the user tests `test-inputs/phase-5/README.md` → push → rest of Phase 5:
-  - P5.2 Analyse & process panel;
-  - P5.3 compact project header on proposal pages;
-  - P5.6 DOCX/XLSX reader views;
-  - P5.7 deep link + quote highlight (needs the text layer, I-19);
-  - P5.8 viewer checkpoint 🧑.
+  - PRJ-2026-001 (IT & security, open, 2 RFP PDFs, 4 vendor proposals).
+  - DB backup from before migration 0002: `data/backups/`.
+- **Next:** the user tests `test-inputs/phase-5/README.md` (Part 1 + Part 2) → push → **Phase 6: AI pipeline 💳**. Ask before any real API spend. Mock mode first; the planner and estimates already exist in `src/lib/plan.ts`.
 - **App runs?** `npm run dev` → http://localhost:3000.
-- **All checks green?** `npm run check` ✔ (**99 unit**) · `npm run test:e2e` ✔ **17/17** (clean build into `.next-e2e`) · build ✔.
+- **All checks green?** `npm run check` ✔ (**110 unit**) · `npm run test:e2e` ✔ **18/18** · build ✔.
 
 ## 2. Quick start for a new session
 ```bash
@@ -121,6 +120,8 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | G-52 | ℹ️ Rule | **Never change a column's DDL (type, default) on an existing SQLite table through drizzle-kit.** SQLite needs a table rebuild (`DROP TABLE` + rename); our migrator runs inside a transaction, where `PRAGMA foreign_keys=OFF` is ignored, so the DROP would **cascade-delete** documents, proposals and links | Keep the DDL identical (TS-only changes: `.$type<…>()`, `.default(sql\`'…'\`)`), check `npx drizzle-kit generate` says "No schema changes", and write a **custom data migration** (`npx drizzle-kit generate --custom --name …`) with plain `UPDATE`s. Back up `data/app.db*` before restarting the user's dev server. Example: `drizzle/0002_project_categories.sql` |
 | G-53 | ✅ Solved | A production build served a **stale `globals.css`**: new CSS variables (`--stage…`) were missing from the bundle although the file had changed. Turbopack's persistent build cache in the dist folder kept the old stylesheet | Playwright's webServer deletes `.next-e2e` before every build. For manual builds after CSS changes: `rm -rf .next-e2e` first. If dev styles look stale: stop dev, delete `.next/dev`, restart (as G-51) |
 | G-54 | ℹ️ Rule | **pdf.js in the browser**: load it only from effects via `loadPdfjs()` / `getPdf()` (`src/lib/pdf/pdfjs.ts`), never at module top level (it touches DOM APIs during SSR). The worker is `new Worker(new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url), { type: "module" })`. pdf.js 6: `page.render({ canvas, viewport, transform })`; destroy via the loading task (G-38). Turbopack warns "pdfjs-dist can't be external" for the worker reference; it is suppressed in `next.config.ts` (`turbopack.ignoreIssue`, path `/lib[\\/]pdf/`, because the issue path is the folder) | Reuse `usePdf`, `PdfCanvas` (off-screen render, no flash on zoom), `usePageSizes`, `DocumentCover`, `DocumentReader` from `src/components/viewer/` |
+| G-55 | ℹ️ Rule | **Evidence quotes** (`src/lib/quote.ts`): matching normalises case, all whitespace, typographic quotes/dashes, NFKC (ligatures) and soft hyphens, because PDF text layers split words into spans. Needles: the first 80 normalised chars, then 48, then 28, so a quote that runs over a page break still lands on the page where it starts. `findQuotePage` prefers the current page; `highlightQuote` wraps text nodes in `<mark class="marsa-hit">` | P6 evidence must store the **verbatim** quote (≥ 28 meaningful chars) + doc id + page; the reader verifies and corrects the page |
+| G-56 | ℹ️ Fact | E2E text assertions in the reader must be scoped to the main sheet (`getByRole("img", { name: /…, page N/ })`): the filmstrip thumbnails render the same text (DOCX/XLSX/text pages are real HTML, scaled down) | Also use `exact: true` for short labels like "1 page" (the subtitle contains it) |
 | G-45 | ℹ️ Rule | *(Superseded by G-50.)* Tab content under `/projects/[projectId]` reads the project with `useProjectContext()` | See G-50 for the current structure |
 | G-50 | ✅ Solved | Dev log: "Route /projects/[projectId]: Could not validate that a segment in your UI has instant navigation … Dropped segment: page.tsx". The layout awaited `params` in a Suspense boundary that **wrapped `{children}`**, so the tab pages were never part of the static shell | The layout renders `<Suspense><ProjectHeader/></Suspense>` and `{children}` **side by side**. Each page wraps its content in `<ProjectRoute params fallback>` (server: own Suspense + await params → client `ProjectGate` providing `useProjectContext()`). The tab fade moved to `[projectId]/template.tsx`. Never pass `{children}` into a component that awaits params |
 
@@ -140,7 +141,9 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | I-12 | ✅ Solved | Text extraction for DOCX/XLSX/TXT | `src/server/documents/extract-text.ts` (mammoth → HTML → markdown-like text; exceljs → `## Sheet:` + pipe rows with formula results; text formats as UTF-8; 2 M char cap). Called by `ingestDocument()` for AI-readable non-PDF files. PDFs/images go to Claude natively (null) |
 | I-13 | ✅ Obsolete | Settings scroll-spy | Settings became fading tabs (user feedback) |
 | I-14 | ✅ Solved | Browser PDF iframe in previews and the proposal page | Replaced by `DocumentReader` everywhere (`DocumentPreviewDialog` is now a thin wrapper around it) |
-| I-19 | 🔴 Open | The reader renders canvas only: no text layer (no text selection or search), and DOCX/XLSX show a "no preview yet" card with Download. Images are shown | P5.6 (extracted text as a reader view) + P5.7 (pdf.js `TextLayer` + its CSS for quote highlighting) |
+| I-19 | ✅ Solved | Reader text layer and other formats | pdf.js `TextLayer` (selectable text, quote highlight); DOCX via docx-preview (client, sanitized); XLSX/CSV/TXT via `GET /api/documents/:id/preview` |
+| I-20 | ℹ️ Note | `npm audit`: high/moderate advisories in transitive deps of shadcn CLI (braces), drizzle-kit (esbuild), mammoth (sprintf-js), exceljs (uuid). None come from docx-preview; the fixes are breaking downgrades | Review in P9.6 (code review / hardening) |
+| I-21 | ℹ️ Note | Reader limits: a DOCX without page breaks becomes one tall "page" (auto fit-width, capped at 880 px). XLSX previews are capped at 1,000 rows × 50 columns per sheet; text at 1 M chars. `.ods`, `.pptx` and archives get a download card | Acceptable for v1 |
 | I-16 | ℹ️ Minor | The Proposals table scrolls horizontally on phones (390 px) | P9.4 responsive pass (card list on mobile) |
 | I-17 | ℹ️ Note | The analysis tabs on the proposal page (Compliance, Comparison, Risk) are locked placeholders; `?tab=` only accepts commercial/technical for now | P6/P8 |
 | I-18 | ℹ️ Minor | On proposal pages the full project header pushes the content down. Less important now that documents open in the full-screen reader | P5.3: compact project header on `/proposals/[id]` |
@@ -170,6 +173,8 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
   - The reader is controlled (`docId`, `page`, `onNavigate`). Groups are envelopes, or one group for a plain document.
   - Keys: ←/→ PageUp/PageDown Home End, + − 0. Fit page (default) / fit width. Zoom 50–300 %.
   - Always-dark `stage` tokens live in `globals.css` (`bg-stage`, `text-stage-ink`, `border-stage-line`, …).
+- **Analyse & process panel** (`analyse-panel.tsx`): T = 3N + 2 (`planRun`, N = 1 → compare skipped), time from phase waves × concurrency (mock 3.5 s/step; live guesses per phase, to re-measure in P6.1), cost from pages × 2,000 tokens with cached shared context (Opus 5.5 $4/$20, Sonnet 5.5 $2/$10, cache read $0.20 per MTok; `MODEL_PRICES`). Button disabled until P6.
+- **Reader sources** (`use-reader-source.tsx`): pdf (pdf.js), image, docx (docx-preview → sanitized section HTML + its CSS), sheets/text (server preview). HTML pages are laid out at their own size and CSS-scaled (`ScaledHtml`). Deep link `?q=` → `findQuotePage` → navigate → text layer / DOM highlight → banner + 1.2 s pulse.
 - **Vendors & proposals:** vendor names are unique ignoring case (409). One proposal per vendor per project; `POST /api/projects/:id/proposals {vendorId}` returns 201 (new) or 200 + `replaced:true` (resubmission: old files deleted, `submittedAt` = now). Files follow one per request on `POST /api/proposals/:id/documents` (multipart `file` + `kind` = commercial|technical). Only **open** tenders accept proposals or files (409 otherwise). `useSubmitProposal` orchestrates create + uploads with per-file progress and returns failed files instead of throwing.
 - **Proposal source** (`seed` · `simulator` · `ai`) is shown as a pill ("Sample" · "Simulator" · "AI-generated").
 - **Vendor simulator** (`/vendor-portal`, not in the sidebar; reached from the Proposals tab and Demo tools): `?project=` preselects the tender; the vendor picker opens on "New vendor" while no vendors exist.
@@ -226,3 +231,11 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
   - **User asked mid-way:** make their project IT & security. Migration 0002 now derives a legacy project's category from its applied standards (one category → that one; none or mixed → General).
   - **Problems (solved):** G-52 (no DDL changes on existing tables), G-53 (stale CSS from the build cache), G-54 (pdf.js worker warning).
   - **Checks:** 99 unit ✔, 17 E2E ✔. Reader verified on the user's dev data (read-only) and in screenshots.
+- **Phase 5 (same session; the user said "start with phase 5"):**
+  - **P5.2** Analyse & process panel with `src/lib/plan.ts`. Prices are taken from the claude-api skill: Opus 5.5 $4/$20, Sonnet 5.5 $2/$10, cache reads $0.20 per MTok.
+  - **P5.3** compact header on proposal pages.
+  - **P5.6** DOCX (docx-preview 0.4.1, sanitized), XLSX/CSV/TXT (new `/api/documents/:id/preview`), image sources.
+  - **P5.7** pdf.js text layer (CSS trimmed into `globals.css`), quote search/highlight/pulse, `q` deep links wired in the proposal page.
+  - **Reader polish:** fullscreen (F), scrubber, collapsible filmstrip, single-page mode, RDD page-turn variants, three ghost sheets.
+  - **Problem found and fixed:** the test quote crossed a page break and reported "not found" → needle fallback (G-55).
+  - **Tests:** 11 new unit tests (plan, quote, previews, paginate) and 2 new or extended E2E tests. Deep links verified on the user's dev data (read-only).

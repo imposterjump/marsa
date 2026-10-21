@@ -110,43 +110,70 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
     { href: `${base}/evaluation`, label: "Evaluation", icon: p.proposalCount ? Sparkles : Lock },
   ];
 
-  return (
-    <div className="flex flex-col gap-8">
-      <SetBreadcrumbs crumbs={[{ label: "Projects", href: "/projects" }, { label: p.code }]} />
-      <PageHeader
-        eyebrow={
-          <span className="flex items-center gap-2">
-            <span className="font-mono tracking-normal normal-case">{p.code}</span>
-            <span aria-hidden>·</span>
-            <span>{PROJECT_CATEGORY_LABEL[p.category]}</span>
-          </span>
-        }
-        title={<span dir="auto">{p.name}</span>}
-        description={
-          <>
-            {p.description && (
-              <span className="mt-1 line-clamp-3 block" dir="auto" title={p.description}>
-                {p.description}
-              </span>
-            )}
-            <span className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
-              <ProjectStatusPill status={p.status} />
-              {p.isSample && (
-                <Pill tone="info" size="md">
-                  Sample data
-                </Pill>
-              )}
-              <span className="inline-flex items-center gap-1.5 text-ink-2">
-                <CalendarClock className="size-4 text-ink-faint" aria-hidden />
-                {p.deadline ? deadlineLabel(p.deadline) : "No submission deadline"}
-              </span>
-            </span>
-          </>
-        }
-        actions={<HeaderActions project={p} />}
-      />
+  // On a single proposal (/proposals/[id]) the header shrinks to one line (P5.3): the vendor's
+  // documents matter there, and that page sets its own breadcrumbs.
+  const compact = /\/proposals\/[^/]+/.test(pathname);
 
-      <StatusBanner project={p} />
+  return (
+    <div className={cn("flex flex-col", compact ? "gap-5" : "gap-8")}>
+      {compact ? (
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 text-[13px]">
+          <span className="font-mono text-xs text-ink-muted">{p.code}</span>
+          <Link
+            href={base}
+            className="min-w-0 truncate font-heading text-base font-semibold tracking-tight text-ink underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/25"
+            dir="auto"
+            title={p.name}
+          >
+            {p.name}
+          </Link>
+          <ProjectStatusPill status={p.status} size="sm" />
+          {p.deadline && (
+            <span className="inline-flex items-center gap-1.5 text-ink-muted">
+              <CalendarClock className="size-3.5 text-ink-faint" aria-hidden />
+              {deadlineLabel(p.deadline)}
+            </span>
+          )}
+        </div>
+      ) : (
+        <>
+          <SetBreadcrumbs crumbs={[{ label: "Projects", href: "/projects" }, { label: p.code }]} />
+          <PageHeader
+            eyebrow={
+              <span className="flex items-center gap-2">
+                <span className="font-mono tracking-normal normal-case">{p.code}</span>
+                <span aria-hidden>·</span>
+                <span>{PROJECT_CATEGORY_LABEL[p.category]}</span>
+              </span>
+            }
+            title={<span dir="auto">{p.name}</span>}
+            description={
+              <>
+                {p.description && (
+                  <span className="mt-1 line-clamp-3 block" dir="auto" title={p.description}>
+                    {p.description}
+                  </span>
+                )}
+                <span className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
+                  <ProjectStatusPill status={p.status} />
+                  {p.isSample && (
+                    <Pill tone="info" size="md">
+                      Sample data
+                    </Pill>
+                  )}
+                  <span className="inline-flex items-center gap-1.5 text-ink-2">
+                    <CalendarClock className="size-4 text-ink-faint" aria-hidden />
+                    {p.deadline ? deadlineLabel(p.deadline) : "No submission deadline"}
+                  </span>
+                </span>
+              </>
+            }
+            actions={<HeaderActions project={p} />}
+          />
+
+          <StatusBanner project={p} />
+        </>
+      )}
 
       <nav aria-label="Project sections" className="-mt-2 border-b border-border">
         <ul className="-mb-px flex [scrollbar-width:none] gap-6 overflow-x-auto">

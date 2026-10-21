@@ -4,14 +4,14 @@
 > Legend: ⬜ not started · 🟦 in progress · ✅ done · ⏸ blocked / waiting on you · ➖ skipped / rejected
 
 ## Now
-- **Current phase:** P5 Proposals & viewer 🟦: project categories + full-screen reader done (your feedback) → **waiting for your test** (then push).
-- **Test it:** http://localhost:3000/projects · guide: [test-inputs/phase-5/README.md](../test-inputs/phase-5/README.md)
+- **Current phase:** P5 Proposals & viewer ✅ → **🧑 viewer checkpoint: waiting for your test** (then push), then **P6 AI pipeline 💳**.
+- **Test it:** http://localhost:3000/projects · guide: [test-inputs/phase-5/README.md](../test-inputs/phase-5/README.md) (Part 1 + Part 2)
 - **Session handoff notes:** [HANDOFF.md](HANDOFF.md) (read first every session).
 
 ## Waiting on you
 | # | Item | Where |
 |---|---|---|
-| 1 | **Test the categories + reader** (Phase 4 tested ✔). I push P4 + this round to GitHub after your OK | [test-inputs/phase-5/README.md](../test-inputs/phase-5/README.md) |
+| 1 | **Test Phase 5 (viewer checkpoint P5.8)**: categories, reader, Analyse panel, evidence links. I push P4 + P5 to GitHub after your OK | [test-inputs/phase-5/README.md](../test-inputs/phase-5/README.md) |
 | 1b | Phase 1 design checkpoint (P1.9): no feedback received yet, assumed OK | — |
 | 2 | Confirm "RDD" = the technical requirements & design document (my interpretation) | [RDD.md](RDD.md) |
 
@@ -50,7 +50,7 @@
 | P2 Settings & Standards | ✅ | 2026-10-21 · 68 unit + 13 E2E green · ingest pulled forward from P3.2 |
 | P3 Projects & RFP | ✅ | 2026-10-21 · 86 unit + 15 E2E green · New project is a 4-step wizard (fading steps) instead of one scroll-spy page |
 | P4 Vendor simulation | ✅ | 2026-10-21 · 95 unit + 17 E2E green · local commit, push after your test |
-| P5 Proposals & viewer 🧑 | ⬜ | |
+| P5 Proposals & viewer 🧑 | ✅ | 2026-10-21 · 110 unit + 18 E2E green · viewer checkpoint waiting for your OK |
 | P6 AI pipeline 💳 | ⬜ | |
 | P7 Live progress + AI proposals | ⬜ | |
 | P8 Results UX 🧑 | ⬜ | |
@@ -102,13 +102,13 @@
 
 ### P5 Proposals & viewer
 - 🟦 P5.1 Proposals table (built in P4: sortable table, View, remove; empty-state CTA. Left: score/risk columns after P6)
-- ⬜ P5.2 Analyse & process panel
-- 🟦 P5.3 Proposal workspace + tabs (vendor header, ‹ › nav, Commercial/Technical open the reader, document cover cards, locked analysis tabs; compact project header pending)
+- ✅ P5.2 Analyse & process panel (counts, standards, 3N+2 steps, time + cost estimate, warnings; button wired in P6)
+- ✅ P5.3 Proposal workspace + tabs (vendor header, ‹ › nav, Commercial/Technical open the reader, cover cards, locked analysis tabs, compact project header)
 - ✅ P5.4 Sheet Stack core + page turns (full-screen `DocumentReader`, pdf.js canvas, sheet stack, page-turn animation, reduced-motion safe)
-- ✅ P5.5 Filmstrip, floating toolbar (page input, zoom, fit), keyboard shortcuts (no scrubber: the filmstrip covers it)
-- 🟦 P5.6 Sources: PDF ✅, image ✅, other formats show a download card (DOCX/XLSX reader views pending, I-19)
-- 🟦 P5.7 Deep links (`?reader=&page=`) ✅; quote highlight pending (needs the text layer, I-19)
-- ⬜ P5.8 🧑 Viewer checkpoint
+- ✅ P5.5 Filmstrip (collapsible), scrubber, floating toolbar (page input, zoom, fit, fullscreen), keyboard shortcuts incl. F
+- ✅ P5.6 Sources: PDF, image, DOCX (docx-preview), XLSX/CSV (sheet per page), TXT/MD/JSON (paged), download card for others
+- ✅ P5.7 Deep links (`?reader=&page=&q=`), text layer, quote highlight + 1.2 s pulse, page-break fallback
+- ⏸ P5.8 🧑 Viewer checkpoint (waiting for your review)
 
 ### P6 AI pipeline
 - ⬜ P6.1 AI client wrapper (+ verify streaming × structured outputs × fallbacks) 💳≈$0.01
@@ -165,6 +165,7 @@
 | 2026-10-21 (S1) | Requirements gathered (7 decisions). Skills reviewed (epic-design, frontend, backend, architect, claude-api). UI research (dashboards, bid-comparison tools, viewers). Wrote PRD, RDD, PHASES, PROGRESS. 22 recommendations awaiting approval. |
 | 2026-10-21 (S2) | Phase 0 complete: Next 16.4 + Tailwind 4 + shadcn (radix-nova, RTL) scaffold, Drizzle/SQLite schema (16 tables), typed env, traversal-safe storage, `/api/health`, Vitest + Playwright. Created HANDOFF.md. 7 environment issues found and solved (HANDOFF §4). |
 | 2026-10-21 (S3) | Phase 1 complete: Harbor design system (tokens, contrast-checked), ~25 components, motion primitives, app shell, welcome/profile, settings API + page, `/dev/ui`. Test inputs generated (`test-inputs/phase-1`, realistic tender pack, no evaluator hints). Fixed during self-review: title override, reload loop, lint rules, layout bugs (HANDOFF §8). |
+| 2026-10-21 (S5d) | Phase 5 complete (local commit): Analyse & process panel with time/cost estimate, compact header on proposal pages, reader for Word/Excel/CSV/text/images, selectable PDF text, evidence deep links that jump to the page and highlight the quote, fullscreen, scrubber, thumbnail toggle. |
 | 2026-10-21 (S5c) | Feedback round: projects use the standard categories (General applies everywhere; PRJ-2026-001 migrated to IT & security, DB backed up); full-screen reader replaces the browser PDF viewer everywhere (filmstrip, page turns, zoom/fit, keyboard, deep links). Local commit, not pushed. |
 | 2026-10-21 (S5b) | Phase 4 complete (local commit, not pushed): vendor simulator, proposals table + proposal page, vendors/proposals API, sample data + Demo tools, 4 realistic vendor bids. Fixed: paste-rules dialog taller than the screen (now scrolls inside, buttons pinned). New rule: push only after your test. |
 | 2026-10-21 (S5) | Phase 3 complete: Settings as fading tabs (your feedback), projects service + API, text extraction, Projects home with real data, 4-step New project wizard, project workspace (Overview / Proposals / Evaluation). Fixed: publishing wiped the deadline (zod `.partial()` defaults, same latent bug in Phase 2 standards/rules; your data was unaffected), toasts covering footer buttons (now top-centre). Test guide: `test-inputs/phase-3/README.md`. |

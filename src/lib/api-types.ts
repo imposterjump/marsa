@@ -114,6 +114,9 @@ export interface ProjectStandardRef {
   title: string;
   category: string;
   isActive: boolean;
+  rulesCount: number;
+  /** Pages of the standard's uploaded documents (sent to the AI with the rules). */
+  documentPages: number;
 }
 
 export interface ProjectDetailDto extends ProjectDto {

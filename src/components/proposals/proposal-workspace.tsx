@@ -56,7 +56,8 @@ const docsOf = (p: ProposalDetailDto, e: Envelope) =>
 /**
  * PRD FR-6: one vendor's proposal. Commercial / Technical open the full-screen reader directly
  * (user feedback 2026-10-21); the page underneath shows the envelope's documents as covers.
- * URL: ?tab=commercial|technical · &reader=<docId|1> (open) · &page=N. Analysis tabs unlock in P6.
+ * URL: ?tab=commercial|technical · &reader=<docId|1> (open) · &page=N · &q=<quote> (highlight,
+ * RDD §8.4; P6 evidence links use it). Analysis tabs unlock in P6.
  */
 export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
   const project = useProjectContext();
@@ -109,6 +110,7 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
       tab: envelope,
       reader: target ? target.id : null,
       page: target && page > 1 ? String(page) : null,
+      q: null,
     });
   };
 
@@ -260,7 +262,7 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
 
       <DocumentReader
         open={!!readerDoc}
-        onOpenChange={(o) => !o && setQuery({ reader: null, page: null })}
+        onOpenChange={(o) => !o && setQuery({ reader: null, page: null, q: null })}
         leading={<InitialsAvatar name={p.vendor.name} size="sm" />}
         title={p.vendor.name}
         subtitle={`${project.code} · Submitted ${formatDateTime(p.submittedAt)}`}
@@ -269,12 +271,19 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
           { id: "technical", label: "Technical", docs: p.technicalDocuments },
         ]}
         docId={readerDoc?.id ?? null}
+        quote={params.get("q")}
         page={readerPage}
         onNavigate={(docId, page) => {
           const envelope: Envelope = p.technicalDocuments.some((d) => d.id === docId)
             ? "technical"
             : "commercial";
-          setQuery({ tab: envelope, reader: docId, page: page > 1 ? String(page) : null });
+          setQuery({
+            tab: envelope,
+            reader: docId,
+            page: page > 1 ? String(page) : null,
+            // The evidence quote belongs to its document; switching documents drops it.
+            ...(docId !== readerDoc?.id ? { q: null } : {}),
+          });
         }}
       />
     </div>

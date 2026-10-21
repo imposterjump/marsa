@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { InitialsAvatar } from "@/components/ui/initials-avatar";
 import { Pill } from "@/components/ui/status-pill";
 import { useDeleteProposal, useProposals } from "@/hooks/use-proposals";
+import { AnalysePanel } from "./analyse-panel";
 import type { ProposalSummaryDto } from "@/lib/api-types";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { PROPOSAL_SOURCE_LABEL } from "@/lib/labels";
@@ -44,34 +45,37 @@ export function ProposalsTab() {
 
   if (!isLoading && !isError && data?.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border-strong bg-surface/60">
-        <EmptyState
-          size="lg"
-          art={
-            canSimulate ? (
-              <Users className="size-12 text-brand" strokeWidth={1.25} />
-            ) : (
-              <Megaphone className="size-12 text-ink-faint" strokeWidth={1.25} />
-            )
-          }
-          title={
-            canSimulate
-              ? "Waiting for proposals"
-              : p.status === "draft"
-                ? "Not published yet"
-                : "No proposals"
-          }
-          description={
-            canSimulate
-              ? `Vendors can download the RFP and submit a commercial and a technical proposal${
-                  p.deadline ? ` until ${formatDate(`${p.deadline}T00:00:00`)}` : ""
-                }. Each submission is listed here with its date and documents.`
-              : p.status === "draft"
-                ? "Publish the tender to vendors from the header above. Their proposals will be listed here."
-                : "This tender received no proposals."
-          }
-          actions={simulate}
-        />
+      <div className="flex flex-col gap-6">
+        <div className="rounded-2xl border border-dashed border-border-strong bg-surface/60">
+          <EmptyState
+            size="lg"
+            art={
+              canSimulate ? (
+                <Users className="size-12 text-brand" strokeWidth={1.25} />
+              ) : (
+                <Megaphone className="size-12 text-ink-faint" strokeWidth={1.25} />
+              )
+            }
+            title={
+              canSimulate
+                ? "Waiting for proposals"
+                : p.status === "draft"
+                  ? "Not published yet"
+                  : "No proposals"
+            }
+            description={
+              canSimulate
+                ? `Vendors can download the RFP and submit a commercial and a technical proposal${
+                    p.deadline ? ` until ${formatDate(`${p.deadline}T00:00:00`)}` : ""
+                  }. Each submission is listed here with its date and documents.`
+                : p.status === "draft"
+                  ? "Publish the tender to vendors from the header above. Their proposals will be listed here."
+                  : "This tender received no proposals."
+            }
+            actions={simulate}
+          />
+        </div>
+        {canSimulate && <AnalysePanel project={p} proposals={[]} />}
       </div>
     );
   }
@@ -221,6 +225,7 @@ export function ProposalsTab() {
           initialSort={{ id: "submitted", dir: "asc" }}
         />
       )}
+      {data && data.length > 0 && <AnalysePanel project={p} proposals={data} />}
       <ConfirmDialog
         open={!!removing}
         onOpenChange={(o) => !o && setRemoving(null)}

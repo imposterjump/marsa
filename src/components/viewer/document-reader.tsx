@@ -11,17 +11,25 @@ import {
   ExternalLink,
   FileWarning,
   Loader2,
+  Maximize,
+  Minimize,
   Minus,
   MoveHorizontal,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
+  Quote,
   Scan,
+  SearchX,
   X,
 } from "lucide-react";
 import { cn } from "cn";
 import type { DocumentDto } from "@/lib/api-types";
-import { fileKind, formatBytes, middleTruncate } from "@/lib/files";
-import { PdfCanvas, usePageSizes } from "./pdf-canvas";
-import { usePdf } from "./use-pdf";
+import { formatBytes, middleTruncate } from "@/lib/files";
+import { findQuotePage, highlightQuote } from "@/lib/quote";
+import { PdfCanvas } from "./pdf-canvas";
+import { PdfTextLayer } from "./pdf-text-layer";
+import { useReaderSource, type HtmlPage, type ReaderSource } from "./use-reader-source";
 
 export interface ReaderGroup {
   id: string;
@@ -42,17 +50,20 @@ interface DocumentReaderProps {
   page: number;
   /** Controlled navigation: the parent stores doc + page (e.g. in the URL). */
   onNavigate: (docId: string, page: number) => void;
+  /** Evidence quote to find, jump to and highlight (deep link `q`, RDD §8.4). */
+  quote?: string | null;
 }
 
 type Fit = "page" | "width";
+type ReadySource = Extract<ReaderSource, { status: "ready" }>;
 const ZOOMS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5, 3];
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 /**
- * Full-screen document reader (PRD FR-7, "Sheet Stack", P5.4–P5.6): one sharp page at a time on
- * a dark stage, page-turn animation, a stack of sheets behind the page that thins as you read,
- * thumbnail filmstrip, floating toolbar (page, zoom, fit, download) and keyboard shortcuts.
- * Replaces the browser's built-in PDF viewer everywhere (user feedback, 2026-10-21).
+ * Full-screen document reader, "Sheet Stack" (PRD FR-7, P5.4–P5.7): one page at a time on a dark
+ * stage with the remaining pages stacked behind it; page turns; filmstrip; scrubber; floating
+ * toolbar (page, zoom, fit, fullscreen); keyboard; quote highlight. PDF, images, DOCX, XLSX/CSV
+ * and text files (see useReaderSource). Replaces the browser PDF viewer everywhere.
  */
 export function DocumentReader(props: DocumentReaderProps) {
   return (
@@ -61,7 +72,7 @@ export function DocumentReader(props: DocumentReaderProps) {
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[rgb(4_10_18/0.6)] backdrop-blur-[3px] duration-200 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
-          className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-stage text-stage-ink shadow-lg duration-200 outline-none sm:inset-3 sm:rounded-2xl sm:border sm:border-stage-line data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.985] data-closed:animate-out data-closed:fade-out-0"
+          className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-stage text-stage-ink shadow-lg duration-200 outline-none sm:inset-3 sm:rounded-2xl sm:border sm:border-stage-line data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.985] data-closed:animate-out data-closed:fade-out-0 [&:fullscreen]:inset-0 [&:fullscreen]:rounded-none"
         >
           {props.open && <ReaderBody {...props} />}
         </DialogPrimitive.Content>
@@ -85,6 +96,31 @@ function useElementSize<T extends HTMLElement>() {
   return [ref, size] as const;
 }
 
+function pageSizes(source: ReaderSource): { w: number; h: number }[] {
+  if (source.status !== "ready") return [];
+  return source.kind === "pdf" ? source.sizes : source.pages.map((p) => ({ w: p.w, h: p.h }));
+}
+
+/** Text of every page, for finding a quote (PDF text is extracted lazily, once per document). */
+const pdfTextCache = new WeakMap<PDFDocumentProxy, Promise<string[]>>();
+function pageTexts(source: ReadySource): Promise<string[]> {
+  if (source.kind === "html") return Promise.resolve(source.pages.map((p) => p.text));
+  const pdf = source.pdf;
+  let hit = pdfTextCache.get(pdf);
+  if (!hit) {
+    hit = (async () => {
+      const out: string[] = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const content = await (await pdf.getPage(i)).getTextContent();
+        out.push(content.items.map((it) => ("str" in it ? it.str : "")).join(""));
+      }
+      return out;
+    })();
+    pdfTextCache.set(pdf, hit);
+  }
+  return hit;
+}
+
 function ReaderBody({
   title,
   subtitle,
@@ -93,19 +129,23 @@ function ReaderBody({
   docId,
   page,
   onNavigate,
+  quote,
 }: DocumentReaderProps) {
   const all = groups.flatMap((g) => g.docs);
   const doc = all.find((d) => d.id === docId) ?? all[0];
   const group = groups.find((g) => g.docs.some((d) => d.id === doc?.id));
-  const kind = doc ? fileKind(doc.originalName) : "other";
-  const { pdf, error } = usePdf(doc && kind === "pdf" ? doc.url : null);
-  const sizes = usePageSizes(pdf);
-  const numPages = pdf?.numPages ?? doc?.pageCount ?? 1;
+  const source = useReaderSource(doc);
+  const sizes = pageSizes(source);
+  const numPages = sizes.length || doc?.pageCount || 1;
   const current = Math.min(Math.max(1, page), numPages);
+  const ready = source.status === "ready";
 
   const [fit, setFit] = useState<Fit>("page");
   const [zoom, setZoom] = useState(1);
   const [dir, setDir] = useState(0);
+  const [strip, setStrip] = useState(true);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [pulse, setPulse] = useState(0);
   const [stageRef, stage] = useElementSize<HTMLDivElement>();
 
   const go = (n: number) => {
@@ -125,12 +165,69 @@ function ReaderBody({
       const i = ZOOMS.findIndex((x) => x >= z - 0.001);
       return ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, (i < 0 ? 3 : i) + step))];
     });
+  const toggleFullscreen = () => {
+    const root = stageRef.current?.closest<HTMLElement>("[role='dialog']");
+    if (!root) return;
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void root.requestFullscreen?.().catch(() => {});
+  };
+  useEffect(() => {
+    const onChange = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    };
+  }, []);
 
-  // Keyboard: ← → PageUp/Down Home End, + − 0. Inputs keep their own keys.
+  // ── Evidence quote: find its page once per (document, quote), then highlight + pulse ──
+  const [quoteState, setQuoteState] = useState<{ key: string; status: "found" | "missing" } | null>(
+    null,
+  );
+  const quoteKey = quote && doc ? `${doc.id}|${quote}` : null;
+  const navigate = useRef(onNavigate);
+  const currentRef = useRef(current);
+  useEffect(() => {
+    navigate.current = onNavigate;
+    currentRef.current = current;
+  });
+  useEffect(() => {
+    if (!quote || !doc || source.status !== "ready" || !quoteKey) return;
+    let cancelled = false;
+    void pageTexts(source).then((texts) => {
+      if (cancelled) return;
+      const here = currentRef.current - 1;
+      const hit = findQuotePage(texts, quote, here);
+      setQuoteState({ key: quoteKey, status: hit < 0 ? "missing" : "found" });
+      if (hit >= 0 && hit !== here) {
+        setDir(0);
+        navigate.current(doc.id, hit + 1);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Search once per quote and document; page turns afterwards must not re-run it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quoteKey, source.status]);
+  const quoteStatus = quoteState?.key === quoteKey ? quoteState.status : quote ? "searching" : null;
+  const onHighlight = (mark: HTMLElement | null) => {
+    if (!mark) return;
+    setPulse(Date.now());
+    mark.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  };
+
+  // Keyboard: ← → PageUp/Down Home End, + − 0, F. Inputs keep their own keys.
   const keys = useRef<(e: KeyboardEvent) => void>(null);
   useEffect(() => {
     keys.current = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.closest("input, textarea, select")) return;
+      if (
+        (e.target as HTMLElement)?.closest("input, textarea, select") ||
+        e.ctrlKey ||
+        e.metaKey ||
+        e.altKey
+      )
+        return;
       if (["ArrowRight", "PageDown"].includes(e.key)) go(current + 1);
       else if (["ArrowLeft", "PageUp"].includes(e.key)) go(current - 1);
       else if (e.key === "Home") go(1);
@@ -138,6 +235,7 @@ function ReaderBody({
       else if (e.key === "+" || e.key === "=") zoomBy(1);
       else if (e.key === "-") zoomBy(-1);
       else if (e.key === "0") setZoom(1);
+      else if (e.key === "f" || e.key === "F") toggleFullscreen();
       else return;
       e.preventDefault();
     };
@@ -149,19 +247,28 @@ function ReaderBody({
   }, []);
 
   // Sheet size from the page's real proportions, the stage size, fit mode and zoom.
+  const multi = numPages > 1;
   const pad = stage.w < 640 ? 16 : 40;
-  const toolbar = 84;
+  const toolbar = multi ? 108 : 84;
   const ps = sizes[current - 1] ?? { w: 595, h: 842 };
-  const availW = Math.max(120, stage.w - pad * 2);
-  const availH = Math.max(160, stage.h - pad - toolbar);
+  const tall = ps.h / ps.w > 1.9; // long pages (e.g. a DOCX without page breaks) read better at width
+  const effectiveFit: Fit = tall ? "width" : fit;
+  const bannerSpace = quote ? 56 : 0; // keep the evidence banner off the top of the page
+  // Auto-width pages (tall) stay at a readable measure instead of filling a wide screen.
+  const availW = Math.max(120, Math.min(stage.w - pad * 2, tall ? 880 : Infinity));
+  const availH = Math.max(160, stage.h - pad - bannerSpace - toolbar);
   const fitScale =
-    fit === "page" ? Math.min(availW / ps.w, availH / ps.h) : Math.min(availW / ps.w, 3);
+    effectiveFit === "page" ? Math.min(availW / ps.w, availH / ps.h) : Math.min(availW / ps.w, 3);
   const sheetW = Math.round(ps.w * fitScale * zoom);
   const sheetH = Math.round(ps.h * fitScale * zoom);
-  const ghosts = Math.min(2, numPages - current);
+  const ghosts = Math.min(3, numPages - current);
 
   return (
     <>
+      {source.status === "ready" && source.kind === "html" && source.css && (
+        <style>{source.css}</style>
+      )}
+
       {/* ── Top bar: identity · envelope switcher · actions ── */}
       <header className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-stage-line px-3 py-2.5 sm:px-5">
         <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -210,7 +317,12 @@ function ReaderBody({
         <div className="flex flex-1 items-center justify-end gap-1">
           {doc && (
             <>
-              <StageButton asLink href={doc.url} target="_blank" label="Open in a new tab">
+              <StageButton
+                asLink
+                href={doc.url}
+                target="_blank"
+                label="Open the original in a new tab"
+              >
                 <ExternalLink />
               </StageButton>
               <StageButton
@@ -222,6 +334,13 @@ function ReaderBody({
               </StageButton>
             </>
           )}
+          <StageButton
+            label={fullscreen ? "Exit full screen (F)" : "Full screen (F)"}
+            onClick={toggleFullscreen}
+            className="hidden sm:inline-flex"
+          >
+            {fullscreen ? <Minimize /> : <Maximize />}
+          </StageButton>
           <DialogPrimitive.Close asChild>
             <StageButton label="Close reader (Esc)">
               <X />
@@ -230,7 +349,7 @@ function ReaderBody({
         </div>
       </header>
 
-      {/* Several files in one envelope → file pills */}
+      {/* Several files in one envelope → file pills (FR-7.4) */}
       {group && group.docs.length > 1 && (
         <div className="flex shrink-0 [scrollbar-width:none] gap-2 overflow-x-auto border-b border-stage-line px-3 py-2 sm:px-5">
           {group.docs.map((d) => (
@@ -254,31 +373,37 @@ function ReaderBody({
       )}
 
       <div className="flex min-h-0 flex-1">
-        {/* ── Filmstrip ── */}
-        {pdf && numPages > 1 && (
-          <Filmstrip pdf={pdf} numPages={numPages} current={current} sizes={sizes} onSelect={go} />
+        {/* ── Filmstrip (multi-page only, collapsible) ── */}
+        {source.status === "ready" && multi && strip && (
+          <Filmstrip source={source} current={current} onSelect={go} />
         )}
 
         {/* ── Stage ── */}
         <div ref={stageRef} className="relative min-w-0 flex-1 overflow-auto">
+          {quoteStatus && quote && <QuoteBanner status={quoteStatus} quote={quote} />}
           <div
             className="flex min-h-full min-w-full items-start justify-center"
-            style={{ padding: `${pad}px ${pad}px ${toolbar}px` }}
+            style={{ padding: `${pad + bannerSpace}px ${pad}px ${toolbar}px` }}
           >
-            {!doc ? (
+            {!doc || source.status === "none" ? (
               <Notice
                 icon={<FileWarning />}
-                title="No document"
-                text="This envelope has no files."
-              />
-            ) : kind === "pdf" && error ? (
-              <Notice
-                icon={<FileWarning />}
-                title="This PDF couldn't be opened"
-                text="It may be damaged or password-protected. Download it to open it locally."
+                title={doc ? `No in-app preview for .${doc.ext}` : "No document"}
+                text={
+                  doc
+                    ? "Download the file to open it locally. The AI still reads its text where possible."
+                    : "This envelope has no files."
+                }
                 doc={doc}
               />
-            ) : kind === "pdf" && (!pdf || sizes.length === 0 || stage.w === 0) ? (
+            ) : source.status === "error" ? (
+              <Notice
+                icon={<FileWarning />}
+                title="Couldn't open this file"
+                text={source.message}
+                doc={doc}
+              />
+            ) : source.status === "loading" || stage.w === 0 ? (
               <div
                 className="flex items-center justify-center rounded-sm bg-white/5"
                 style={{ width: Math.min(availW, 560), height: Math.min(availH, 760) }}
@@ -288,17 +413,17 @@ function ReaderBody({
                   aria-label="Loading document"
                 />
               </div>
-            ) : kind === "pdf" && pdf ? (
-              <div className="relative shrink-0" style={{ width: sheetW, height: sheetH }}>
-                {/* The sheet stack: remaining pages peek out behind the current one. */}
+            ) : (
+              <div className="relative isolate shrink-0" style={{ width: sheetW, height: sheetH }}>
+                {/* The sheet stack: up to three remaining pages peek out behind the current one. */}
                 {Array.from({ length: ghosts }, (_, i) => (
                   <div
                     key={i}
                     aria-hidden
-                    className="absolute inset-0 rounded-[3px] bg-white shadow-md"
+                    className="absolute inset-0 -z-10 rounded-[3px] bg-white shadow-md"
                     style={{
                       transform: `translate(${(i + 1) * 5}px, ${(i + 1) * 5}px)`,
-                      opacity: 0.32 - i * 0.12,
+                      opacity: 0.34 - i * 0.1,
                     }}
                   />
                 ))}
@@ -307,58 +432,94 @@ function ReaderBody({
                     key={`${doc.id}:${current}`}
                     custom={dir}
                     variants={{
-                      enter: (d: number) => ({
-                        opacity: 0,
-                        x: d * 56,
-                        rotateY: d * -6,
-                        scale: d ? 1 : 0.985,
-                      }),
-                      center: { opacity: 1, x: 0, rotateY: 0, scale: 1 },
-                      exit: (d: number) => ({ opacity: 0, x: d * -56, rotateY: d * 6 }),
+                      // RDD §8.2: next rises from the first ghost; prev slides in from the left.
+                      enter: (d: number) =>
+                        d > 0
+                          ? { opacity: 0.4, x: 5, y: 5, scale: 0.985, rotate: 0 }
+                          : d < 0
+                            ? { opacity: 0, x: -32, y: 0, scale: 1, rotate: -1.5 }
+                            : { opacity: 0, x: 0, y: 6, scale: 0.99, rotate: 0 },
+                      center: { opacity: 1, x: 0, y: 0, scale: 1, rotate: 0 },
+                      exit: (d: number) =>
+                        d > 0
+                          ? {
+                              opacity: 0,
+                              x: -32,
+                              rotate: -1.5,
+                              transition: { duration: 0.2, ease: EASE },
+                            }
+                          : d < 0
+                            ? {
+                                opacity: 0,
+                                x: 5,
+                                y: 5,
+                                scale: 0.985,
+                                transition: { duration: 0.2, ease: EASE },
+                              }
+                            : { opacity: 0, transition: { duration: 0.12 } },
                     }}
                     initial="enter"
                     animate="center"
                     exit="exit"
                     transition={{ duration: 0.32, ease: EASE }}
-                    className="absolute inset-0 overflow-hidden rounded-[3px] bg-white shadow-lg [transform-style:preserve-3d]"
-                    style={{ transformPerspective: 1600 }}
+                    className="absolute inset-0 overflow-hidden rounded-[3px] bg-white shadow-lg"
                   >
-                    <PdfCanvas
-                      pdf={pdf}
-                      pageNumber={current}
-                      width={sheetW}
-                      label={`${doc.originalName}, page ${current}`}
+                    {/* Re-keyed on each highlight so the 1.2 s pulse replays (RDD §8.4). */}
+                    <span
+                      key={pulse}
+                      aria-hidden
+                      className={cn(
+                        "pointer-events-none absolute inset-0 z-20 rounded-[3px]",
+                        pulse > 0 && "marsa-pulse",
+                      )}
                     />
+                    {source.kind === "pdf" ? (
+                      <>
+                        <PdfCanvas
+                          pdf={source.pdf}
+                          pageNumber={current}
+                          width={sheetW}
+                          label={`${doc.originalName}, page ${current}`}
+                        />
+                        <PdfTextLayer
+                          pdf={source.pdf}
+                          pageNumber={current}
+                          width={sheetW}
+                          quote={quoteStatus === "found" ? quote : null}
+                          onHighlight={onHighlight}
+                        />
+                      </>
+                    ) : (
+                      <ScaledHtml
+                        page={source.pages[current - 1]}
+                        width={sheetW}
+                        label={`${doc.originalName}, page ${current}`}
+                        quote={quoteStatus === "found" ? quote : null}
+                        onHighlight={onHighlight}
+                      />
+                    )}
                   </motion.div>
                 </AnimatePresence>
               </div>
-            ) : kind === "image" ? (
-              /* eslint-disable-next-line @next/next/no-img-element -- user-uploaded file served by our API */
-              <img
-                src={doc.url}
-                alt={doc.originalName}
-                className="rounded-[3px] bg-white object-contain shadow-lg"
-                style={{
-                  maxWidth: availW * zoom,
-                  maxHeight: fit === "page" ? availH * zoom : undefined,
-                }}
-              />
-            ) : (
-              <Notice
-                icon={<FileWarning />}
-                title={`No in-app preview for .${doc.ext} yet`}
-                text="Word, Excel and other formats get a reader view later. The AI still reads their text."
-                doc={doc}
-              />
             )}
           </div>
 
-          {/* ── Floating toolbar ── */}
-          {doc && (kind === "pdf" || kind === "image") && (
-            <div className="pointer-events-none sticky bottom-0 left-0 flex w-full justify-center pb-4">
+          {/* ── Scrubber + floating toolbar ── */}
+          {doc && ready && (
+            <div className="pointer-events-none sticky bottom-0 left-0 flex w-full flex-col items-center gap-2 pb-4">
+              {multi && numPages <= 150 && (
+                <Scrubber numPages={numPages} current={current} onSelect={go} />
+              )}
               <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-stage-line bg-stage-raised/90 p-1.5 shadow-lg backdrop-blur-md">
-                {kind === "pdf" && (
+                {multi ? (
                   <>
+                    <StageButton
+                      label={strip ? "Hide thumbnails" : "Show thumbnails"}
+                      onClick={() => setStrip((s) => !s)}
+                      className="hidden md:inline-flex"
+                    >
+                      {strip ? <PanelLeftClose /> : <PanelLeftOpen />}
+                    </StageButton>
                     <StageButton
                       label="Previous page (←)"
                       onClick={() => go(current - 1)}
@@ -374,9 +535,11 @@ function ReaderBody({
                     >
                       <ChevronRight className="rtl:rotate-180" />
                     </StageButton>
-                    <span aria-hidden className="mx-1 h-5 w-px bg-stage-line" />
                   </>
+                ) : (
+                  <span className="px-2 text-xs text-stage-muted">1 page</span>
                 )}
+                <span aria-hidden className="mx-1 h-5 w-px bg-stage-line" />
                 <StageButton
                   label="Zoom out (−)"
                   onClick={() => zoomBy(-1)}
@@ -400,22 +563,26 @@ function ReaderBody({
                 >
                   <Plus />
                 </StageButton>
-                <span aria-hidden className="mx-1 hidden h-5 w-px bg-stage-line sm:block" />
-                <StageButton
-                  label={fit === "page" ? "Fit to width" : "Fit whole page"}
-                  onClick={() => {
-                    setFit(fit === "page" ? "width" : "page");
-                    setZoom(1);
-                  }}
-                  className="hidden sm:inline-flex"
-                >
-                  {fit === "page" ? <MoveHorizontal /> : <Scan />}
-                </StageButton>
+                {!tall && (
+                  <>
+                    <span aria-hidden className="mx-1 hidden h-5 w-px bg-stage-line sm:block" />
+                    <StageButton
+                      label={fit === "page" ? "Fit to width" : "Fit whole page"}
+                      onClick={() => {
+                        setFit(fit === "page" ? "width" : "page");
+                        setZoom(1);
+                      }}
+                      className="hidden sm:inline-flex"
+                    >
+                      {fit === "page" ? <MoveHorizontal /> : <Scan />}
+                    </StageButton>
+                  </>
+                )}
               </div>
             </div>
           )}
           <p aria-live="polite" className="sr-only">
-            {kind === "pdf" ? `Page ${current} of ${numPages}` : ""}
+            {ready ? `Page ${current} of ${numPages}` : ""}
           </p>
         </div>
       </div>
@@ -423,17 +590,51 @@ function ReaderBody({
   );
 }
 
+/** An HTML page (DOCX section, text, sheet, image) laid out at its own size and scaled to the sheet. */
+function ScaledHtml({
+  page,
+  width,
+  label,
+  quote,
+  onHighlight,
+}: {
+  page: HtmlPage | undefined;
+  width: number;
+  label?: string;
+  quote?: string | null;
+  onHighlight?: (mark: HTMLElement | null) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const notify = useRef(onHighlight);
+  useEffect(() => {
+    notify.current = onHighlight;
+  });
+  useEffect(() => {
+    if (!ref.current || !quote) return;
+    notify.current?.(highlightQuote(ref.current, quote));
+  }, [quote, page]);
+  if (!page) return null;
+  const scale = width / page.w;
+  return (
+    <div role="img" aria-label={label} className="relative size-full overflow-hidden">
+      <div
+        ref={ref}
+        className="absolute start-0 top-0 origin-top-left"
+        style={{ width: page.w, height: page.h, transform: `scale(${scale})` }}
+      >
+        {page.render()}
+      </div>
+    </div>
+  );
+}
+
 function Filmstrip({
-  pdf,
-  numPages,
+  source,
   current,
-  sizes,
   onSelect,
 }: {
-  pdf: PDFDocumentProxy;
-  numPages: number;
+  source: ReadySource;
   current: number;
-  sizes: { w: number; h: number }[];
   onSelect: (page: number) => void;
 }) {
   const listRef = useRef<HTMLOListElement>(null);
@@ -442,15 +643,15 @@ function Filmstrip({
       ?.querySelector<HTMLElement>(`[data-page="${current}"]`)
       ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [current]);
+  const sizes = pageSizes(source);
   return (
     <nav aria-label="Pages" className="hidden w-32 shrink-0 border-e border-stage-line md:block">
       <ol
         ref={listRef}
         className="flex h-full [scrollbar-width:thin] flex-col items-center gap-4 overflow-y-auto px-3 py-5"
       >
-        {Array.from({ length: numPages }, (_, i) => {
+        {sizes.map((s, i) => {
           const n = i + 1;
-          const s = sizes[i] ?? { w: 595, h: 842 };
           const active = n === current;
           return (
             <li key={n} data-page={n} className="flex flex-col items-center gap-1.5">
@@ -460,12 +661,18 @@ function Filmstrip({
                 aria-label={`Page ${n}`}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "overflow-hidden rounded-[2px] bg-white ring-offset-2 ring-offset-stage transition-[box-shadow,opacity] duration-150 outline-none focus-visible:ring-2 focus-visible:ring-brand",
+                  "overflow-hidden rounded-[2px] bg-white ring-offset-2 ring-offset-stage transition-[box-shadow,opacity,transform] duration-150 outline-none hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-brand",
                   active ? "ring-2 ring-brand" : "opacity-60 hover:opacity-100",
                 )}
-                style={{ width: 88, height: Math.round((88 * s.h) / s.w) }}
+                style={{ width: 88, height: Math.min(260, Math.round((88 * s.h) / s.w)) }}
               >
-                <LazyThumb pdf={pdf} page={n} />
+                <LazyThumb>
+                  {source.kind === "pdf" ? (
+                    <PdfCanvas pdf={source.pdf} pageNumber={n} width={88} />
+                  ) : (
+                    <ScaledHtml page={source.pages[i]} width={88} />
+                  )}
+                </LazyThumb>
               </button>
               <span
                 className={cn(
@@ -483,8 +690,8 @@ function Filmstrip({
   );
 }
 
-/** Renders a thumbnail only once it scrolls into view. */
-function LazyThumb({ pdf, page }: { pdf: PDFDocumentProxy; page: number }) {
+/** Renders its children only once scrolled into view. */
+function LazyThumb({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -503,8 +710,87 @@ function LazyThumb({ pdf, page }: { pdf: PDFDocumentProxy; page: number }) {
     return () => io.disconnect();
   }, []);
   return (
-    <div ref={ref} className="size-full">
-      {visible && <PdfCanvas pdf={pdf} pageNumber={page} width={88} />}
+    <div ref={ref} className="pointer-events-none size-full" aria-hidden>
+      {visible && children}
+    </div>
+  );
+}
+
+/** One tick per page (RDD §8.1). Mouse shortcut only; keyboard users have the page input. */
+function Scrubber({
+  numPages,
+  current,
+  onSelect,
+}: {
+  numPages: number;
+  current: number;
+  onSelect: (n: number) => void;
+}) {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-auto hidden max-w-[min(560px,80%)] items-end gap-[3px] rounded-md px-2 py-1 sm:flex"
+    >
+      {Array.from({ length: numPages }, (_, i) => {
+        const n = i + 1;
+        const active = n === current;
+        return (
+          <button
+            key={n}
+            type="button"
+            tabIndex={-1}
+            onClick={() => onSelect(n)}
+            title={`Page ${n}`}
+            className={cn(
+              "w-1.5 shrink rounded-full transition-[height,background-color] duration-150",
+              active
+                ? "h-3.5 bg-brand"
+                : n < current
+                  ? "h-2 bg-white/35 hover:h-3 hover:bg-white/60"
+                  : "h-2 bg-white/15 hover:h-3 hover:bg-white/50",
+            )}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function QuoteBanner({
+  status,
+  quote,
+}: {
+  status: "searching" | "found" | "missing";
+  quote: string;
+}) {
+  const short = quote.length > 90 ? `${quote.slice(0, 90).trimEnd()}…` : quote;
+  return (
+    <div className="pointer-events-none sticky top-3 z-10 flex h-0 justify-center overflow-visible px-4">
+      <div
+        role="status"
+        className={cn(
+          "pointer-events-auto flex h-fit max-w-xl items-start gap-2 rounded-lg border bg-stage-raised/95 px-3 py-2 text-xs text-stage-ink shadow-lg backdrop-blur-md",
+          status === "missing" ? "border-partial/40" : "border-brand/50",
+        )}
+      >
+        {status === "missing" ? (
+          <SearchX className="mt-px size-3.5 shrink-0 text-partial" aria-hidden />
+        ) : status === "searching" ? (
+          <Loader2 className="mt-px size-3.5 shrink-0 animate-spin text-stage-muted" aria-hidden />
+        ) : (
+          <Quote className="mt-px size-3.5 shrink-0 text-brand" aria-hidden />
+        )}
+        <span>
+          <span className="font-semibold">
+            {status === "missing"
+              ? "Quote not found in this document: "
+              : status === "searching"
+                ? "Finding: "
+                : "Evidence: "}
+          </span>
+          <span className="text-stage-muted">“{short}”</span>
+        </span>
+      </div>
     </div>
   );
 }

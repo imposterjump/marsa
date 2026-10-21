@@ -84,7 +84,7 @@ async function xlsxToText(bytes: Uint8Array): Promise<string> {
   return blocks.join("\n\n");
 }
 
-function cellText(cell: ExcelJS.Cell): string {
+export function cellText(cell: ExcelJS.Cell): string {
   const v = cell.value;
   if (v == null) return "";
   if (typeof v === "object") {

@@ -10,7 +10,14 @@
 import { and, asc, count, desc, eq, inArray, like, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/connect";
-import { documents, projects, projectStandards, proposals, standards } from "../db/schema";
+import {
+  documents,
+  projects,
+  projectStandards,
+  proposals,
+  standardRules,
+  standards,
+} from "../db/schema";
 import type { LocalStorage } from "../storage/local";
 import { ApiError, notFound } from "../api-errors";
 import { PROJECT_CATEGORIES, standardFitsProject, type ProjectStatus } from "../../lib/domain";
@@ -128,13 +135,49 @@ export function getProject(db: Db, id: string) {
     .where(eq(projectStandards.projectId, id))
     .orderBy(asc(standards.code))
     .all();
+  // Rule counts and document pages per applied standard (Analyse panel: checklist size, cost).
+  const stdIds = stds.map((s) => s.id);
+  const ruleCounts = new Map(
+    stdIds.length
+      ? db
+          .select({ id: standardRules.standardId, n: count() })
+          .from(standardRules)
+          .where(inArray(standardRules.standardId, stdIds))
+          .groupBy(standardRules.standardId)
+          .all()
+          .map((r) => [r.id, r.n])
+      : [],
+  );
+  const docPages = new Map(
+    stdIds.length
+      ? db
+          .select({
+            id: documents.standardId,
+            pages: sql<number>`coalesce(sum(${documents.pageCount}), 0)`,
+          })
+          .from(documents)
+          .where(inArray(documents.standardId, stdIds))
+          .groupBy(documents.standardId)
+          .all()
+          .map((r) => [r.id, Number(r.pages)])
+      : [],
+  );
   const proposalCount =
     db
       .select({ n: count() })
       .from(proposals)
       .where(and(eq(proposals.projectId, id), eq(proposals.status, "submitted")))
       .get()?.n ?? 0;
-  return { ...project, rfpDocuments: rfp, standards: stds, proposalCount };
+  return {
+    ...project,
+    rfpDocuments: rfp,
+    standards: stds.map((s) => ({
+      ...s,
+      rulesCount: ruleCounts.get(s.id) ?? 0,
+      documentPages: docPages.get(s.id) ?? 0,
+    })),
+    proposalCount,
+  };
 }
 
 // ─── Writes ──────────────────────────────────────────────────────────────────

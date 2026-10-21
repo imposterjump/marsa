@@ -340,3 +340,98 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ─────────────── Document reader (P5.4–P5.7) ─────────────── */
+
+/* pdf.js text layer, trimmed from pdfjs-dist/web/pdf_viewer.css (v6): transparent, selectable text
+   positioned over the page canvas. --total-scale-factor is set per page by PdfTextLayer. */
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  text-align: initial;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  caret-color: CanvasText;
+  z-index: 0;
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+
+  :is(span, br) {
+    color: transparent;
+    position: absolute;
+    white-space: pre;
+    cursor: text;
+    transform-origin: 0% 0%;
+    user-select: text;
+  }
+  > :not(.markedContent),
+  .markedContent span:not(.markedContent) {
+    z-index: 1;
+    --font-height: 0;
+    font-size: calc(var(--text-scale-factor) * var(--font-height));
+    --scale-x: 1;
+    --rotate: 0deg;
+    transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+  }
+  .markedContent {
+    display: contents;
+  }
+  ::selection {
+    background: rgb(14 124 123 / 0.3);
+    color: transparent;
+  }
+  br::selection {
+    background: transparent;
+  }
+  .endOfContent {
+    display: block;
+    position: absolute;
+    inset: 100% 0 0;
+    z-index: 0;
+    cursor: default;
+    user-select: none;
+  }
+  &.selecting .endOfContent {
+    top: 0;
+  }
+  /* Highlighted quote inside a text-layer span: colour only, the canvas shows the glyphs. */
+  mark.marsa-hit {
+    position: static;
+    color: transparent;
+  }
+}
+
+/* Evidence quote highlight (text layer, DOCX, text and sheet pages). */
+mark.marsa-hit {
+  background: rgb(14 124 123 / 0.3);
+  color: inherit;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgb(14 124 123 / 0.35);
+}
+
+/* 1.2 s accent pulse when a deep link lands on a sheet (RDD §8.4). */
+@keyframes marsa-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(45 179 172 / 0.75);
+  }
+  100% {
+    box-shadow: 0 0 0 18px rgb(45 179 172 / 0);
+  }
+}
+.marsa-pulse {
+  animation: marsa-pulse 1.2s var(--ease-out-quint) 2;
+}
+
+/* docx-preview pages are shown one at a time inside our own sheet. */
+.marsa-docx section.docx {
+  margin: 0 !important;
+  box-shadow: none !important;
+}
