@@ -125,3 +125,11 @@ Built by `scripts/test-inputs/build-phase-6.ts` into `test-inputs/phase-6/pcs-pr
 - Commercial: 20 % advance payment against a guarantee.
 
 A careful evaluator ranks Qasr first (only fully compliant bid), then has to choose between Bluewave (hosting fails a mandatory rule in both options) and Corniche (several mandatory performance shortfalls).
+
+## POC tenders (meeting demo): NGPA/T/2026/031 Smart Gates and GCD/T/2026/047 e-Seals
+Built by `scripts/test-inputs/build-poc.ts` into `test-inputs/poc-inputs/`. Each set has 1 standard (12 rules, pasted), a 4–5 page RFP and 2 two-envelope bids → 8 steps. Reviewer notes, never uploaded: the expected findings per vendor are in each set's README, section 5 "What a good result looks like".
+
+| Set | Strong bid (total) | Cheaper bid with mandatory breaks (total) |
+|---|---|---|
+| 1 Smart Gates (POTS-2026) | Sahel Gate Technologies, USD 3,392,089: 60-day image retention, 3 % maintenance escalation, English-only maintenance manuals | Vector OCR Systems, USD 2,404,800: cloud plate OCR (Frankfurt), Arabic plates 94 % at ≤ 10 km/h, 70 s transactions, IP65 kiosks, no customs release check, 10 months, 12-month warranty, 90-day validity, foreign bank, next-business-day support, 30 % advance |
+| 2 e-Seals (CTS-2026) | Trakom Security Solutions, USD 2,397,000: 99.5 % availability, 3 % spare pool | Orbis Track, USD 1,400,400: EU SaaS hosting, 21-day battery, 2-minute alerts, driver disarming, mobile data excluded, Hamburg bank guarantees, 4 h / 10-day service, plus partials |

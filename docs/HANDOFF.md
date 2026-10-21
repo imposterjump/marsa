@@ -25,7 +25,14 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
 ## 1. Where we are (update every session)
 - **Last session:** 2026-10-21 (session 5: Phases 3–7).
 - **Done:** Planning · P0–P5 · **P6 AI pipeline** · **P7 live progress + AI-generated proposals**. P5, P6 and P7 are **waiting for the user's test** (the user asked to test P6 + P7 together; P5.8 viewer checkpoint still open).
-- **Git:** P4 + P5 pushed (at the user's explicit request; P5 untested). **P6 + P7 are committed locally only**; push after the user has tested them (§0 rule 5).
+- **Git:** everything up to the POC inputs is **pushed** (the user asked to "push and commit" the POC inputs, which also pushed P6 + P7 and the follow-ups; P5–P7 are still untested by the user).
+- **POC inputs for the user's meeting** (`test-inputs/poc-inputs/`, built by `scripts/test-inputs/build-poc.ts`):
+  - **set 1 (rehearsal):** Smart Gates, standard POTS-2026;
+  - **set 2 (meeting):** customs e-Seals, standard CTS-2026;
+  - each set: 12 pasted rules, a 4–5 page RFP, 2 vendors × (technical 4 p. + commercial 2 p.) → 8 steps;
+  - estimated cost per live run: Haiku ≈ $0.04, Sonnet ≈ $0.75, Opus ≈ $1.7;
+  - verified click by click on a throwaway mock server (both sets reach "Analysis complete" with 2 ranked vendors);
+  - in the meeting project's Standards step the user must click **None** and tick only CTS-2026, because the rehearsal standard is pre-ticked too.
 - **Live API verified (Sonnet 5.5, user-approved "test with Sonnet first"):**
   - smoke call: $0.002;
   - X-ray sample tender, 4 vendors / 14 steps: **$4.80**, ~17 min, with the cache bug G-58 at the time;
@@ -285,3 +292,8 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
   - **P7.1** Mission control (`mission-control.tsx`: DepthBackdrop, ring, Step k of T, MaskedText activity, elapsed/ETA, phase rail with ScrambleText, result chips, step timeline). **P7.2** chips pop in, failed steps show Retry, completed-with-errors banner. **P7.3** RunPill in the top bar (`shell/run-pill.tsx`, polls `/api/runs/active`) + completion toast with View results (the single source of completion toasts). **P7.4** curtain lift (clip-path) from mission control into the results; reduced motion = fade.
   - **P7.5** Generate with AI dialog → job → DOCX + PDF → proposals (`source: "ai"`). Live check on Sonnet: 2 bids for $0.19; fixed duplicate section numbers, a placeholder price line ("x · USD 0") and the internal project code in headings (`cleanBid`, `tenderReference`).
   - **Tests:** 151 unit + integration (runner: full run, determinism, crash + resume, retry, cancel, N = 1; generator with real DOCX/PDF rendering), E2E for mission control → pill → toast → results → cancel/resume, and Generate with AI.
+- **POC inputs (same session, user request: "one standard, 1 RFP, 2 vendors … make 2 of these … push and commit"):**
+  - `test-inputs/poc-inputs/`: set 1 rehearsal (Smart Gates, POTS-2026) and set 2 meeting (e-Seals, CTS-2026), each with its own README of copy-paste values and "what a good result looks like".
+  - Generator: `scripts/test-inputs/build-poc.ts` with content in `content/poc-render.ts`, `poc-gates.ts` and `poc-eseals.ts`.
+  - Verified with a Playwright script on a throwaway `next start -p 3300` (mock, `data/poc-check`, deleted afterwards). Estimates priced with `estimateRun` from the app's `/estimate` input. No API credits used.
+  - Pushed at the user's request, together with the earlier local commits.
