@@ -169,7 +169,11 @@ function Standards({ project: p }: { project: ProjectDetailDto }) {
       <CardHeader
         id="standards-title"
         title={`Standards (${p.standards.length})`}
-        description="Rules checked alongside the RFP."
+        description={
+          p.category === "General"
+            ? "Rules checked alongside the RFP. Any standard can apply."
+            : `Rules checked alongside the RFP. Only “${p.category}” and “General” standards can apply.`
+        }
         action={
           editable && (
             <Button

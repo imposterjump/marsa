@@ -15,7 +15,9 @@ import {
 import { useSetProjectStandards, useUpdateProject, type ProjectInput } from "@/hooks/use-projects";
 import { ApiClientError } from "@/lib/api-client";
 import type { ProjectDetailDto } from "@/lib/api-types";
+import { standardFitsProject } from "@/lib/domain";
 import {
+  CategoryChangeNote,
   hasErrors,
   ProjectDetailsForm,
   validateProject,
@@ -68,7 +70,14 @@ function EditForm({ project, onDone }: { project: ProjectDetailDto; onDone: () =
         description: value.description.trim(),
         notes: value.notes.trim(),
       });
-      toast.success("Project updated.");
+      const removed = project.standards.filter(
+        (s) => !standardFitsProject(s.category, value.category),
+      );
+      toast.success("Project updated.", {
+        description: removed.length
+          ? `${removed.map((s) => s.code).join(", ")} no longer applied (category “${value.category}”).`
+          : undefined,
+      });
       onDone();
     } catch (err) {
       if (err instanceof ApiClientError && Array.isArray(err.details)) {
@@ -94,7 +103,14 @@ function EditForm({ project, onDone }: { project: ProjectDetailDto; onDone: () =
         </DialogDescription>
       </DialogHeader>
       <DialogBody>
-        <ProjectDetailsForm value={value} onChange={setValue} errors={errors} />
+        <ProjectDetailsForm
+          value={value}
+          onChange={setValue}
+          errors={errors}
+          categoryNote={
+            <CategoryChangeNote applied={project.standards} category={value.category} />
+          }
+        />
       </DialogBody>
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={onDone}>
@@ -140,7 +156,7 @@ function StandardsForm({ project, onDone }: { project: ProjectDetailDto; onDone:
         </DialogDescription>
       </DialogHeader>
       <DialogBody>
-        <StandardsPicker value={selected} onChange={setSelected} />
+        <StandardsPicker value={selected} onChange={setSelected} category={project.category} />
       </DialogBody>
       <DialogFooter>
         <Button variant="ghost" onClick={onDone}>

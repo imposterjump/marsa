@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {
+    // The browser reader creates pdf.js's worker (src/lib/pdf/pdfjs.ts); the SSR pass also sees
+    // that reference and warns because pdfjs-dist is a server external. The code never runs on
+    // the server (it is only called from effects), so the warning is noise (HANDOFF G-54).
+    ignoreIssue: [{ path: /lib[\\/]pdf/, title: /can't be external/ }],
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],

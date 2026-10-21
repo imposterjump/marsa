@@ -144,6 +144,26 @@ test.describe("projects (P3.3–P3.6)", () => {
       page.getByRole("heading", { level: 1, name: "Mobile Harbour Cranes (2 units)" }),
     ).toBeVisible();
 
+    // Category filter (user decision 2026-10-21): CITS-2026 (IT & security) was pre-selected
+    // because a new project is General; switching to Safety & environment drops it.
+    await expect(page.getByRole("link", { name: /CITS-2026/ })).toBeVisible();
+    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await page.getByRole("dialog").getByRole("combobox").click();
+    await page.getByRole("option", { name: "Safety & environment" }).click();
+    await expect(page.getByRole("dialog")).toContainText(
+      "removes this applied standard: CITS-2026",
+    );
+    await page.getByRole("dialog").getByRole("button", { name: "Save changes" }).click();
+    await expect(
+      page.getByText("None. Proposals will be checked against the RFP only."),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Edit standards" }).click();
+    await expect(page.getByRole("dialog")).toContainText("1 standard is hidden");
+    await expect(page.getByRole("dialog").getByRole("checkbox", { name: /CITS-2026/ })).toHaveCount(
+      0,
+    );
+    await page.keyboard.press("Escape");
+
     // Archive → read-only → restore
     await page.getByRole("button", { name: "More actions" }).click();
     await page.getByRole("menuitem", { name: "Archive project" }).click();

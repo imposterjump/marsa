@@ -9,14 +9,20 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStandards } from "@/hooks/use-standards";
 import type { StandardSummaryDto } from "@/lib/api-types";
+import { standardFitsProject, type ProjectCategory } from "@/lib/domain";
 
-/** Choose which standards apply to a project (PRD FR-3.3). Active standards first. */
+/**
+ * Choose which standards apply to a project (PRD FR-3.3). Only standards that fit the project's
+ * category are offered (its own category + General; a General project sees all). Active first.
+ */
 export function StandardsPicker({
   value,
   onChange,
+  category,
 }: {
   value: string[];
   onChange: (ids: string[]) => void;
+  category: ProjectCategory;
 }) {
   const { data, isLoading } = useStandards();
   const [showInactive, setShowInactive] = useState(false);
@@ -49,17 +55,49 @@ export function StandardsPicker({
     );
   }
 
-  const active = data.filter((s) => s.isActive);
-  const inactive = data.filter((s) => !s.isActive);
+  const fitting = data.filter((s) => standardFitsProject(s.category, category));
+  const hidden = data.length - fitting.length;
+  const active = fitting.filter((s) => s.isActive);
+  const inactive = fitting.filter((s) => !s.isActive);
   const toggle = (id: string) =>
     onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
   const selectedInactive = inactive.filter((s) => value.includes(s.id)).length;
+
+  const hiddenNote = hidden > 0 && (
+    <p className="text-xs text-ink-muted">
+      {hidden} standard{hidden === 1 ? " is" : "s are"} hidden because{" "}
+      {hidden === 1 ? "it belongs" : "they belong"} to other categories. To use{" "}
+      {hidden === 1 ? "it" : "them"}, set the project category to <strong>General</strong>.
+    </p>
+  );
+
+  if (fitting.length === 0) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="rounded-xl border border-dashed border-border-strong">
+          <EmptyState
+            art={<ShieldCheck className="size-10 text-ink-faint" strokeWidth={1.5} />}
+            title={`No “${category}” standards yet`}
+            description="Proposals will be checked against the RFP only. Add standards in this category, or use the General category."
+            actions={
+              <Button asChild variant="secondary" size="sm">
+                <Link href="/standards" target="_blank">
+                  Open the Standards library
+                </Link>
+              </Button>
+            }
+          />
+        </div>
+        {hiddenNote}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3 text-[13px] text-ink-muted">
         <span>
-          {value.length} of {data.length} selected
+          {value.length} of {fitting.length} selected
         </span>
         <span className="flex gap-1">
           <Button
@@ -116,6 +154,7 @@ export function StandardsPicker({
           )}
         </div>
       )}
+      {hiddenNote}
     </div>
   );
 }
@@ -154,7 +193,11 @@ function StandardOption({
           {checked && <Check className="size-3.5" strokeWidth={3} />}
         </span>
         <span className="flex min-w-0 flex-col gap-1">
-          <span className="font-mono text-xs text-ink-muted">{s.code}</span>
+          <span className="flex items-center gap-2 text-xs text-ink-muted">
+            <span className="font-mono">{s.code}</span>
+            <span aria-hidden>·</span>
+            <span>{s.category}</span>
+          </span>
           <span className="leading-snug font-medium text-ink">{s.title}</span>
           <span className="text-xs text-ink-muted">
             {s.rulesCount} rules · {s.mandatoryCount} mandatory · {s.documentsCount} doc

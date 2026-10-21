@@ -13,7 +13,7 @@ import type { Db } from "../db/connect";
 import { documents, projects, projectStandards, proposals, standards } from "../db/schema";
 import type { LocalStorage } from "../storage/local";
 import { ApiError, notFound } from "../api-errors";
-import { PROJECT_CATEGORIES, type ProjectStatus } from "../../lib/domain";
+import { PROJECT_CATEGORIES, standardFitsProject, type ProjectStatus } from "../../lib/domain";
 import { newId } from "../../lib/ids";
 
 const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`;
@@ -40,7 +40,7 @@ export const projectInputSchema = z
   .object({
     ...projectFields,
     description: projectFields.description.default(""),
-    category: projectFields.category.default("equipment"),
+    category: projectFields.category.default("General"),
     deadline: deadline.default(null),
     notes: projectFields.notes.default(""),
   })
@@ -170,12 +170,13 @@ export function createProject(db: Db, input: ProjectInput): ProjectRow {
         throw err;
     }
   }
-  // Pre-select all active standards (PRD FR-3.3); the wizard lets the user change them.
+  // Pre-select the active standards that fit the project's category (PRD FR-3.3).
   const active = db
-    .select({ id: standards.id })
+    .select({ id: standards.id, category: standards.category })
     .from(standards)
     .where(eq(standards.isActive, true))
-    .all();
+    .all()
+    .filter((s) => standardFitsProject(s.category, input.category));
   if (active.length) {
     db.insert(projectStandards)
       .values(active.map((s) => ({ projectId: id, standardId: s.id })))
@@ -228,24 +229,53 @@ export function updateProject(
     status && status !== p.status
       ? { status, ...(status === "open" && !p.publishedAt ? { publishedAt: now } : {}) }
       : {};
-  db.update(projects)
-    .set({ ...fields, ...statusChange, updatedAt: now })
-    .where(eq(projects.id, id))
-    .run();
+  db.transaction((tx) => {
+    tx.update(projects)
+      .set({ ...fields, ...statusChange, updatedAt: now })
+      .where(eq(projects.id, id))
+      .run();
+    // A new category keeps only the standards that still fit it (General fits everything).
+    if (fields.category && fields.category !== p.category) {
+      const category = fields.category;
+      const misfits = tx
+        .select({ id: standards.id, category: standards.category })
+        .from(projectStandards)
+        .innerJoin(standards, eq(projectStandards.standardId, standards.id))
+        .where(eq(projectStandards.projectId, id))
+        .all()
+        .filter((s) => !standardFitsProject(s.category, category))
+        .map((s) => s.id);
+      if (misfits.length) {
+        tx.delete(projectStandards)
+          .where(
+            and(eq(projectStandards.projectId, id), inArray(projectStandards.standardId, misfits)),
+          )
+          .run();
+      }
+    }
+  });
   return requireProject(db, id);
 }
 
 export function setProjectStandards(db: Db, id: string, standardIds: string[]) {
-  requireProject(db, id);
+  const project = requireProject(db, id);
   const unique = [...new Set(standardIds)];
   if (unique.length) {
     const found = db
-      .select({ id: standards.id })
+      .select({ id: standards.id, code: standards.code, category: standards.category })
       .from(standards)
       .where(inArray(standards.id, unique))
       .all();
     if (found.length !== unique.length)
       throw new ApiError(400, "unknown_standard", "One or more standards no longer exist.");
+    const misfit = found.find((s) => !standardFitsProject(s.category, project.category));
+    if (misfit) {
+      throw new ApiError(
+        400,
+        "standard_category_mismatch",
+        `${misfit.code} is a “${misfit.category}” standard; this project is “${project.category}”. Change the project category to General to apply it.`,
+      );
+    }
   }
   db.transaction((tx) => {
     tx.delete(projectStandards).where(eq(projectStandards.projectId, id)).run();

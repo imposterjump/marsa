@@ -153,7 +153,7 @@ export function ProposalsTab() {
         <span className="flex items-center justify-end gap-1">
           <Button asChild size="sm">
             <Link
-              href={`${base}/${r.id}?tab=commercial`}
+              href={`${base}/${r.id}?tab=commercial&reader=1`}
               aria-label={`View ${r.vendor.name}'s proposal`}
             >
               <Eye /> View

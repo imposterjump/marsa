@@ -23,7 +23,7 @@ import {
   DOCUMENT_KINDS,
   FINDING_STATUSES,
   PRIORITIES,
-  PROJECT_CATEGORIES,
+  type ProjectCategory,
   PROJECT_STATUSES,
   PROPOSAL_SOURCES,
   PROPOSAL_STATUSES,
@@ -76,7 +76,12 @@ export const projects = sqliteTable(
     code: text("code").notNull(),
     name: text("name").notNull(),
     description: text("description").notNull().default(""),
-    category: text("category", { enum: PROJECT_CATEGORIES }).notNull().default("other"),
+    // Values: PROJECT_CATEGORIES (= standard categories). DDL default kept as 'other' on purpose
+    // (no table rebuild, HANDOFF G-52); the app always writes a category explicitly.
+    category: text("category")
+      .$type<ProjectCategory>()
+      .notNull()
+      .default(sql`'other'`),
     notes: text("notes").notNull().default(""),
     deadline: text("deadline"),
     status: text("status", { enum: PROJECT_STATUSES }).notNull().default("draft"),

@@ -77,7 +77,8 @@ async function main() {
         name: "Cargo X-Ray Inspection Systems — Port of Al-Noor (sample)",
         description:
           "Supply, installation, commissioning and 5-year maintenance of four high-energy drive-through cargo X-ray inspection systems (T1 Gate A, T1 Gate B, T2 and one relocatable unit) with a central image analysis centre. Tender NGPA/T/2026/014.",
-        category: "equipment",
+        // Needs IT, safety and commercial standards → General (every standard can apply).
+        category: "General",
         deadlineInDays: 45,
         standards: ["CITS-2026", "PESE-03", "PCT-07"],
         rfp: [
@@ -105,9 +106,10 @@ async function main() {
         name: "Port Community System — Web Platform and Integration (sample)",
         description:
           "Web portal, messaging hub and integrations (TOS, customs, Maritime Single Window, ERP) for the Port of Al-Noor community, with a truck appointment system and 3 years of support. Tender NGPA/T/2026/021.",
-        category: "software",
+        // Shows the category filter: only IT & security (+ General) standards can apply.
+        category: "IT & security",
         deadlineInDays: 86,
-        standards: ["CITS-2026", "PCT-07"],
+        standards: ["CITS-2026"],
         rfp: [`phase-4/sample-pcs/${PCS_FILE}`],
         proposals: [],
       },

@@ -21,7 +21,7 @@ Phase 3 delivers **Projects**: a 4-step wizard to create a tender (details → R
 |---|---|
 | Project name | `High-Energy Cargo X-Ray Inspection Systems — Port of Al-Noor` |
 | Description | `Supply, installation, commissioning and 5-year maintenance of four high-energy drive-through cargo X-ray inspection systems (T1 Gate A, T1 Gate B, T2 and one relocatable unit) with a central image analysis centre. Tender NGPA/T/2026/014.` |
-| Category | **Equipment** (already selected) |
+| Category | **General** (already selected; categories now match the standards, see phase-5 guide) |
 | Submission deadline | **30 November 2026** (type `30/11/2026` or `11/30/2026`, whichever order your browser's date field shows, or use the calendar) |
 | Key requirements / notes | *leave empty* (the RFP PDF is the source of truth) |
 
@@ -37,7 +37,7 @@ Phase 3 delivers **Projects**: a 4-step wizard to create a tender (details → R
 4. **Step 3 · Standards.** **Expected:** **CITS-2026** is ticked (active standards are pre-selected) and "1 of 1 selected" shows. Keep it ticked. Click **Continue**.
 
 5. **Step 4 · Review & publish.** **Expected:**
-   - Details: name, reference `PRJ-2026-001`, Equipment, 30 Nov 2026, description.
+   - Details: name, reference `PRJ-2026-001`, General, 30 Nov 2026, description.
    - RFP documents (1): `01-RFP-NGPA-T-2026-014.pdf · 13 p.`
    - Standards (1): `CITS-2026 · Customs IT Security & Data Residency Standard`.
    - Readiness: all five lines green.
@@ -50,7 +50,7 @@ After publishing you land on the project page.
 
 | Check | Expected |
 |---|---|
-| Header | "PRJ-2026-001 · EQUIPMENT", the full name, the description, then **Open for proposals** and "Closes in 40 days" |
+| Header | "PRJ-2026-001 · GENERAL", the full name, the description, then **Open for proposals** and "Closes in 40 days" |
 | Breadcrumb | Projects › PRJ-2026-001 |
 | Overview → RFP documents | The PDF with **no delete icon**: a published tender must keep at least one RFP file. Below it: "Add an addendum or annex" dropzone |
 | Overview → Details | Reference, category, 30 Nov 2026 (Closes in 40 days), Created / Published / Last activity |
@@ -69,7 +69,7 @@ Go to **Projects** in the sidebar.
 | Check | Expected |
 |---|---|
 | Stat tiles | Active projects **1** · Proposals received **0** · Evaluations completed **0** |
-| Card | `PRJ-2026-001` + "Open for proposals" pill, the name, two lines of description, "Equipment • Closes in 40 days", footer "1 RFP · 1 std · 0 proposals" |
+| Card | `PRJ-2026-001` + "Open for proposals" pill, the name, two lines of description, "General • Closes in 40 days", footer "1 RFP · 1 std · 0 proposals" |
 | Search | Type `al-noor` → the card stays; type `zzz` → "No projects match" with **Clear filters** |
 | Status filter | "All 1 · Open for proposals 1" (filters only show statuses that exist) |
 | Grid / list toggle | The two icons on the right switch to a compact list |

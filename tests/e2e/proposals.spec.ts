@@ -66,18 +66,42 @@ test.describe("vendor proposals (P4.4–P4.5, P5.1 first cut)", () => {
     await expect(table).toContainText("1 commercial · 1 technical");
     await expect(page.getByRole("link", { name: /Proposals/ }).first()).toContainText("1");
 
-    // Workspace: Commercial first, then Technical; analysis tabs locked
+    // View opens the full-screen reader on the Commercial envelope (user feedback 2026-10-21)
     await page.getByRole("link", { name: "View Harborline Systems's proposal" }).click();
-    await expect(page).toHaveURL(/\?tab=commercial/);
+    await expect(page).toHaveURL(/\?tab=commercial&reader=/);
+    const reader = page.getByRole("dialog", { name: "Harborline Systems" });
+    await expect(reader).toBeVisible();
+    await expect(
+      reader.getByRole("img", { name: /3-Harborline-Systems-Commercial\.pdf, page 1/ }),
+    ).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(reader.getByText("/ 5")).toBeVisible();
+    await page.keyboard.press("ArrowRight");
+    await expect(page).toHaveURL(/page=2/);
+    await expect(reader.getByLabel(/Page number/)).toHaveValue("2");
+    await reader.getByRole("button", { name: "Page 4" }).click(); // filmstrip
+    await expect(reader.getByLabel(/Page number/)).toHaveValue("4");
+    await reader.getByRole("tab", { name: "Technical" }).click();
+    await expect(page).toHaveURL(/tab=technical/);
+    await expect(reader.getByText("/ 11")).toBeVisible();
+    await reader.getByRole("button", { name: "Zoom in (+)" }).click();
+    await expect(reader.getByRole("button", { name: /Reset zoom/ })).toHaveText("125%");
+    await page.keyboard.press("Escape");
+    await expect(reader).toBeHidden();
+    await expect(page).not.toHaveURL(/reader=/);
+
+    // Underneath: the envelope's document cards; analysis tabs locked
     await expect(page.getByRole("heading", { name: "Harborline Systems" })).toBeVisible();
-    await expect(page.getByText("3-Harborline-Systems-Commercial.pdf").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Technical proposal" })).toBeVisible();
+    await expect(page.getByText("3-Harborline-Systems-Technical.pdf").first()).toBeVisible();
     await expect(page.getByRole("tab", { name: "Compliance" })).toHaveAttribute(
       "aria-disabled",
       "true",
     );
-    await page.getByRole("tab", { name: "Technical" }).click();
-    await expect(page).toHaveURL(/tab=technical/);
-    await expect(page.getByText("3-Harborline-Systems-Technical.pdf").first()).toBeVisible();
+    await page.getByRole("button", { name: "Open reader" }).click();
+    await expect(page.getByRole("dialog", { name: "Harborline Systems" })).toBeVisible();
+    await page.keyboard.press("Escape");
     await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText(
       "Harborline Systems",
     );

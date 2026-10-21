@@ -1,5 +1,6 @@
 "use client";
 
+import { TriangleAlert } from "lucide-react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,14 +12,15 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { ProjectInput } from "@/hooks/use-projects";
-import { PROJECT_CATEGORIES, type ProjectCategory } from "@/lib/domain";
+import type { ProjectStandardRef } from "@/lib/api-types";
+import { PROJECT_CATEGORIES, standardFitsProject, type ProjectCategory } from "@/lib/domain";
 import { deadlineLabel } from "@/lib/format";
 import { PROJECT_CATEGORY_LABEL } from "@/lib/labels";
 
 export const EMPTY_PROJECT: ProjectInput = {
   name: "",
   description: "",
-  category: "equipment",
+  category: "General",
   deadline: null,
   notes: "",
 };
@@ -60,11 +62,14 @@ export function ProjectDetailsForm({
   onChange,
   errors,
   autoFocus,
+  categoryNote,
 }: {
   value: ProjectInput;
   onChange: (v: ProjectInput) => void;
   errors: ProjectErrors;
   autoFocus?: boolean;
+  /** Shown under Category, e.g. which applied standards a category change would remove. */
+  categoryNote?: React.ReactNode;
 }) {
   const set = <K extends keyof ProjectInput>(k: K, v: ProjectInput[K]) =>
     onChange({ ...value, [k]: v });
@@ -91,7 +96,14 @@ export function ProjectDetailsForm({
         />
       </Field>
       <div className="grid gap-6 sm:grid-cols-2">
-        <Field label="Category">
+        <Field
+          label="Category"
+          hint={
+            value.category === "General"
+              ? "General: every standard can apply."
+              : `Only “${value.category}” and “General” standards can apply.`
+          }
+        >
           <Select
             value={value.category}
             onValueChange={(v) => set("category", v as ProjectCategory)}
@@ -126,6 +138,7 @@ export function ProjectDetailsForm({
           />
         </Field>
       </div>
+      {categoryNote}
       <Field
         label="Key requirements / notes"
         optional
@@ -141,5 +154,27 @@ export function ProjectDetailsForm({
         />
       </Field>
     </div>
+  );
+}
+
+/** Warns which applied standards a category change would remove (the server drops them on save). */
+export function CategoryChangeNote({
+  applied,
+  category,
+}: {
+  applied: ProjectStandardRef[];
+  category: ProjectCategory;
+}) {
+  const removed = applied.filter((s) => !standardFitsProject(s.category, category));
+  if (!removed.length) return null;
+  return (
+    <p className="-mt-2 flex items-start gap-2 rounded-lg bg-partial-soft/60 px-3 py-2 text-xs text-ink-2">
+      <TriangleAlert className="mt-px size-3.5 shrink-0 text-partial" aria-hidden />
+      <span>
+        Saving with “{category}” removes{" "}
+        {removed.length === 1 ? "this applied standard" : "these applied standards"}:{" "}
+        <strong className="font-semibold text-ink">{removed.map((s) => s.code).join(", ")}</strong>.
+      </span>
+    </p>
   );
 }

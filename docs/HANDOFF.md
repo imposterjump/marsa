@@ -21,13 +21,23 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
 5. **Don't push to GitHub until the user has tested the phase themselves** (user, after Phase 3: "next time dont push unless i test the phase myself"). Commit locally; push when they confirm. Each phase hand-over also includes the **exact click-by-click main working case** (go here → press this → paste this → expect that).
 
 ## 1. Where we are (update every session)
-- **Last session:** 2026-10-21 (session 5, Phases 3 + 4).
-- **Done:** Planning · P0 · P1 · P2 · P3 (tested by the user: "works fine") · **P4 built, waiting for the user's test**. Phase 4 = vendors + proposals service/API, vendor simulator `/vendor-portal`, Proposals table + first proposal page (Commercial/Technical tabs; P5.1/P5.3 pulled forward in basic form), sample data (seed manifest + Demo tools + `npm run seed`/`reset`), four vendor proposal PDFs. Also fixed the user's report "paste-rules dialog too tall, Add button off-screen" (G-46).
-- **Git:** P3 was pushed (8c61011). **P4 is committed locally only; push after the user confirms testing** (§0 rule 5).
-- **User's own data (`data/`):** CITS-2026 (14 rules) + PRJ-2026-001 (open, 1 RFP PDF). The user will now add the Addendum PDF and submit the 4 vendors through the simulator (`test-inputs/phase-4/README.md`).
-- **Next subtask:** wait for Phase 4 feedback → push → **Phase 5**: Sheet Stack viewer (P5.4–P5.7), Analyse & process panel (P5.2), proposal workspace polish (P5.3: compact project header on proposal pages, I-18), viewer checkpoint 🧑 (P5.8).
+- **Last session:** 2026-10-21 (session 5: Phases 3 + 4 + feedback round "categories + reader").
+- **Done:** Planning · P0–P4 (P4 tested by the user; they submitted the 4 vendors) · **feedback round 1 after P4**:
+  - **Project categories = standard categories.** A project offers its own category + General standards; a General project offers all. Migration 0002 remapped legacy categories: PRJ-2026-001 became IT & security.
+  - **Full-screen document reader** (P5.4–P5.6 pulled forward). It replaces the browser PDF iframe everywhere: proposal page, RFP and standard documents.
+- **Git:** P4 + this round are committed locally only; push after the user confirms testing (§0 rule 5).
+- **User's own data (`data/`):**
+  - CITS-2026.
+  - PRJ-2026-001 (IT & security, open, 2 RFP PDFs incl. Addendum, 4 vendor proposals via the simulator).
+  - Backup from before migration 0002: `data/backups/before-categories-app.db*`.
+- **Next:** the user tests `test-inputs/phase-5/README.md` → push → rest of Phase 5:
+  - P5.2 Analyse & process panel;
+  - P5.3 compact project header on proposal pages;
+  - P5.6 DOCX/XLSX reader views;
+  - P5.7 deep link + quote highlight (needs the text layer, I-19);
+  - P5.8 viewer checkpoint 🧑.
 - **App runs?** `npm run dev` → http://localhost:3000.
-- **All checks green?** `npm run check` ✔ (lint, typecheck, contrast, **95 unit**) · `npm run test:e2e` ✔ **17/17** · `npm run build` ✔.
+- **All checks green?** `npm run check` ✔ (**99 unit**) · `npm run test:e2e` ✔ **17/17** (clean build into `.next-e2e`) · build ✔.
 
 ## 2. Quick start for a new session
 ```bash
@@ -108,6 +118,9 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | G-48 | ℹ️ Fact | New route folders → `RouteContext<"/api/…">` / `PageProps<…>` fail typecheck until the route types are regenerated | Run `npx next typegen` (also part of `npm run typecheck`) after adding routes |
 | G-49 | ℹ️ Fact | E2E specs reset the workspace with `POST /api/dev/reset {confirm:"RESET"}` (deletes projects, standards, vendors, files; keeps settings) | Use it in `beforeEach` instead of deleting entities one by one |
 | G-51 | ✅ Solved | **Dev reload loop.** Every open page reloaded ~3×/s; the dev log showed `GET /standards` + `✓ Compiled in 0ms` endlessly. In the browser: on each HMR connect the server sent `turbopack-message … "type":"restart"` for the entry chunk list, then `reloadPage: "HMR hash mismatch"`. Cause: the dev cache in `.next/dev` was stale (entry chunk file from hours earlier) after many production builds into the same `.next` folder (E2E / screenshot builds) while `next dev` was running. Visual Studio's indexer churning `.vs/` and `.next/` made it worse | Stop dev → delete **`.next/dev`** (build cache only) → restart. Prevention: E2E builds now use **`NEXT_DIST_DIR=.next-e2e`** (`next.config.ts` `distDir`, set in `playwright.config.ts`); use the same env for any manual `next build`/`next start` while the user's dev server runs. Diagnose with a page's WebSocket frames (scratch script: log `framereceived` of the HMR socket) |
+| G-52 | ℹ️ Rule | **Never change a column's DDL (type, default) on an existing SQLite table through drizzle-kit.** SQLite needs a table rebuild (`DROP TABLE` + rename); our migrator runs inside a transaction, where `PRAGMA foreign_keys=OFF` is ignored, so the DROP would **cascade-delete** documents, proposals and links | Keep the DDL identical (TS-only changes: `.$type<…>()`, `.default(sql\`'…'\`)`), check `npx drizzle-kit generate` says "No schema changes", and write a **custom data migration** (`npx drizzle-kit generate --custom --name …`) with plain `UPDATE`s. Back up `data/app.db*` before restarting the user's dev server. Example: `drizzle/0002_project_categories.sql` |
+| G-53 | ✅ Solved | A production build served a **stale `globals.css`**: new CSS variables (`--stage…`) were missing from the bundle although the file had changed. Turbopack's persistent build cache in the dist folder kept the old stylesheet | Playwright's webServer deletes `.next-e2e` before every build. For manual builds after CSS changes: `rm -rf .next-e2e` first. If dev styles look stale: stop dev, delete `.next/dev`, restart (as G-51) |
+| G-54 | ℹ️ Rule | **pdf.js in the browser**: load it only from effects via `loadPdfjs()` / `getPdf()` (`src/lib/pdf/pdfjs.ts`), never at module top level (it touches DOM APIs during SSR). The worker is `new Worker(new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url), { type: "module" })`. pdf.js 6: `page.render({ canvas, viewport, transform })`; destroy via the loading task (G-38). Turbopack warns "pdfjs-dist can't be external" for the worker reference; it is suppressed in `next.config.ts` (`turbopack.ignoreIssue`, path `/lib[\\/]pdf/`, because the issue path is the folder) | Reuse `usePdf`, `PdfCanvas` (off-screen render, no flash on zoom), `usePageSizes`, `DocumentCover`, `DocumentReader` from `src/components/viewer/` |
 | G-45 | ℹ️ Rule | *(Superseded by G-50.)* Tab content under `/projects/[projectId]` reads the project with `useProjectContext()` | See G-50 for the current structure |
 | G-50 | ✅ Solved | Dev log: "Route /projects/[projectId]: Could not validate that a segment in your UI has instant navigation … Dropped segment: page.tsx". The layout awaited `params` in a Suspense boundary that **wrapped `{children}`**, so the tab pages were never part of the static shell | The layout renders `<Suspense><ProjectHeader/></Suspense>` and `{children}` **side by side**. Each page wraps its content in `<ProjectRoute params fallback>` (server: own Suspense + await params → client `ProjectGate` providing `useProjectContext()`). The tab fade moved to `[projectId]/template.tsx`. Never pass `{children}` into a component that awaits params |
 
@@ -126,10 +139,11 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | I-10 | 🔴 Open | `#run-pill-slot` in the Topbar is an empty placeholder | P7.3 |
 | I-12 | ✅ Solved | Text extraction for DOCX/XLSX/TXT | `src/server/documents/extract-text.ts` (mammoth → HTML → markdown-like text; exceljs → `## Sheet:` + pipe rows with formula results; text formats as UTF-8; 2 M char cap). Called by `ingestDocument()` for AI-readable non-PDF files. PDFs/images go to Claude natively (null) |
 | I-13 | ✅ Obsolete | Settings scroll-spy | Settings became fading tabs (user feedback) |
-| I-14 | ℹ️ Note | `DocumentPreviewDialog` and the proposal page (`proposal-workspace.tsx` → `DocumentPane`) show PDFs in the browser's viewer (iframe) and offer download for DOCX/XLSX. The custom paginated "Sheet Stack" viewer replaces both | P5.4–P5.6 |
+| I-14 | ✅ Solved | Browser PDF iframe in previews and the proposal page | Replaced by `DocumentReader` everywhere (`DocumentPreviewDialog` is now a thin wrapper around it) |
+| I-19 | 🔴 Open | The reader renders canvas only: no text layer (no text selection or search), and DOCX/XLSX show a "no preview yet" card with Download. Images are shown | P5.6 (extracted text as a reader view) + P5.7 (pdf.js `TextLayer` + its CSS for quote highlighting) |
 | I-16 | ℹ️ Minor | The Proposals table scrolls horizontally on phones (390 px) | P9.4 responsive pass (card list on mobile) |
 | I-17 | ℹ️ Note | The analysis tabs on the proposal page (Compliance, Comparison, Risk) are locked placeholders; `?tab=` only accepts commercial/technical for now | P6/P8 |
-| I-18 | ℹ️ Minor | On proposal pages the full project header (description, status, actions) pushes the document below the fold | P5.3: compact project header on `/proposals/[id]` |
+| I-18 | ℹ️ Minor | On proposal pages the full project header pushes the content down. Less important now that documents open in the full-screen reader | P5.3: compact project header on `/proposals/[id]` |
 | I-15 | ℹ️ Note | Project lifecycle rules live in `assertTransition()`: publish needs ≥1 RFP; open→draft only with 0 proposals; no archive/delete while evaluating. RFP delete is blocked for archived/evaluating/evaluated and for the last RFP of an open tender (`assertRfpRemovable`, called by `DELETE /api/documents/:id`); uploads are blocked while archived/evaluating | P4/P6 must respect them (e.g. only the analysis runner sets `evaluating`) |
 | I-11 | ℹ️ Note | Settings `theme` and `sidebarCollapsed` are saved to the DB, but the source of truth for display is localStorage + `<html>` attributes (per browser) | Fine for a single-user prototype |
 
@@ -150,6 +164,12 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 - **Projects:** codes `PRJ-YYYY-NNN` (UTC year, sequential, retried once on a UNIQUE clash). New projects start as `draft` with **all active standards pre-selected**. Wizard state lives in the URL (`/projects/new?id=&step=`), so a refresh resumes the draft; the draft is created when leaving step 1. Deadline `YYYY-MM-DD`, not in the past (an unchanged past deadline may be kept on edit). `deadlineLabel()` → "Closes in N days" / "Closes today" / "Closed N days ago".
 - **Settings tabs:** the selected tab is the URL hash (`#settings-ai` etc.) read with `useSyncExternalStore`; `selectTab` uses `history.replaceState` + a synthetic `hashchange`. Only the active section renders; `AnimatePresence mode="wait"` fades it (0.2 s).
 - **Shared documents UI:** `src/components/documents/document-row.tsx` (omit `onDelete` → read-only) and `document-preview-dialog.tsx`, used by standards and projects.
+- **Categories:** `PROJECT_CATEGORIES = STANDARD_CATEGORIES`; `standardFitsProject(std, project)` = project is General OR standard is General OR equal (`src/lib/domain.ts`), used by the picker, `createProject` pre-selection, `setProjectStandards` (400 `standard_category_mismatch`) and `updateProject` (a category change drops misfit links). The UI warns before saving (`CategoryChangeNote`). New projects default to General. The DB column keeps DDL default `'other'` on purpose (G-52).
+- **Reader:**
+  - The proposal page URL is `?tab=commercial|technical&reader=<docId|1>&page=N`. The table's View link adds `&reader=1`, and clicking the Commercial/Technical tab opens the reader. Esc removes `reader`/`page`.
+  - The reader is controlled (`docId`, `page`, `onNavigate`). Groups are envelopes, or one group for a plain document.
+  - Keys: ←/→ PageUp/PageDown Home End, + − 0. Fit page (default) / fit width. Zoom 50–300 %.
+  - Always-dark `stage` tokens live in `globals.css` (`bg-stage`, `text-stage-ink`, `border-stage-line`, …).
 - **Vendors & proposals:** vendor names are unique ignoring case (409). One proposal per vendor per project; `POST /api/projects/:id/proposals {vendorId}` returns 201 (new) or 200 + `replaced:true` (resubmission: old files deleted, `submittedAt` = now). Files follow one per request on `POST /api/proposals/:id/documents` (multipart `file` + `kind` = commercial|technical). Only **open** tenders accept proposals or files (409 otherwise). `useSubmitProposal` orchestrates create + uploads with per-file progress and returns failed files instead of throwing.
 - **Proposal source** (`seed` · `simulator` · `ai`) is shown as a pill ("Sample" · "Simulator" · "AI-generated").
 - **Vendor simulator** (`/vendor-portal`, not in the sidebar; reached from the Proposals tab and Demo tools): `?project=` preselects the tender; the vendor picker opens on "New vendor" while no vendors exist.
@@ -199,3 +219,10 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 - **Phase 4 (same session, after the user tested Phase 3):** fixed the user's report (paste dialog too tall → G-46 scrollable dialogs). Built vendors/proposals service + API, Proposals table, proposal page (Commercial/Technical, locked analysis tabs, ‹ › vendor nav), vendor simulator, seed module + Demo tools + `npm run seed`/`reset`, 4 vendor bids (commercial + technical PDFs, RFP form structure, consistent with the Phase 1 Arabic summary and scanned letter), a short PCS RFP for the second sample project, `SCENARIO.md` grading notes, README with click-by-click steps. Vendor names web-checked (I-06).
 - User rule added: **don't push until the user has tested the phase** (§0 rule 5). Phase 4 committed locally only.
 - Checks: 95 unit ✔, 17 E2E ✔, build ✔. Screenshots reviewed (desktop + 390 px).
+- **Feedback round after P4 (same session):**
+  - **Request 1:** project categories should filter standards. Asked one question: should General standards apply everywhere? Answer: yes.
+  - **Request 2:** the document view looked "small and ugly". Asked which option; the user picked the full-screen reader.
+  - **Built:** categories (domain + service rules + UI + data migration 0002 + unit tests incl. the migration), and the reader (pdf.js client, PdfCanvas, filmstrip, page-turn animation, sheet stack, toolbar, keyboard, URL sync, document cover cards). Also swapped every preview to the reader.
+  - **User asked mid-way:** make their project IT & security. Migration 0002 now derives a legacy project's category from its applied standards (one category → that one; none or mixed → General).
+  - **Problems (solved):** G-52 (no DDL changes on existing tables), G-53 (stale CSS from the build cache), G-54 (pdf.js worker warning).
+  - **Checks:** 99 unit ✔, 17 E2E ✔. Reader verified on the user's dev data (read-only) and in screenshots.

@@ -55,11 +55,11 @@ export const RUN_PHASE_LABEL: Record<RunPhase, string> = {
 };
 
 export const PROJECT_CATEGORY_LABEL: Record<ProjectCategory, string> = {
-  equipment: "Equipment",
-  software: "Software",
-  services: "Services",
-  works: "Works",
-  other: "Other",
+  "IT & security": "IT & security",
+  "Safety & environment": "Safety & environment",
+  "Commercial & legal": "Commercial & legal",
+  Quality: "Quality",
+  General: "General",
 };
 
 export const PROPOSAL_SOURCE_LABEL: Record<ProposalSource, string> = {

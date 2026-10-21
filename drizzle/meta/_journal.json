@@ -15,6 +15,13 @@
       "when": 1792568640882,
       "tag": "0001_fresh_silver_surfer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792579057807,
+      "tag": "0002_project_categories",
+      "breakpoints": true
     }
   ]
 }

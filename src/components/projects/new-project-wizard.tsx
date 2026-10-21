@@ -43,6 +43,7 @@ import { deadlineLabel, formatYmd } from "@/lib/format";
 import { PROJECT_CATEGORY_LABEL } from "@/lib/labels";
 import { uploadFile } from "@/lib/upload";
 import {
+  CategoryChangeNote,
   EMPTY_PROJECT,
   hasErrors,
   ProjectDetailsForm,
@@ -282,6 +283,9 @@ function DetailsStep({
           onChange={setValue}
           errors={errors}
           autoFocus={!project}
+          categoryNote={
+            project && <CategoryChangeNote applied={project.standards} category={value.category} />
+          }
         />
       </div>
       <StepFooter>
@@ -397,9 +401,12 @@ function StandardsStep({
       <div className="flex flex-col gap-6 px-6 py-6">
         <p className="leading-relaxed text-ink-2">
           Choose the standards this tender must comply with. Active standards are pre-selected.
-          Their rules join the RFP requirements in the evaluation checklist.
+          Their rules join the RFP requirements in the evaluation checklist.{" "}
+          {project.category === "General"
+            ? "This is a General project, so every standard can apply."
+            : `This is a “${project.category}” project, so only “${project.category}” and “General” standards can apply.`}
         </p>
-        <StandardsPicker value={selected} onChange={setSelected} />
+        <StandardsPicker value={selected} onChange={setSelected} category={project.category} />
       </div>
       <StepFooter>
         <Button variant="ghost" onClick={onBack}>

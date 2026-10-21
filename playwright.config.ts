@@ -25,7 +25,9 @@ export default defineConfig({
   webServer: {
     // Production build, not `next dev`: dev mode's HMR intermittently reload-looped the first
     // page on a cold server (HANDOFF G-32). `next start` warns about output:standalone but works.
-    command: `npx next build && npx next start -p ${PORT}`,
+    // Clean build every run: Turbopack's persistent build cache once served a stale globals.css
+    // (new CSS variables missing), which would test old styles (HANDOFF G-53).
+    command: `node -e "require('fs').rmSync('.next-e2e',{recursive:true,force:true})" && npx next build && npx next start -p ${PORT}`,
     url: `http://localhost:${PORT}/api/health`,
     // Never silently reuse a leftover server (stale data/DB); a busy port fails loudly instead.
     reuseExistingServer: false,

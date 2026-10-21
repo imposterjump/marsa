@@ -65,6 +65,12 @@
   --color-ink-muted: var(--ink-muted);
   --color-ink-faint: var(--ink-faint);
   --color-navy: var(--navy);
+  /* Document reader stage: always dark, in both themes (P5.4). */
+  --color-stage: var(--stage);
+  --color-stage-raised: var(--stage-raised);
+  --color-stage-line: var(--stage-line);
+  --color-stage-ink: var(--stage-ink);
+  --color-stage-muted: var(--stage-muted);
   --color-brand: var(--brand);
   --color-brand-hover: var(--brand-hover);
   --color-brand-soft: var(--brand-soft);
@@ -142,6 +148,11 @@
   --ink-muted: #5c6774;
   --ink-faint: #848d98;
   --navy: #13304d;
+  --stage: #0d1824;
+  --stage-raised: #152434;
+  --stage-line: rgb(255 255 255 / 0.1);
+  --stage-ink: #eaf0f5;
+  --stage-muted: #9aabbd;
 
   --brand: #0e7c7b;
   --brand-hover: #0a6665;
@@ -234,6 +245,11 @@
   --ink-muted: #8d9aa8;
   --ink-faint: #66737f;
   --navy: #9cc3e6;
+  --stage: #070f17;
+  --stage-raised: #0f1b27;
+  --stage-line: rgb(255 255 255 / 0.09);
+  --stage-ink: #e6edf3;
+  --stage-muted: #8fa1b4;
 
   --brand: #2db3ac;
   --brand-hover: #45c7c0;

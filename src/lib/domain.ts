@@ -6,9 +6,6 @@
 export const PROJECT_STATUSES = ["draft", "open", "evaluating", "evaluated", "archived"] as const;
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 
-export const PROJECT_CATEGORIES = ["equipment", "software", "services", "works", "other"] as const;
-export type ProjectCategory = (typeof PROJECT_CATEGORIES)[number];
-
 export const DOCUMENT_KINDS = ["rfp", "commercial", "technical", "standard"] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 
@@ -20,6 +17,23 @@ export const STANDARD_CATEGORIES = [
   "General",
 ] as const;
 export type StandardCategory = (typeof STANDARD_CATEGORIES)[number];
+
+/**
+ * Projects use the standards' categories (user decision, 2026-10-21): a project only offers the
+ * standards of its own category plus "General" ones; a "General" project offers every standard.
+ */
+export const PROJECT_CATEGORIES = STANDARD_CATEGORIES;
+export type ProjectCategory = StandardCategory;
+export const GENERAL_CATEGORY = "General" satisfies StandardCategory;
+
+/** Can a standard of `standardCategory` apply to a project of `projectCategory`? */
+export function standardFitsProject(standardCategory: string, projectCategory: string): boolean {
+  return (
+    projectCategory === GENERAL_CATEGORY ||
+    standardCategory === GENERAL_CATEGORY ||
+    standardCategory === projectCategory
+  );
+}
 
 export const PRIORITIES = ["mandatory", "important", "desirable"] as const;
 export type Priority = (typeof PRIORITIES)[number];

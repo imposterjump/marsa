@@ -57,10 +57,10 @@ const addProposal = (projectId: string) => {
 describe("projects service", () => {
   it("validates input: trims name, defaults category, rejects bad dates", () => {
     const v = projectInputSchema.parse({ name: "  Cranes  " });
-    expect(v).toMatchObject({ name: "Cranes", category: "equipment", deadline: null, notes: "" });
+    expect(v).toMatchObject({ name: "Cranes", category: "General", deadline: null, notes: "" });
     expect(() => projectInputSchema.parse({ name: "ab" })).toThrow();
     expect(() => projectInputSchema.parse({ name: "Cranes", deadline: "30/11/2026" })).toThrow();
-    expect(() => projectInputSchema.parse({ name: "Cranes", category: "ships" })).toThrow();
+    expect(() => projectInputSchema.parse({ name: "Cranes", category: "equipment" })).toThrow();
   });
 
   it("assigns sequential PRJ-YYYY-NNN codes", () => {
@@ -187,7 +187,7 @@ describe("project patch schema (G-42)", () => {
     const p = mk("Cranes project", {
       description: "Two cranes",
       notes: "Night works only",
-      category: "works",
+      category: "Quality",
     });
     await addRfp(p.id);
     expect(projectPatchSchema.parse({ status: "open" })).toEqual({ status: "open" });
@@ -196,7 +196,84 @@ describe("project patch schema (G-42)", () => {
       deadline: future,
       description: "Two cranes",
       notes: "Night works only",
-      category: "works",
+      category: "Quality",
     });
   });
 });
+
+describe("project categories filter standards (user decision 2026-10-21)", () => {
+  const std = (code: string, category: string, isActive = true) =>
+    createStandard(
+      db,
+      standardInputSchema.parse({ code, title: `${code} title`, category, isActive }),
+    );
+
+  it("pre-selects only active standards of the same category or General", () => {
+    std("CITS-2026", "IT & security");
+    std("PESE-03", "Safety & environment");
+    std("GEN-01", "General");
+    std("OLD-IT", "IT & security", false);
+    const it = mk("IT tender", { category: "IT & security" });
+    expect(getProject(db, it.id).standards.map((s) => s.code)).toEqual(["CITS-2026", "GEN-01"]);
+    const general = mk("Mixed tender", { category: "General" });
+    expect(getProject(db, general.id).standards.map((s) => s.code)).toEqual([
+      "CITS-2026",
+      "GEN-01",
+      "PESE-03",
+    ]);
+  });
+
+  it("rejects a standard from another category unless the project is General", () => {
+    const safety = std("PESE-03", "Safety & environment");
+    const p = mk("IT tender", { category: "IT & security" });
+    expect(() => setProjectStandards(db, p.id, [safety.id])).toThrow(/Safety & environment/);
+    updateProject(db, p.id, projectPatchSchema.parse({ category: "General" }));
+    expect(setProjectStandards(db, p.id, [safety.id]).map((s) => s.code)).toEqual(["PESE-03"]);
+  });
+
+  it("changing the category drops the standards that no longer fit", () => {
+    std("CITS-2026", "IT & security");
+    std("PESE-03", "Safety & environment");
+    std("GEN-01", "General");
+    const p = mk("Mixed tender", { category: "General" });
+    updateProject(db, p.id, projectPatchSchema.parse({ category: "Safety & environment" }));
+    expect(getProject(db, p.id).standards.map((s) => s.code)).toEqual(["GEN-01", "PESE-03"]);
+  });
+});
+
+describe("migration 0002 (project categories)", () => {
+  it("derives the category from the applied standards, else General", () => {
+    const it = std0("CITS-2026", "IT & security");
+    const safety = std0("PESE-03", "Safety & environment");
+    const general = std0("GEN-01", "General");
+    const legacy = (id: string, category: string, standardIds: string[]) => {
+      db.$client
+        .prepare("INSERT INTO projects (id, code, name, category) VALUES (?, ?, ?, ?)")
+        .run(id, `PRJ-1999-${id}`, `Legacy ${id}`, category);
+      for (const s of standardIds) {
+        db.$client
+          .prepare("INSERT INTO project_standards (project_id, standard_id) VALUES (?, ?)")
+          .run(id, s);
+      }
+    };
+    legacy("001", "equipment", [it.id]); // the user's case: only CITS-2026
+    legacy("002", "software", [it.id, general.id]); // + a General standard: still IT
+    legacy("003", "works", [it.id, safety.id]); // mixed → General
+    legacy("004", "other", []); // none → General
+    legacy("005", "Quality", []); // already new: untouched
+    db.$client.exec(
+      fs.readFileSync(path.join(process.cwd(), "drizzle/0002_project_categories.sql"), "utf8"),
+    );
+    expect(db.$client.prepare("SELECT id, category FROM projects ORDER BY id").all()).toEqual([
+      { id: "001", category: "IT & security" },
+      { id: "002", category: "IT & security" },
+      { id: "003", category: "General" },
+      { id: "004", category: "General" },
+      { id: "005", category: "Quality" },
+    ]);
+  });
+});
+
+function std0(code: string, category: string) {
+  return createStandard(db, standardInputSchema.parse({ code, title: `${code} title`, category }));
+}

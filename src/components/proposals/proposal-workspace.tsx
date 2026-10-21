@@ -5,34 +5,36 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   Download,
-  ExternalLink,
   FileText,
+  ListChecks,
   Lock,
   Receipt,
-  ShieldAlert,
   Scale,
-  ListChecks,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "cn";
 import { useProjectContext } from "@/components/projects/project-shell";
 import { SetBreadcrumbs } from "@/components/shell/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FileIcon } from "@/components/ui/file-icon";
 import { InitialsAvatar } from "@/components/ui/initials-avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pill } from "@/components/ui/status-pill";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DocumentCover } from "@/components/viewer/document-cover";
+import { DocumentReader } from "@/components/viewer/document-reader";
 import { useProposal, useProposals } from "@/hooks/use-proposals";
 import { ApiClientError } from "@/lib/api-client";
-import type { DocumentDto } from "@/lib/api-types";
-import { fileKind, formatBytes, middleTruncate } from "@/lib/files";
+import type { DocumentDto, ProposalDetailDto } from "@/lib/api-types";
+import { formatBytes } from "@/lib/files";
 import { formatDateTime } from "@/lib/format";
 import { PROPOSAL_SOURCE_LABEL } from "@/lib/labels";
 
+type Envelope = "commercial" | "technical";
 const TABS = [
   { id: "commercial", label: "Commercial", icon: Receipt },
   { id: "technical", label: "Technical", icon: FileText },
@@ -40,12 +42,21 @@ const TABS = [
   { id: "comparison", label: "Comparison", icon: Scale, locked: true },
   { id: "risk", label: "Risk", icon: ShieldAlert, locked: true },
 ] as const;
-type TabId = "commercial" | "technical";
+const ENVELOPE = {
+  commercial: { title: "Financial proposal", note: "Envelope 2 · prices, terms and deviations" },
+  technical: {
+    title: "Technical proposal",
+    note: "Envelope 1 · solution, compliance matrix, no prices",
+  },
+} as const;
+
+const docsOf = (p: ProposalDetailDto, e: Envelope) =>
+  e === "commercial" ? p.commercialDocuments : p.technicalDocuments;
 
 /**
- * PRD FR-6 (first cut, P4): one vendor's proposal with Commercial / Technical tabs.
- * The analysis tabs are locked until P6; the custom paginated viewer replaces the browser
- * PDF viewer in P5 (HANDOFF I-14).
+ * PRD FR-6: one vendor's proposal. Commercial / Technical open the full-screen reader directly
+ * (user feedback 2026-10-21); the page underneath shows the envelope's documents as covers.
+ * URL: ?tab=commercial|technical · &reader=<docId|1> (open) · &page=N. Analysis tabs unlock in P6.
  */
 export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
   const project = useProjectContext();
@@ -55,7 +66,7 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
   const { data: p, isLoading, error } = useProposal(proposalId);
   const { data: all } = useProposals(project.id);
 
-  const tab: TabId = params.get("tab") === "technical" ? "technical" : "commercial";
+  const tab: Envelope = params.get("tab") === "technical" ? "technical" : "commercial";
   const setQuery = (next: Record<string, string | null>) => {
     const q = new URLSearchParams(params);
     for (const [k, v] of Object.entries(next)) {
@@ -87,11 +98,21 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
     );
   }
 
-  const docs = tab === "commercial" ? p.commercialDocuments : p.technicalDocuments;
-  const docId = params.get("doc");
-  const doc = docs.find((d) => d.id === docId) ?? docs[0];
+  const docs = docsOf(p, tab);
+  const readerParam = params.get("reader");
+  const readerDoc =
+    readerParam === null ? null : (docs.find((d) => d.id === readerParam) ?? docs[0] ?? null);
+  const readerPage = Math.max(1, Number(params.get("page")) || 1);
+  const openReader = (envelope: Envelope, doc?: DocumentDto, page = 1) => {
+    const target = doc ?? docsOf(p, envelope)[0];
+    setQuery({
+      tab: envelope,
+      reader: target ? target.id : null,
+      page: target && page > 1 ? String(page) : null,
+    });
+  };
 
-  // ‹ › vendor navigation in submission order
+  // ‹ › vendor navigation in submission order (keeps the current envelope).
   const order = [...(all ?? [])].sort((a, b) => a.submittedAt.localeCompare(b.submittedAt));
   const idx = order.findIndex((x) => x.id === p.id);
   const prev = idx > 0 ? order[idx - 1] : null;
@@ -132,36 +153,18 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
               Vendor {idx + 1} of {order.length}
             </span>
           )}
-          <Button
-            asChild={!!prev}
-            variant="secondary"
-            size="icon-sm"
-            disabled={!prev}
-            aria-label={prev ? `Previous vendor: ${prev.vendor.name}` : "No previous vendor"}
+          <VendorNav
+            to={prev && href(prev.id)}
+            label={prev ? `Previous vendor: ${prev.vendor.name}` : "No previous vendor"}
           >
-            {prev ? (
-              <Link href={href(prev.id)}>
-                <ChevronLeft className="rtl:rotate-180" />
-              </Link>
-            ) : (
-              <ChevronLeft className="rtl:rotate-180" />
-            )}
-          </Button>
-          <Button
-            asChild={!!next}
-            variant="secondary"
-            size="icon-sm"
-            disabled={!next}
-            aria-label={next ? `Next vendor: ${next.vendor.name}` : "No next vendor"}
+            <ChevronLeft className="rtl:rotate-180" />
+          </VendorNav>
+          <VendorNav
+            to={next && href(next.id)}
+            label={next ? `Next vendor: ${next.vendor.name}` : "No next vendor"}
           >
-            {next ? (
-              <Link href={href(next.id)}>
-                <ChevronRight className="rtl:rotate-180" />
-              </Link>
-            ) : (
-              <ChevronRight className="rtl:rotate-180" />
-            )}
-          </Button>
+            <ChevronRight className="rtl:rotate-180" />
+          </VendorNav>
         </div>
       </div>
 
@@ -180,7 +183,7 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
               role="tab"
               aria-selected={active}
               aria-disabled={locked || undefined}
-              onClick={() => !locked && setQuery({ tab: t.id, doc: null })}
+              onClick={() => !locked && openReader(t.id as Envelope)}
               className={cn(
                 "relative flex h-8 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/25",
                 active
@@ -207,27 +210,36 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
               </span>
             </button>
           );
-          return locked ? (
+          return (
             <Tooltip key={t.id}>
               <TooltipTrigger asChild>{btn}</TooltipTrigger>
-              <TooltipContent>Unlocks after Analyse &amp; process</TooltipContent>
+              <TooltipContent>
+                {locked
+                  ? "Unlocks after Analyse & process"
+                  : `Open the ${t.label.toLowerCase()} proposal`}
+              </TooltipContent>
             </Tooltip>
-          ) : (
-            btn
           );
         })}
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
-        <motion.div
+        <motion.section
           key={tab}
           role="tabpanel"
+          aria-label={ENVELOPE[tab].title}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="flex flex-col gap-4"
         >
+          <div className="flex flex-col gap-0.5">
+            <h3 className="font-heading text-base font-semibold tracking-tight text-ink">
+              {ENVELOPE[tab].title}
+            </h3>
+            <p className="text-[13px] text-ink-muted">{ENVELOPE[tab].note}</p>
+          </div>
           {docs.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border-strong bg-surface/60">
               <EmptyState
@@ -237,91 +249,101 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
               />
             </div>
           ) : (
-            <>
-              {docs.length > 1 && (
-                <div className="flex flex-wrap gap-2" role="list" aria-label={`${tab} files`}>
-                  {docs.map((d) => (
-                    <button
-                      key={d.id}
-                      type="button"
-                      role="listitem"
-                      onClick={() => setQuery({ doc: d.id })}
-                      aria-current={d.id === doc?.id || undefined}
-                      className={cn(
-                        "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/25",
-                        d.id === doc?.id
-                          ? "border-brand bg-brand-soft/40 text-brand-ink"
-                          : "border-border bg-surface text-ink-2 hover:border-border-strong",
-                      )}
-                      dir="auto"
-                    >
-                      <FileText className="size-3.5" aria-hidden />
-                      {middleTruncate(d.originalName, 40)}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {doc && <DocumentPane doc={doc} />}
-            </>
+            <ul className="grid gap-5 xl:grid-cols-2">
+              {docs.map((d) => (
+                <DocumentCard key={d.id} doc={d} onOpen={() => openReader(tab, d)} />
+              ))}
+            </ul>
           )}
-        </motion.div>
+        </motion.section>
       </AnimatePresence>
+
+      <DocumentReader
+        open={!!readerDoc}
+        onOpenChange={(o) => !o && setQuery({ reader: null, page: null })}
+        leading={<InitialsAvatar name={p.vendor.name} size="sm" />}
+        title={p.vendor.name}
+        subtitle={`${project.code} · Submitted ${formatDateTime(p.submittedAt)}`}
+        groups={[
+          { id: "commercial", label: "Commercial", docs: p.commercialDocuments },
+          { id: "technical", label: "Technical", docs: p.technicalDocuments },
+        ]}
+        docId={readerDoc?.id ?? null}
+        page={readerPage}
+        onNavigate={(docId, page) => {
+          const envelope: Envelope = p.technicalDocuments.some((d) => d.id === docId)
+            ? "technical"
+            : "commercial";
+          setQuery({ tab: envelope, reader: docId, page: page > 1 ? String(page) : null });
+        }}
+      />
     </div>
   );
 }
 
-function DocumentPane({ doc }: { doc: DocumentDto }) {
-  const kind = fileKind(doc.originalName);
+function DocumentCard({ doc, onOpen }: { doc: DocumentDto; onOpen: () => void }) {
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-xs">
-      <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
-        <FileIcon name={doc.originalName} />
-        <div className="flex min-w-0 flex-1 flex-col">
+    <li className="flex flex-col gap-5 rounded-xl border border-border bg-surface p-5 shadow-xs sm:flex-row sm:items-center sm:gap-7">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Open ${doc.originalName} in the reader`}
+        className="self-center rounded-sm p-3 outline-none focus-visible:ring-3 focus-visible:ring-ring/30 sm:self-auto"
+      >
+        <DocumentCover doc={doc} width={150} />
+      </button>
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <div className="flex flex-col gap-1">
           <span className="truncate font-medium text-ink" dir="auto" title={doc.originalName}>
             {doc.originalName}
           </span>
-          <span className="text-xs text-ink-muted tabular-nums">
-            {formatBytes(doc.sizeBytes)}
-            {doc.pageCount != null && ` · ${doc.pageCount} page${doc.pageCount === 1 ? "" : "s"}`}
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-muted tabular-nums">
+            {doc.pageCount != null && (
+              <span>
+                {doc.pageCount} page{doc.pageCount === 1 ? "" : "s"}
+              </span>
+            )}
+            <span aria-hidden>·</span>
+            <span>{formatBytes(doc.sizeBytes)}</span>
+            {doc.aiReadable && (
+              <Pill tone="ok" size="sm">
+                AI-readable
+              </Pill>
+            )}
           </span>
         </div>
-        <Button asChild variant="ghost" size="sm">
-          <a href={doc.url} target="_blank" rel="noreferrer">
-            <ExternalLink /> Open
-          </a>
-        </Button>
-        <Button asChild variant="ghost" size="sm">
-          <a href={`${doc.url}?download=1`}>
-            <Download /> Download
-          </a>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={onOpen}>
+            <BookOpen /> Open reader
+          </Button>
+          <Button asChild variant="ghost">
+            <a href={`${doc.url}?download=1`}>
+              <Download /> Download
+            </a>
+          </Button>
+        </div>
       </div>
-      <div className="h-[max(560px,calc(100dvh-380px))] bg-sunken">
-        {kind === "pdf" ? (
-          <iframe
-            key={doc.id}
-            title={`${doc.originalName}`}
-            src={doc.url}
-            className="size-full border-0"
-          />
-        ) : kind === "image" ? (
-          <div className="flex size-full items-center justify-center overflow-auto p-6">
-            {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded file served by our API */}
-            <img
-              src={doc.url}
-              alt={doc.originalName}
-              className="max-h-full max-w-full rounded-md shadow-paper"
-            />
-          </div>
-        ) : (
-          <EmptyState
-            art={<FileText className="size-10 text-ink-faint" strokeWidth={1.5} />}
-            title="Preview arrives with the document viewer"
-            description="Word, Excel and other formats get an in-app viewer in Phase 5. Download the file to open it now."
-          />
-        )}
-      </div>
-    </div>
+    </li>
+  );
+}
+
+function VendorNav({
+  to,
+  label,
+  children,
+}: {
+  to: string | null;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return to ? (
+    <Button asChild variant="secondary" size="icon-sm" aria-label={label}>
+      <Link href={to}>{children}</Link>
+    </Button>
+  ) : (
+    <Button variant="secondary" size="icon-sm" disabled aria-label={label}>
+      {children}
+    </Button>
   );
 }
 
@@ -330,7 +352,7 @@ export function WorkspaceSkeleton() {
     <div className="flex flex-col gap-6" aria-busy>
       <Skeleton className="h-24 rounded-xl" />
       <Skeleton className="h-10 w-96 rounded-lg" />
-      <Skeleton className="h-[560px] rounded-xl" />
+      <Skeleton className="h-64 rounded-xl" />
     </div>
   );
 }
