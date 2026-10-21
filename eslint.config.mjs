@@ -21,6 +21,14 @@ const eslintConfig = defineConfig([
     "test-results/**",
   ]),
   {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", ignoreRestSiblings: true },
+      ],
+    },
+  },
+  {
     // The Anthropic key and DB must never reach client bundles: client components may not
     // import server modules (they also carry `import "server-only"` as a runtime guard).
     files: ["src/components/**/*.{ts,tsx}", "src/hooks/**/*.{ts,tsx}"],

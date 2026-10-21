@@ -8,12 +8,19 @@ test("health endpoint reports ok in mock mode", async ({ request }) => {
   expect(body.ai.mode).toBe("mock");
 });
 
-test("home page renders and the health check works", async ({ page }) => {
+test("/ redirects to /projects (FR-1.1)", async ({ page }) => {
   await page.goto("/");
-  await expect(page).toHaveTitle(/Marsa/);
-  await expect(page.getByRole("heading", { name: "Marsa" })).toBeVisible();
+  await expect(page).toHaveURL(/\/projects$/);
+});
 
-  await page.getByRole("button", { name: /health check/i }).click();
-  await expect(page.getByText("Database: ok")).toBeVisible();
-  await expect(page.getByText("Storage: ok")).toBeVisible();
+test("settings API validates input", async ({ request }) => {
+  const bad = await request.put("/api/settings", { data: { theme: "sepia" } });
+  expect(bad.status()).toBe(400);
+  expect((await bad.json()).error.code).toBe("validation_error");
+
+  const notJson = await request.put("/api/settings", {
+    headers: { "Content-Type": "application/json" },
+    data: "{not json",
+  });
+  expect(notJson.status()).toBe(400);
 });

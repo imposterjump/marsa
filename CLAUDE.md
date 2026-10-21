@@ -13,6 +13,11 @@ Marsa is a ports & customs procurement-evaluation prototype: customers publish R
 - Update `docs/HANDOFF.md` (§1 where we are, new gotchas and issues, a session log entry) and `docs/PROGRESS.md` (subtask status, decisions, API spend).
 - Run `npm run check` (and `npm run test:e2e` after UI changes), then commit with the subtask ID in the message.
 
+## The user's standing rules (details: HANDOFF §0)
+- **End every phase** by starting the app (`npm run dev` → http://localhost:3000), then giving the localhost link and a bullet list of what's done for the user to test.
+- **Every phase generates deep, production-like test inputs** in `test-inputs/phase-N/` with a README test guide.
+- **Test documents never help the AI.** RFP and standards must not contradict each other. Vendor proposals must be legitimate bids. Reference notes for humans go in `test-inputs/SCENARIO.md` (never uploaded).
+
 ## Working rules
 - Work subtask by subtask (`P{phase}.{n}`). A subtask is done only when its "Done when" test passes.
 - Stop at 🧑 checkpoints for user review. Ask before any 💳 step that spends Claude API credits.

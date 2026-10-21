@@ -4,15 +4,15 @@
 > Legend: ⬜ not started · 🟦 in progress · ✅ done · ⏸ blocked / waiting on you · ➖ skipped / rejected
 
 ## Now
-- **Current phase:** P0 Foundation ✅ → next is **P1 Design system & shell** (starts with P1.1 Harbor tokens).
+- **Current phase:** P1 Design system & shell ✅ → **waiting for your Phase 1 feedback**, then **P2 Settings & Standards**.
+- **Test it:** http://localhost:3000 · UI kit http://localhost:3000/dev/ui · guide: [test-inputs/phase-1/README.md](../test-inputs/phase-1/README.md)
 - **Session handoff notes:** [HANDOFF.md](HANDOFF.md) (read first every session).
 
 ## Waiting on you
 | # | Item | Where |
 |---|---|---|
-| 1 | Nothing blocking. Your Anthropic key is detected in `.env` (that works, see HANDOFF G-07) | — |
+| 1 | **Test Phase 1 and send feedback** (design checkpoint P1.9) | [test-inputs/phase-1/README.md](../test-inputs/phase-1/README.md) |
 | 2 | Confirm "RDD" = the technical requirements & design document (my interpretation) | [RDD.md](RDD.md) |
-| 3 | Design checkpoint at the end of P1 (P1.9) | upcoming |
 
 ## Decision log
 | Date | Decision | By |
@@ -29,13 +29,16 @@
 | 2026-10-21 | Keep Next 16 `cacheComponents` on; every DB-reading GET handler calls `await connection()` (HANDOFF G-03) | Claude (P0) |
 | 2026-10-21 | Fonts self-hosted via `@fontsource` + `next/font/local` (offline builds; HANDOFF G-05) | Claude (P0) |
 | 2026-10-21 | shadcn/ui style `radix-nova` with RTL enabled | Claude (P0) |
+| 2026-10-21 | **Every phase ends** with the app running + localhost link + bullet list of what's done, and generates **deep, production-like test inputs** in `test-inputs/phase-N/` | You |
+| 2026-10-21 | **Test documents never help the AI**; RFP pack and standards must not contradict each other; vendor proposals must be legitimate bids | You |
+| 2026-10-21 | Next 16 config redirect for `/` (not page-level `redirect()`), `devIndicators: false` | Claude (P1, HANDOFF G-21/G-29) |
 
 ## Phase status
 | Phase | Status | Notes |
 |---|---|---|
 | Planning (PRD, RDD, PHASES, PROGRESS) | ✅ | 2026-10-21 |
 | P0 Foundation | ✅ | 2026-10-21. Build 0 warnings, 10 unit + 2 E2E tests green |
-| P1 Design system & shell 🧑 | ⬜ | |
+| P1 Design system & shell 🧑 | ✅ | 2026-10-21 · 39 unit + 10 E2E green · awaiting your review |
 | P2 Settings & Standards | ⬜ | |
 | P3 Projects & RFP | ⬜ | |
 | P4 Vendor simulation | ⬜ | |
@@ -58,15 +61,15 @@
 - ✅ P0.8 `/api/health`
 
 ### P1 Design system & shell
-- ⬜ P1.1 Tokens + fonts + theme (no FOUC)
-- ⬜ P1.2 Contrast check script
-- ⬜ P1.3 UI primitives on `/dev/ui`
-- ⬜ P1.4 Data primitives (table, ring, stacked bar, stat tile)
-- ⬜ P1.5 Dropzone
-- ⬜ P1.6 Motion primitives + reduced motion
-- ⬜ P1.7 App shell (sidebar, topbar, titles)
-- ⬜ P1.8 Settings API + first-run welcome
-- ⬜ P1.9 🧑 Design checkpoint
+- ✅ P1.1 Tokens + fonts + theme (no FOUC)
+- ✅ P1.2 Contrast check script
+- ✅ P1.3 UI primitives on `/dev/ui`
+- ✅ P1.4 Data primitives (table, ring, stacked bar, stat tile)
+- ✅ P1.5 Dropzone
+- ✅ P1.6 Motion primitives + reduced motion
+- ✅ P1.7 App shell (sidebar, topbar, titles)
+- ✅ P1.8 Settings API + first-run welcome
+- ⏸ P1.9 🧑 Design checkpoint: self-review done (screenshots); **your review pending**
 
 ### P2 Settings & Standards
 - ⬜ P2.1 Settings page
@@ -153,3 +156,4 @@
 |---|---|
 | 2026-10-21 (S1) | Requirements gathered (7 decisions). Skills reviewed (epic-design, frontend, backend, architect, claude-api). UI research (dashboards, bid-comparison tools, viewers). Wrote PRD, RDD, PHASES, PROGRESS. 22 recommendations awaiting approval. |
 | 2026-10-21 (S2) | Phase 0 complete: Next 16.4 + Tailwind 4 + shadcn (radix-nova, RTL) scaffold, Drizzle/SQLite schema (16 tables), typed env, traversal-safe storage, `/api/health`, Vitest + Playwright. Created HANDOFF.md. 7 environment issues found and solved (HANDOFF §4). |
+| 2026-10-21 (S3) | Phase 1 complete: Harbor design system (tokens, contrast-checked), ~25 components, motion primitives, app shell, welcome/profile, settings API + page, `/dev/ui`. Test inputs generated (`test-inputs/phase-1`, realistic tender pack, no evaluator hints). Fixed during self-review: title override, reload loop, lint rules, layout bugs (HANDOFF §8). |

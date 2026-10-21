@@ -41,3 +41,6 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# generated large test file (regenerate: npx tsx scripts/test-inputs/build-phase-1.ts)
+/test-inputs/**/oversized-*.pdf
