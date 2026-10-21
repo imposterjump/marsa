@@ -96,3 +96,32 @@ Strengths: PAC at 8 months, Arabic training, 41 % local value added.
   - CMC years 4–5 not priced: omitted lines are priced at the highest other bid (§7.3.2).
 
 These qualifications match the Phase 1 scanned letter.
+
+## Second tender: NGPA/T/2026/021 Port Community System (Phase 6 bids)
+Built by `scripts/test-inputs/build-phase-6.ts` into `test-inputs/phase-6/pcs-proposals/`. RFP: `phase-4/sample-pcs/PCS-RFP-NGPA-T-2026-021.pdf` (§3.1–3.9, §4.1–4.3, §5). Standard applied: CITS-2026 only. Reviewer notes, never uploaded:
+
+| Bid | Implementation | Support (3 years) | Total |
+|---|---|---|---|
+| 1 Qasr Digital Systems | 3,480,000 | 1,230,000 | 4,710,000 |
+| 2 Bluewave Port Software | 1,910,000 | 1,680,000 (Option A subscription) | 3,590,000 |
+| 3 Corniche Logistics IT | 2,310,000 | 810,000 | 3,120,000 |
+
+**Qasr Digital Systems (local integrator, fully compliant, highest price).** Both Authority data centres, offline licence; 99.8 %; load test 5,000 / 800 / 300,000 per day at p95 3.2 s; AD over LDAPS + MFA; CEF to the SIEM, 5-year logs; Authority PKI; 14/30-day patching; CREST pen test before go-live; VPN with recorded sessions; RPO/RTO 4 h; vetting; CycloneDX SBOM; integrations month 9, VBS month 11; severity 1 in 30 min / 4 h. Nothing material is missing.
+
+**Bluewave Port Software (product vendor, managed service).**
+- Base offer (Option A) is hosted in Manama, Bahrain, with disaster recovery in Dublin: fails RFP §3.1 and CITS-2026 SEC-01/SEC-02. Its matrix says "Comply (Option B)".
+- Option B (on-premise) still contacts the Bluewave Update Service over the internet monthly for updates and licence entitlements: still fails SEC-02. Option B costs +520,000 one-time and 230,000 per year (not in the total).
+- SAML federation with ADFS instead of AD over LDAPS (SEC-03 partial); certificates managed by Bluewave, not the Authority PKI (SEC-07 partial); audit logs kept 12 months and exported every 15 minutes through an API, not 5 years in real time via syslog/CEF (SEC-06); yearly platform pen test instead of a project test before go-live (SEC-09 partial); no VPN/session recording or vetting statement (SEC-10, SEC-12 not addressed); backups only in its own sites (SEC-11).
+- Commercial: 90-day validity (RFP §5.3 asks 120); own subscription agreement with liability capped at 12 months of fees; CPI indexation.
+- Strengths: fastest plan (integrations month 8, VBS month 9), 99.9 % SLA, large references.
+
+**Corniche Logistics IT (lowest price, on-premise, several shortfalls).**
+- On-premise with offline licences: hosting compliant.
+- Availability 99.5 % (fails §3.2, 99.8 %); tested to 400 concurrent / 180,000 messages per day (fails §3.3 as offered; the upgrade is an optional 95,000 line, not in the total).
+- Customs Risk Management System integration in month 13 (fails §4.1, 10 months); VBS and Android app month 12 (OK); iOS app month 18 (§3.8 desirable, partial).
+- Severity 1: 2 h response / 8 h restoration (fails §4.3, 1 h / 4 h).
+- SBOM only on request (SEC-13 partial); RPO 24 h / RTO 12 h; pen test excluded from the price (the Authority would contract it).
+- Release lead-time reports "configured during implementation" (§3.7 partial at most).
+- Commercial: 20 % advance payment against a guarantee.
+
+A careful evaluator ranks Qasr first (only fully compliant bid), then has to choose between Bluewave (hosting fails a mandatory rule in both options) and Corniche (several mandatory performance shortfalls).

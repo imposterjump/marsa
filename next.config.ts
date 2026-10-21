@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   // The floating dev badge overlapped the sidebar footer; errors still surface in dev.
   devIndicators: false,
   // Document libraries (page counting, DOCX/XLSX text extraction) load at runtime, not bundled.
-  serverExternalPackages: ["pdfjs-dist", "mammoth", "exceljs"],
+  serverExternalPackages: ["pdfjs-dist", "mammoth", "exceljs", "playwright-core"],
   // PRD FR-1.1: the app opens on Projects. A config redirect (not a page-level redirect())
   // keeps Next 16 instant-navigation validation happy.
   redirects: async () => [{ source: "/", destination: "/projects", permanent: false }],

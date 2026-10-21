@@ -1,3 +1,4 @@
+import { unstable_rethrow } from "next/navigation";
 import "server-only";
 import { ZodError, type ZodType } from "zod";
 
@@ -52,6 +53,9 @@ export function withErrors<A extends unknown[]>(handler: (...args: A) => Promise
     try {
       return await handler(...args);
     } catch (err) {
+      // Next's own control-flow errors (e.g. `connection()` during build-time prerendering) must
+      // reach Next, not become a logged 500 (seen on /api/runs/active).
+      unstable_rethrow(err);
       return toErrorResponse(err);
     }
   };

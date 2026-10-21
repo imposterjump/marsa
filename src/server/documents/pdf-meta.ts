@@ -11,7 +11,8 @@ export async function readPdfMeta(bytes: Uint8Array): Promise<PdfMeta> {
   try {
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
     const task = pdfjs.getDocument({
-      data: bytes.slice(), // pdf.js may transfer/detach the buffer it receives
+      // A plain Uint8Array copy: pdf.js rejects Node Buffers and may detach what it receives.
+      data: new Uint8Array(bytes),
       verbosity: 0,
       disableFontFace: true,
       useSystemFonts: false,

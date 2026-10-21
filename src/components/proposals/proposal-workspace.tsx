@@ -27,7 +27,9 @@ import { Pill } from "@/components/ui/status-pill";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DocumentCover } from "@/components/viewer/document-cover";
 import { DocumentReader } from "@/components/viewer/document-reader";
+import { ProposalResults, type AnalysisTab } from "./proposal-results";
 import { useProposal, useProposals } from "@/hooks/use-proposals";
+import { useLatestResultsRun } from "@/hooks/use-runs";
 import { ApiClientError } from "@/lib/api-client";
 import type { DocumentDto, ProposalDetailDto } from "@/lib/api-types";
 import { formatBytes } from "@/lib/files";
@@ -38,10 +40,11 @@ type Envelope = "commercial" | "technical";
 const TABS = [
   { id: "commercial", label: "Commercial", icon: Receipt },
   { id: "technical", label: "Technical", icon: FileText },
-  { id: "compliance", label: "Compliance", icon: ListChecks, locked: true },
-  { id: "comparison", label: "Comparison", icon: Scale, locked: true },
-  { id: "risk", label: "Risk", icon: ShieldAlert, locked: true },
+  { id: "compliance", label: "Compliance", icon: ListChecks, analysis: true },
+  { id: "comparison", label: "Comparison", icon: Scale, analysis: true },
+  { id: "risk", label: "Risk", icon: ShieldAlert, analysis: true },
 ] as const;
+const ANALYSIS_TABS: readonly string[] = ["compliance", "comparison", "risk"];
 const ENVELOPE = {
   commercial: { title: "Financial proposal", note: "Envelope 2 · prices, terms and deviations" },
   technical: {
@@ -57,7 +60,8 @@ const docsOf = (p: ProposalDetailDto, e: Envelope) =>
  * PRD FR-6: one vendor's proposal. Commercial / Technical open the full-screen reader directly
  * (user feedback 2026-10-21); the page underneath shows the envelope's documents as covers.
  * URL: ?tab=commercial|technical · &reader=<docId|1> (open) · &page=N · &q=<quote> (highlight,
- * RDD §8.4; P6 evidence links use it). Analysis tabs unlock in P6.
+ * RDD §8.4; evidence links use it). Compliance / Comparison / Risk unlock once a run has finished
+ * and show the latest finished run (P6 basic view, P8 full results UX).
  */
 export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
   const project = useProjectContext();
@@ -66,8 +70,13 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
   const params = useSearchParams();
   const { data: p, isLoading, error } = useProposal(proposalId);
   const { data: all } = useProposals(project.id);
+  const resultsRun = useLatestResultsRun(project.id);
 
-  const tab: Envelope = params.get("tab") === "technical" ? "technical" : "commercial";
+  const tabParam = params.get("tab") ?? "";
+  const analysisTab =
+    resultsRun && ANALYSIS_TABS.includes(tabParam) ? (tabParam as AnalysisTab) : null;
+  const tab: Envelope = tabParam === "technical" ? "technical" : "commercial";
+  const activeTab: string = analysisTab ?? tab;
   const setQuery = (next: Record<string, string | null>) => {
     const q = new URLSearchParams(params);
     for (const [k, v] of Object.entries(next)) {
@@ -101,8 +110,11 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
 
   const docs = docsOf(p, tab);
   const readerParam = params.get("reader");
+  const allDocs = [...p.commercialDocuments, ...p.technicalDocuments];
   const readerDoc =
-    readerParam === null ? null : (docs.find((d) => d.id === readerParam) ?? docs[0] ?? null);
+    readerParam === null
+      ? null
+      : (allDocs.find((d) => d.id === readerParam) ?? (analysisTab ? null : (docs[0] ?? null)));
   const readerPage = Math.max(1, Number(params.get("page")) || 1);
   const openReader = (envelope: Envelope, doc?: DocumentDto, page = 1) => {
     const target = doc ?? docsOf(p, envelope)[0];
@@ -119,7 +131,7 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
   const idx = order.findIndex((x) => x.id === p.id);
   const prev = idx > 0 ? order[idx - 1] : null;
   const next = idx >= 0 && idx < order.length - 1 ? order[idx + 1] : null;
-  const href = (id: string) => `/projects/${project.id}/proposals/${id}?tab=${tab}`;
+  const href = (id: string) => `/projects/${project.id}/proposals/${id}?tab=${activeTab}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -176,8 +188,8 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
         className="flex [scrollbar-width:none] gap-1 overflow-x-auto rounded-lg bg-surface-muted p-1 sm:w-fit"
       >
         {TABS.map((t) => {
-          const active = t.id === tab;
-          const locked = "locked" in t && t.locked;
+          const active = t.id === activeTab;
+          const locked = "analysis" in t && !resultsRun;
           const btn = (
             <button
               key={t.id}
@@ -185,7 +197,11 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
               role="tab"
               aria-selected={active}
               aria-disabled={locked || undefined}
-              onClick={() => !locked && openReader(t.id as Envelope)}
+              onClick={() => {
+                if (locked) return;
+                if ("analysis" in t) setQuery({ tab: t.id, reader: null, page: null, q: null });
+                else openReader(t.id as Envelope);
+              }}
               className={cn(
                 "relative flex h-8 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/25",
                 active
@@ -218,7 +234,9 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
               <TooltipContent>
                 {locked
                   ? "Unlocks after Analyse & process"
-                  : `Open the ${t.label.toLowerCase()} proposal`}
+                  : "analysis" in t
+                    ? `${t.label} results of the latest analysis`
+                    : `Open the ${t.label.toLowerCase()} proposal`}
               </TooltipContent>
             </Tooltip>
           );
@@ -226,38 +244,59 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
-        <motion.section
-          key={tab}
-          role="tabpanel"
-          aria-label={ENVELOPE[tab].title}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="flex flex-col gap-4"
-        >
-          <div className="flex flex-col gap-0.5">
-            <h3 className="font-heading text-base font-semibold tracking-tight text-ink">
-              {ENVELOPE[tab].title}
-            </h3>
-            <p className="text-[13px] text-ink-muted">{ENVELOPE[tab].note}</p>
-          </div>
-          {docs.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border-strong bg-surface/60">
-              <EmptyState
-                art={<FileText className="size-10 text-ink-faint" strokeWidth={1.5} />}
-                title={`No ${tab} proposal`}
-                description={`${p.vendor.name} didn't submit a ${tab} file.`}
-              />
+        {analysisTab && resultsRun ? (
+          <motion.section
+            key={analysisTab}
+            role="tabpanel"
+            aria-label={`${analysisTab} results`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <ProposalResults
+              runId={resultsRun.id}
+              proposalId={p.id}
+              tab={analysisTab}
+              onEvidence={(docId, page, quote) =>
+                setQuery({ reader: docId, page: page && page > 1 ? String(page) : null, q: quote })
+              }
+            />
+          </motion.section>
+        ) : (
+          <motion.section
+            key={tab}
+            role="tabpanel"
+            aria-label={ENVELOPE[tab].title}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-0.5">
+              <h3 className="font-heading text-base font-semibold tracking-tight text-ink">
+                {ENVELOPE[tab].title}
+              </h3>
+              <p className="text-[13px] text-ink-muted">{ENVELOPE[tab].note}</p>
             </div>
-          ) : (
-            <ul className="grid gap-5 xl:grid-cols-2">
-              {docs.map((d) => (
-                <DocumentCard key={d.id} doc={d} onOpen={() => openReader(tab, d)} />
-              ))}
-            </ul>
-          )}
-        </motion.section>
+            {docs.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border-strong bg-surface/60">
+                <EmptyState
+                  art={<FileText className="size-10 text-ink-faint" strokeWidth={1.5} />}
+                  title={`No ${tab} proposal`}
+                  description={`${p.vendor.name} didn't submit a ${tab} file.`}
+                />
+              </div>
+            ) : (
+              <ul className="grid gap-5 xl:grid-cols-2">
+                {docs.map((d) => (
+                  <DocumentCard key={d.id} doc={d} onOpen={() => openReader(tab, d)} />
+                ))}
+              </ul>
+            )}
+          </motion.section>
+        )}
       </AnimatePresence>
 
       <DocumentReader
@@ -278,7 +317,7 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
             ? "technical"
             : "commercial";
           setQuery({
-            tab: envelope,
+            tab: analysisTab ?? envelope,
             reader: docId,
             page: page > 1 ? String(page) : null,
             // The evidence quote belongs to its document; switching documents drops it.

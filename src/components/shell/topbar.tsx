@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useBreadcrumbContext, type Crumb } from "./breadcrumbs";
 import { CustomerChip } from "./customer-chip";
 import { pageTitleFor } from "./nav";
+import { RunPill } from "./run-pill";
 import { ThemeToggle } from "./theme-toggle";
 
 /** Static trail from the URL: "/standards" → Standards; "/projects/new" → Projects › New project. */
@@ -81,8 +82,7 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
         </Suspense>
       </nav>
 
-      {/* Run-status pill slot (P7.3) */}
-      <div id="run-pill-slot" className="hidden" />
+      <RunPill />
 
       <div className="flex items-center gap-1.5">
         <ThemeToggle />

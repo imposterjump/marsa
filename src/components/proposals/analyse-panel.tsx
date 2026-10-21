@@ -1,7 +1,9 @@
 "use client";
 
-import { ArrowRight, CircleAlert, Info, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, CircleAlert, Info, Loader2, Sparkles } from "lucide-react";
 import { cn } from "cn";
+import { StartRunButton } from "@/components/evaluation/start-run-button";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/status-pill";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -18,7 +20,7 @@ const MODEL_LABEL = {
 /**
  * PRD FR-5.3: the "Analyse & process" action bar under the proposals table. Shows what the run
  * will cover (proposals, standards, T = 3N + 2 steps) with a rough time and cost estimate.
- * The button is wired to the pipeline in Phase 6.
+ * The button starts the pipeline (P6); with live AI it confirms the estimated cost first.
  */
 export function AnalysePanel({
   project,
@@ -202,20 +204,38 @@ export function AnalysePanel({
         </div>
 
         <div className="flex shrink-0 flex-col items-stretch gap-2 lg:items-end">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span tabIndex={0} className="inline-flex rounded-lg">
-                <Button size="lg" disabled className="w-full lg:w-auto">
-                  <Sparkles /> Analyse &amp; process
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              {n === 0 ? "Needs at least one proposal." : "The AI pipeline is wired in Phase 6."}
-            </TooltipContent>
-          </Tooltip>
+          {project.status === "evaluating" ? (
+            <Button asChild size="lg" className="w-full lg:w-auto">
+              <Link href={`/projects/${project.id}/evaluation`}>
+                <Loader2 className="motion-safe:animate-spin" /> View progress
+              </Link>
+            </Button>
+          ) : n > 0 && (project.status === "open" || project.status === "evaluated") ? (
+            <StartRunButton
+              projectId={project.id}
+              costUsd={mode === "live" ? cost : undefined}
+              className="w-full lg:w-auto"
+            />
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span tabIndex={0} className="inline-flex rounded-lg">
+                  <Button size="lg" disabled className="w-full lg:w-auto">
+                    <Sparkles /> Analyse &amp; process
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {n === 0 ? "Needs at least one proposal." : "Publish or restore the tender first."}
+              </TooltipContent>
+            </Tooltip>
+          )}
           <span className="text-center text-2xs text-ink-faint lg:text-end">
-            {n === 0 ? "Needs at least one proposal" : "Estimates are rough · Phase 6"}
+            {n === 0
+              ? "Needs at least one proposal"
+              : project.status === "evaluated"
+                ? "Already analysed · runs again with current settings"
+                : "Estimates are rough"}
           </span>
         </div>
       </div>

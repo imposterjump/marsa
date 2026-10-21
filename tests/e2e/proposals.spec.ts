@@ -130,7 +130,7 @@ test.describe("vendor proposals (P4.4–P4.5, P5.1 first cut)", () => {
       "Only one proposal: the vendor comparison step will be skipped.",
     );
     await expect(panel).toContainText("Free (demo AI)");
-    await expect(panel.getByRole("button", { name: "Analyse & process" })).toBeDisabled();
+    await expect(panel.getByRole("button", { name: "Analyse & process" })).toBeEnabled();
 
     // A published tender with proposals can no longer go back to draft
     await page.getByRole("button", { name: "More actions", exact: true }).click();

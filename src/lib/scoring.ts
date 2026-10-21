@@ -5,11 +5,13 @@
  *   credit: compliant 1 · partial = partialCredit · non_compliant 0 · not_addressed 0
  *   weight: settings.weights[priority]
  *   score  = 100 × Σ(weight × credit) / Σ weight
+ *   risk severity = likelihood × impact → 1–4 low · 5–9 moderate · 10–15 high · 16–25 critical
  */
 import {
   FINDING_STATUSES,
   type FindingStatus,
   type Priority,
+  type RiskSeverity,
   type StatusCounts,
   type Weights,
 } from "./domain";
@@ -90,4 +92,23 @@ export function computeCategoryScores(
     if (r.possible > 0) out[cat] = r.scorePct;
   }
   return out;
+}
+
+/** Risk severity from likelihood × impact, both 1–5 (RDD §7.6). */
+export function riskSeverity(likelihood: number, impact: number): RiskSeverity {
+  const score = likelihood * impact;
+  if (score >= 16) return "critical";
+  if (score >= 10) return "high";
+  if (score >= 5) return "moderate";
+  return "low";
+}
+
+const SEVERITY_ORDER: RiskSeverity[] = ["low", "moderate", "high", "critical"];
+
+/** The most severe of a list (low when empty). */
+export function maxSeverity(list: RiskSeverity[]): RiskSeverity {
+  return list.reduce<RiskSeverity>(
+    (acc, s) => (SEVERITY_ORDER.indexOf(s) > SEVERITY_ORDER.indexOf(acc) ? s : acc),
+    "low",
+  );
 }

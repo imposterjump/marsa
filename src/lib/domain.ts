@@ -154,4 +154,6 @@ export interface RunConfig {
   proposalIds: string[];
   reportLanguage: ReportLanguage;
   concurrency: number;
+  /** Engine used for the run (AI_MODE when it started). */
+  mode: "mock" | "live";
 }

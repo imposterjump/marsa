@@ -1,4 +1,4 @@
-import { ProjectEvaluation } from "@/components/projects/project-placeholders";
+import { EvaluationView } from "@/components/evaluation/evaluation-view";
 import { ProjectRoute } from "@/components/projects/project-route";
 import { ProjectPageSkeleton } from "@/components/projects/project-shell";
 
@@ -7,7 +7,7 @@ export default function ProjectEvaluationPage({
 }: PageProps<"/projects/[projectId]/evaluation">) {
   return (
     <ProjectRoute params={params} fallback={<ProjectPageSkeleton />}>
-      <ProjectEvaluation />
+      <EvaluationView />
     </ProjectRoute>
   );
 }

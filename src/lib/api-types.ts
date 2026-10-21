@@ -4,7 +4,19 @@
  */
 import type {
   AiModel,
+  CommercialSnapshot,
+  Confidence,
+  FindingStatus,
   Priority,
+  RequirementCategory,
+  RequirementSource,
+  RiskCategory,
+  RiskSeverity,
+  RunPhase,
+  RunStatus,
+  StatusCounts,
+  StepStatus,
+  TokenUsage,
   ProjectCategory,
   ProjectStatus,
   ProposalSource,
@@ -159,4 +171,184 @@ export interface ProposalDetailDto extends ProposalDto {
   project: { id: string; code: string; name: string; status: ProjectStatus };
   commercialDocuments: DocumentDto[];
   technicalDocuments: DocumentDto[];
+}
+
+// ─── Analysis runs (RDD §6, P6.8) ────────────────────────────────────────────
+export interface RunDto {
+  id: string;
+  projectId: string;
+  status: RunStatus;
+  model: string;
+  /** Engine that ran it: "mock" runs cost nothing. */
+  mode: "mock" | "live";
+  totalSteps: number;
+  /** Finished steps (done or skipped). */
+  doneSteps: number;
+  usage: TokenUsage | null;
+  costUsd: number;
+  error: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
+
+export interface RunStepDto {
+  id: string;
+  seq: number;
+  phase: RunPhase;
+  proposalId: string | null;
+  label: string;
+  status: StepStatus;
+  attempt: number;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  error: string | null;
+  usage: TokenUsage | null;
+}
+
+/** Live result chip per vendor (appears as soon as its analysis is done). */
+export interface RunChipDto {
+  proposalId: string;
+  vendor: string;
+  vendorColor: string;
+  scorePct: number | null;
+  mandatoryFailures: number | null;
+  overallRisk: RiskSeverity | null;
+}
+
+export interface RunStatusDto {
+  run: RunDto;
+  steps: RunStepDto[];
+  chips: RunChipDto[];
+  etaSeconds: number;
+  /** A run is live in this server process (false after a restart until resumed). */
+  active: boolean;
+}
+
+export interface ActiveRunDto {
+  runId: string;
+  projectId: string;
+  projectCode: string;
+  projectName: string;
+  status: RunStatus;
+  doneSteps: number;
+  totalSteps: number;
+  currentLabel: string | null;
+}
+
+export interface RequirementDto {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  category: RequirementCategory;
+  priority: Priority;
+  sourceType: RequirementSource;
+  sourceRef: string;
+  standardId: string | null;
+  acceptance: string;
+}
+
+export interface EvaluationDto {
+  id: string;
+  proposalId: string;
+  vendor: VendorDto;
+  scorePct: number;
+  counts: StatusCounts;
+  mandatoryFailures: number;
+  categoryScores: Partial<Record<string, number>>;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  commercial: CommercialSnapshot;
+  overallRisk: RiskSeverity | null;
+}
+
+export interface FindingDto {
+  id: string;
+  requirementId: string;
+  code: string;
+  status: FindingStatus;
+  /** The AI's status before a human override (same as status when not overridden). */
+  aiStatus: FindingStatus;
+  vendorResponse: string;
+  evidenceQuote: string | null;
+  evidenceDocId: string | null;
+  evidencePage: number | null;
+  evidenceSection: string | null;
+  assessment: string;
+  gap: string | null;
+  confidence: Confidence;
+}
+
+export interface ComparisonDto {
+  advantages: { point: string; versus: string[] }[];
+  disadvantages: { point: string; betterVendors: string[] }[];
+  uniqueOffers: string[];
+  pricePosition: "lowest" | "mid" | "highest" | "unknown";
+  positionStatement: string;
+}
+
+export interface RiskDto {
+  id: string;
+  title: string;
+  category: RiskCategory;
+  likelihood: number;
+  impact: number;
+  severity: RiskSeverity;
+  description: string;
+  consequence: string;
+  mitigation: string;
+  evidence: string | null;
+  requirementCodes: string[];
+}
+
+export interface RunSummaryDto {
+  ranking: { vendor: string; proposalId: string | null; rank: number; rationale: string }[];
+  recommendedProposalId: string | null;
+  executiveSummary: string;
+  conditions: string[];
+  negotiationPoints: string[];
+}
+
+export interface RunResultsDto {
+  run: RunDto;
+  requirements: RequirementDto[];
+  keyConstraints: { label: string; value: string }[];
+  evaluations: EvaluationDto[];
+  comparisons: { proposalId: string; data: ComparisonDto }[];
+  summary: RunSummaryDto | null;
+}
+
+export interface ProposalResultDto {
+  run: RunDto;
+  evaluation: EvaluationDto | null;
+  requirements: RequirementDto[];
+  findings: FindingDto[];
+  comparison: ComparisonDto | null;
+  risks: RiskDto[];
+}
+
+// ─── AI-generated proposals (P7.5) ───────────────────────────────────────────
+export type BidProfileDto = "strong" | "budget_partial" | "risky_cloud" | "incomplete";
+
+export interface GenJobDto {
+  id: string;
+  projectId: string;
+  mode: "mock" | "live";
+  model: string;
+  status: "running" | "done" | "failed";
+  items: {
+    profile: BidProfileDto;
+    vendorName: string;
+    country: string;
+    status: "queued" | "writing" | "rendering" | "done" | "failed";
+    error: string | null;
+    proposalId: string | null;
+    costUsd: number;
+  }[];
+  costUsd: number;
+  createdAt: string;
+  finishedAt: string | null;
 }

@@ -430,6 +430,29 @@ mark.marsa-hit {
   animation: marsa-pulse 1.2s var(--ease-out-quint) 2;
 }
 
+/* Mission control (P7.1): sweep on the active phase, gentle breathing on running steps. */
+@keyframes marsa-rail {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(200%);
+  }
+}
+@keyframes marsa-breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+.marsa-shimmer {
+  animation: marsa-breathe 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marsa-shimmer {
+    animation: none;
+  }
+}
+
 /* docx-preview pages are shown one at a time inside our own sheet. */
 .marsa-docx section.docx {
   margin: 0 !important;

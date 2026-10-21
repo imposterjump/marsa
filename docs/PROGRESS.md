@@ -4,13 +4,14 @@
 > Legend: ⬜ not started · 🟦 in progress · ✅ done · ⏸ blocked / waiting on you · ➖ skipped / rejected
 
 ## Now
-- **Current phase:** **P6 AI pipeline 💳** (started 2026-10-21). P5 is built and pushed but **not yet tested by you** (viewer checkpoint P5.8 still open).
-- **Test it:** http://localhost:3000/projects · guide: [test-inputs/phase-5/README.md](../test-inputs/phase-5/README.md) (Part 1 + Part 2)
+- **Current phase:** **P6 AI pipeline ✅ + P7 Live progress ✅ → waiting for your test** (you asked to test both together). P5 is pushed but not yet tested by you (viewer checkpoint P5.8).
+- **Test it:** http://localhost:3000/projects · guide: [test-inputs/phase-6/README.md](../test-inputs/phase-6/README.md) (Part A free, Part B live Opus)
 - **Session handoff notes:** [HANDOFF.md](HANDOFF.md) (read first every session).
 
 ## Waiting on you
 | # | Item | Where |
 |---|---|---|
+| 0 | **Test Phases 6 + 7**: analysis, mission control, results, generate with AI. Part B spends credits on Opus (≈ $2–4 / $7–10 / $0.4 per case). I push P6 + P7 after your OK | [test-inputs/phase-6/README.md](../test-inputs/phase-6/README.md) |
 | 1 | **Test Phase 5 (viewer checkpoint P5.8)**: categories, reader, Analyse panel, evidence links. **UNTESTED** (pushed at your request before testing) | [test-inputs/phase-5/README.md](../test-inputs/phase-5/README.md) |
 | 1b | Phase 1 design checkpoint (P1.9): no feedback received yet, assumed OK | — |
 | 2 | Confirm "RDD" = the technical requirements & design document (my interpretation) | [RDD.md](RDD.md) |
@@ -51,8 +52,8 @@
 | P3 Projects & RFP | ✅ | 2026-10-21 · 86 unit + 15 E2E green · New project is a 4-step wizard (fading steps) instead of one scroll-spy page |
 | P4 Vendor simulation | ✅ | 2026-10-21 · 95 unit + 17 E2E green · local commit, push after your test |
 | P5 Proposals & viewer 🧑 | 🟦 | 2026-10-21 · built, 110 unit + 18 E2E green, pushed · **untested by you** (P5.8 checkpoint open) |
-| P6 AI pipeline 💳 | ⬜ | |
-| P7 Live progress + AI proposals | ⬜ | |
+| P6 AI pipeline 💳 | ✅ | 2026-10-21 · live-verified on Sonnet 5.5 · waiting for your test |
+| P7 Live progress + AI proposals | ✅ | 2026-10-21 · waiting for your test |
 | P8 Results UX 🧑 | ⬜ | |
 | P9 Polish & deploy | ⬜ | |
 | P10 Optional | ⬜ | All RECs approved, so in scope after P9 |
@@ -111,23 +112,23 @@
 - ⏸ P5.8 🧑 Viewer checkpoint (waiting for your review)
 
 ### P6 AI pipeline
-- ⬜ P6.1 AI client wrapper (+ verify streaming × structured outputs × fallbacks) 💳≈$0.01
-- ⬜ P6.2 zod schemas + fixtures
-- ⬜ P6.3 Content builder + Files API + cache breakpoints
-- ⬜ P6.4 Prompts
-- ⬜ P6.5 Planner + ETA + cost
-- ⬜ P6.6 Scoring engine
-- ⬜ P6.7 Runner (phases, concurrency, persistence, resume, retry, cancel)
-- ⬜ P6.8 Runs API
-- ⬜ P6.9 Mock AI generator
-- ⬜ P6.10 💳 First real run on seed data
+- ✅ P6.1 AI client wrapper: streaming + structured outputs + adaptive thinking + `fallbacks: "default"` verified live ($0.002)
+- ✅ P6.2 zod schemas + wire formats (two shared output formats, G-58) + fixtures
+- ✅ P6.3 Content builder + Files API + cache breakpoints ① ② ③ (cache reads verified live)
+- ✅ P6.4 Prompts (system + 5 tasks, report language, snapshot test)
+- ✅ P6.5 Planner + labels + ETA + cost from usage
+- ✅ P6.6 Scoring engine incl. risk severity
+- ✅ P6.7 Runner (phases, staggered concurrency, persistence, retry once, cancel, interrupt-on-boot, resume, per-step retry)
+- ✅ P6.8 Runs API
+- ✅ P6.9 Mock AI generator (deterministic; quotes real PDF sentences; cloud conflict)
+- ✅ P6.10 💳 Real runs on Sonnet 5.5: X-ray $4.80, PCS $1.17 (Opus run = your Part B test)
 
 ### P7 Live progress + AI proposals
-- ⬜ P7.1 Mission control page
-- ⬜ P7.2 Live result chips + failure/retry
-- ⬜ P7.3 Global run pill + toast
-- ⬜ P7.4 Curtain-lift to results
-- ⬜ P7.5 💳 AI-generated proposals
+- ✅ P7.1 Mission control (ring, step k of T, masked activity, elapsed/ETA, phase rail, timeline, cancel)
+- ✅ P7.2 Live result chips + failure states with Retry + completed-with-errors banner
+- ✅ P7.3 Global RunPill + completion toast with View results + aria-live
+- ✅ P7.4 Curtain lift into the results (fade under reduced motion)
+- ✅ P7.5 Generate with AI (dialog, job with progress, DOCX + PDF, live-checked on Sonnet $0.19)
 
 ### P8 Results UX
 - ⬜ P8.1 Results hooks + run selector
@@ -157,7 +158,13 @@
 ## API spend log
 | Date | Step | Model | Cost | Notes |
 |---|---|---|---|---|
-| — | — | — | $0.00 | Nothing spent yet |
+| 2026-10-21 | P6.1 smoke test | Sonnet 5.5 | $0.002 | Streaming + structured output + fallbacks OK |
+| 2026-10-21 | P6.10 X-ray sample, 4 vendors, 14 steps | Sonnet 5.5 | $4.80 | Completed; 697k cache writes because of G-58 (fixed afterwards) |
+| 2026-10-21 | PCS run (failed at step 1, 400 errors ×2) | Sonnet 5.5 | $0.00 | Schema limits found (G-58) |
+| 2026-10-21 | Schema grouping probes | Sonnet 5.5 | < $0.01 | Two shared formats chosen |
+| 2026-10-21 | PCS + Phase 6 bids, 3 vendors, 11 steps | Sonnet 5.5 | $1.17 | Completed; cache reads 262k vs writes 90k |
+| 2026-10-21 | P7.5 generate 2 bids | Sonnet 5.5 | $0.19 | Strong + risky bids, DOCX + PDF |
+| | **Total** | | **≈ $6.17** | |
 
 ## Session log
 | Date | Session summary |
@@ -165,6 +172,7 @@
 | 2026-10-21 (S1) | Requirements gathered (7 decisions). Skills reviewed (epic-design, frontend, backend, architect, claude-api). UI research (dashboards, bid-comparison tools, viewers). Wrote PRD, RDD, PHASES, PROGRESS. 22 recommendations awaiting approval. |
 | 2026-10-21 (S2) | Phase 0 complete: Next 16.4 + Tailwind 4 + shadcn (radix-nova, RTL) scaffold, Drizzle/SQLite schema (16 tables), typed env, traversal-safe storage, `/api/health`, Vitest + Playwright. Created HANDOFF.md. 7 environment issues found and solved (HANDOFF §4). |
 | 2026-10-21 (S3) | Phase 1 complete: Harbor design system (tokens, contrast-checked), ~25 components, motion primitives, app shell, welcome/profile, settings API + page, `/dev/ui`. Test inputs generated (`test-inputs/phase-1`, realistic tender pack, no evaluator hints). Fixed during self-review: title override, reload loop, lint rules, layout bugs (HANDOFF §8). |
+| 2026-10-21 (S5e) | Phases 6 + 7 complete (local commit, not pushed): AI pipeline with live progress (mission control, top-bar pill, completion toast), results (ranking, executive summary, per-vendor compliance / comparison / risk with evidence links), cancel / resume / retry, and Generate with AI. Live-tested on Sonnet 5.5 for ≈ $6.17; fixed a prompt-cache problem that would have cost ~$4 extra per Opus run. New test bids: `test-inputs/phase-6`. |
 | 2026-10-21 (S5d) | Phase 5 complete (local commit): Analyse & process panel with time/cost estimate, compact header on proposal pages, reader for Word/Excel/CSV/text/images, selectable PDF text, evidence deep links that jump to the page and highlight the quote, fullscreen, scrubber, thumbnail toggle. |
 | 2026-10-21 (S5c) | Feedback round: projects use the standard categories (General applies everywhere; PRJ-2026-001 migrated to IT & security, DB backed up); full-screen reader replaces the browser PDF viewer everywhere (filmstrip, page turns, zoom/fit, keyboard, deep links). Local commit, not pushed. |
 | 2026-10-21 (S5b) | Phase 4 complete (local commit, not pushed): vendor simulator, proposals table + proposal page, vendors/proposals API, sample data + Demo tools, 4 realistic vendor bids. Fixed: paste-rules dialog taller than the screen (now scrolls inside, buttons pinned). New rule: push only after your test. |

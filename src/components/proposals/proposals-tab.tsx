@@ -3,10 +3,20 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Eye, FileStack, Megaphone, MoreHorizontal, Send, Trash2, Users } from "lucide-react";
+import {
+  Eye,
+  FileStack,
+  Megaphone,
+  MoreHorizontal,
+  Send,
+  Trash2,
+  Users,
+  Wand2,
+} from "lucide-react";
 import { DataTable, type Column } from "@/components/data/data-table";
 import { useProjectContext } from "@/components/projects/project-shell";
 import { Button } from "@/components/ui/button";
+import { GenerateProposalsDialog } from "./generate-proposals-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DropdownMenu,
@@ -35,48 +45,62 @@ export function ProposalsTab() {
   const canSimulate = p.status === "open";
   const canRemove = p.status === "open";
 
+  const [generating, setGenerating] = useState(false);
   const simulate = canSimulate && (
-    <Button asChild variant="secondary">
-      <Link href={`/vendor-portal?project=${p.id}`}>
-        <Send /> Simulate a vendor submission
-      </Link>
-    </Button>
+    <span className="flex flex-wrap gap-2">
+      <Button asChild variant="secondary">
+        <Link href={`/vendor-portal?project=${p.id}`}>
+          <Send /> Simulate a vendor submission
+        </Link>
+      </Button>
+      <Button variant="soft" onClick={() => setGenerating(true)}>
+        <Wand2 /> Generate with AI
+      </Button>
+    </span>
+  );
+  // Rendered once, outside both layouts below: the first generated proposal switches the tab from
+  // the empty state to the table, which would otherwise remount the dialog and lose its progress.
+  const generateDialog = canSimulate && (
+    <GenerateProposalsDialog project={p} open={generating} onOpenChange={setGenerating} />
   );
 
   if (!isLoading && !isError && data?.length === 0) {
     return (
-      <div className="flex flex-col gap-6">
-        <div className="rounded-2xl border border-dashed border-border-strong bg-surface/60">
-          <EmptyState
-            size="lg"
-            art={
-              canSimulate ? (
-                <Users className="size-12 text-brand" strokeWidth={1.25} />
-              ) : (
-                <Megaphone className="size-12 text-ink-faint" strokeWidth={1.25} />
-              )
-            }
-            title={
-              canSimulate
-                ? "Waiting for proposals"
-                : p.status === "draft"
-                  ? "Not published yet"
-                  : "No proposals"
-            }
-            description={
-              canSimulate
-                ? `Vendors can download the RFP and submit a commercial and a technical proposal${
-                    p.deadline ? ` until ${formatDate(`${p.deadline}T00:00:00`)}` : ""
-                  }. Each submission is listed here with its date and documents.`
-                : p.status === "draft"
-                  ? "Publish the tender to vendors from the header above. Their proposals will be listed here."
-                  : "This tender received no proposals."
-            }
-            actions={simulate}
-          />
+      <>
+        {generateDialog}
+        <div className="flex flex-col gap-6">
+          <div className="rounded-2xl border border-dashed border-border-strong bg-surface/60">
+            <EmptyState
+              size="lg"
+              art={
+                canSimulate ? (
+                  <Users className="size-12 text-brand" strokeWidth={1.25} />
+                ) : (
+                  <Megaphone className="size-12 text-ink-faint" strokeWidth={1.25} />
+                )
+              }
+              title={
+                canSimulate
+                  ? "Waiting for proposals"
+                  : p.status === "draft"
+                    ? "Not published yet"
+                    : "No proposals"
+              }
+              description={
+                canSimulate
+                  ? `Vendors can download the RFP and submit a commercial and a technical proposal${
+                      p.deadline ? ` until ${formatDate(`${p.deadline}T00:00:00`)}` : ""
+                    }. Each submission is listed here with its date and documents.`
+                  : p.status === "draft"
+                    ? "Publish the tender to vendors from the header above. Their proposals will be listed here."
+                    : "This tender received no proposals."
+              }
+              actions={simulate}
+            />
+          </div>
+          {canSimulate && <AnalysePanel project={p} proposals={[]} />}
         </div>
-        {canSimulate && <AnalysePanel project={p} proposals={[]} />}
-      </div>
+      </>
     );
   }
 
@@ -191,54 +215,58 @@ export function ProposalsTab() {
   ];
 
   return (
-    <section aria-labelledby="proposals-title" className="flex flex-col gap-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h2
-            id="proposals-title"
-            className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight text-ink"
-          >
-            <FileStack className="size-5 text-ink-faint" aria-hidden />
-            Proposals {data && <span className="text-ink-muted tabular-nums">({data.length})</span>}
-          </h2>
-          <p className="text-[13px] text-ink-muted">
-            Each vendor submits a commercial (financial) and a technical proposal. Open one to read
-            its documents.
-          </p>
+    <>
+      {generateDialog}
+      <section aria-labelledby="proposals-title" className="flex flex-col gap-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <h2
+              id="proposals-title"
+              className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight text-ink"
+            >
+              <FileStack className="size-5 text-ink-faint" aria-hidden />
+              Proposals{" "}
+              {data && <span className="text-ink-muted tabular-nums">({data.length})</span>}
+            </h2>
+            <p className="text-[13px] text-ink-muted">
+              Each vendor submits a commercial (financial) and a technical proposal. Open one to
+              read its documents.
+            </p>
+          </div>
+          {simulate}
         </div>
-        {simulate}
-      </div>
-      {isError ? (
-        <div className="rounded-xl border border-fail/30 bg-fail-soft/40 p-6 text-fail">
-          Couldn&apos;t load proposals.{" "}
-          <button className="font-medium underline" onClick={() => refetch()}>
-            Try again
-          </button>
-        </div>
-      ) : (
-        <DataTable
-          caption={`Proposals received for ${p.code}`}
-          columns={columns}
-          rows={data ?? []}
-          rowKey={(r) => r.id}
-          loading={isLoading}
-          initialSort={{ id: "submitted", dir: "asc" }}
+        {isError ? (
+          <div className="rounded-xl border border-fail/30 bg-fail-soft/40 p-6 text-fail">
+            Couldn&apos;t load proposals.{" "}
+            <button className="font-medium underline" onClick={() => refetch()}>
+              Try again
+            </button>
+          </div>
+        ) : (
+          <DataTable
+            caption={`Proposals received for ${p.code}`}
+            columns={columns}
+            rows={data ?? []}
+            rowKey={(r) => r.id}
+            loading={isLoading}
+            initialSort={{ id: "submitted", dir: "asc" }}
+          />
+        )}
+        {data && data.length > 0 && <AnalysePanel project={p} proposals={data} />}
+        <ConfirmDialog
+          open={!!removing}
+          onOpenChange={(o) => !o && setRemoving(null)}
+          title={`Remove ${removing?.vendor.name ?? "this"}'s proposal?`}
+          description="Its commercial and technical files are deleted. In a real tender this is what happens when a vendor withdraws its bid."
+          confirmLabel="Remove proposal"
+          onConfirm={async () => {
+            if (!removing) return;
+            await remove.mutateAsync(removing.id);
+            toast.success(`${removing.vendor.name}'s proposal removed.`);
+            setRemoving(null);
+          }}
         />
-      )}
-      {data && data.length > 0 && <AnalysePanel project={p} proposals={data} />}
-      <ConfirmDialog
-        open={!!removing}
-        onOpenChange={(o) => !o && setRemoving(null)}
-        title={`Remove ${removing?.vendor.name ?? "this"}'s proposal?`}
-        description="Its commercial and technical files are deleted. In a real tender this is what happens when a vendor withdraws its bid."
-        confirmLabel="Remove proposal"
-        onConfirm={async () => {
-          if (!removing) return;
-          await remove.mutateAsync(removing.id);
-          toast.success(`${removing.vendor.name}'s proposal removed.`);
-          setRemoving(null);
-        }}
-      />
-    </section>
+      </section>
+    </>
   );
 }
