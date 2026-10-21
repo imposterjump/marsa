@@ -98,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex min-w-0 flex-1 flex-col lg:min-h-0 lg:py-2 lg:pe-2">
             <div
               id="app-scroll"
-              className="flex min-h-dvh flex-1 flex-col bg-background lg:min-h-0 lg:overflow-y-auto lg:rounded-2xl lg:border lg:border-border lg:shadow-xs"
+              className="flex min-h-dvh flex-1 flex-col bg-background lg:min-h-0 lg:overflow-y-auto lg:overscroll-none lg:rounded-2xl lg:border lg:border-border lg:shadow-xs"
             >
               <Topbar onOpenMenu={() => setMobileOpen(true)} />
               <main

@@ -1,0 +1,562 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  Activity,
+  CircleCheck,
+  CircleMinus,
+  CircleX,
+  ClipboardCheck,
+  Contrast,
+  Download,
+  FileStack,
+  FileCheck2,
+  Gauge,
+  HelpCircle,
+  Repeat,
+  Star,
+  Timer,
+} from "lucide-react";
+import { cn } from "cn";
+import { useProjectContext } from "@/components/projects/project-shell";
+import { RunIcon } from "@/components/evaluation/run-parts";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { reviewSummaryKey, useReviewSummary, useRunQuality } from "@/hooks/use-ai-review";
+import type { RunQualityDto } from "@/lib/api-types";
+import type { AiModel, RunStatus } from "@/lib/domain";
+import { formatDateTime } from "@/lib/format";
+import { AI_MODEL_LABEL, STEP_STATUS_LABEL } from "@/lib/labels";
+import { formatDuration } from "@/lib/plan";
+import { Meter, StackedBar, StatTile, severityOf } from "./charts";
+import { ReviewPanel } from "./review-panel";
+
+const card = "rounded-xl border border-border bg-surface shadow-xs";
+
+const STATUS_TEXT: Record<RunStatus, string> = {
+  queued: "Queued",
+  running: "Running",
+  completed: "Succeeded",
+  completed_with_errors: "Partly succeeded",
+  failed: "Failed",
+  cancelled: "Cancelled",
+  interrupted: "Interrupted",
+};
+
+const modelName = (m: string) => AI_MODEL_LABEL[m as AiModel] ?? m;
+
+/**
+ * AI review (user request after P7): one dashboard per analysis run (files scanned and processed,
+ * calls and retries, outcome, findings, evidence check, confidence score) plus a human review that
+ * is stored for improving the system. Everything is computed from stored results; no AI calls.
+ */
+export function AiReviewView() {
+  const p = useProjectContext();
+  const { data: runs, isLoading } = useReviewSummary(p.id);
+  const [picked, setPicked] = useState<string | null>(null);
+
+  if (isLoading) return <Skeleton className="h-64 w-full rounded-xl" />;
+  if (!runs?.length) {
+    return (
+      <div className={cn(card, "border-dashed")}>
+        <EmptyState
+          size="lg"
+          art={<ClipboardCheck className="size-12 text-ink-faint" strokeWidth={1.25} />}
+          title="No analysis to review yet"
+          description="Each run of Analyse & process gets a report here: files scanned, AI calls, outcome, evidence check and a confidence score, and you can rate the AI's work."
+        />
+      </div>
+    );
+  }
+  const selected = runs.find((r) => r.run.id === picked) ?? runs[0];
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h2 className="font-heading text-lg font-semibold tracking-tight text-ink">AI review</h2>
+          <p className="max-w-2xl text-[13px] text-ink-muted">
+            How each analysis went, how far its output can be relied on, and your rating of it.
+          </p>
+        </div>
+        <Button asChild variant="secondary" size="sm">
+          <a href="/api/reviews/export" download>
+            <Download /> Export all reviews (JSON)
+          </a>
+        </Button>
+      </div>
+
+      <section aria-label="Analysis runs" className={cn(card, "overflow-x-auto")}>
+        <table className="w-full min-w-[640px] text-[13px]">
+          <thead>
+            <tr className="border-b border-border text-2xs tracking-[0.06em] text-ink-muted uppercase">
+              <th scope="col" className="px-4 py-2.5 text-start font-semibold">
+                Run
+              </th>
+              <th scope="col" className="px-4 py-2.5 text-start font-semibold">
+                Model
+              </th>
+              <th scope="col" className="px-4 py-2.5 text-start font-semibold">
+                Outcome
+              </th>
+              <th scope="col" className="px-4 py-2.5 text-end font-semibold">
+                Cost
+              </th>
+              <th scope="col" className="px-4 py-2.5 text-end font-semibold">
+                Confidence
+              </th>
+              <th scope="col" className="px-4 py-2.5 text-end font-semibold">
+                Your rating
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.map((r) => {
+              const active = r.run.id === selected.run.id;
+              return (
+                <tr
+                  key={r.run.id}
+                  aria-selected={active}
+                  className={cn(
+                    "cursor-pointer border-b border-border/60 last:border-0 hover:bg-surface-muted/50",
+                    active && "bg-brand-soft/40 hover:bg-brand-soft/50",
+                  )}
+                  onClick={() => setPicked(r.run.id)}
+                >
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      className="text-start font-medium text-ink outline-none focus-visible:underline"
+                      onClick={() => setPicked(r.run.id)}
+                    >
+                      {formatDateTime(r.run.createdAt)}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-ink-2">
+                    {r.run.mode === "mock" ? "Demo AI" : modelName(r.run.model)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="flex items-center gap-1.5 text-ink-2">
+                      <RunIcon status={r.run.status} /> {STATUS_TEXT[r.run.status]}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-end text-ink-2 tabular-nums">
+                    {r.run.mode === "mock" ? "Free" : `$${r.run.costUsd.toFixed(2)}`}
+                  </td>
+                  <td className="px-4 py-3 text-end font-medium text-ink tabular-nums">
+                    {r.confidence ?? "—"}
+                  </td>
+                  <td className="px-4 py-3 text-end text-ink-2 tabular-nums">
+                    {r.rating ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Star className="size-3.5 fill-brand text-brand" aria-hidden />
+                        {r.rating} <span className="text-ink-muted">({r.reviews})</span>
+                      </span>
+                    ) : (
+                      "Not reviewed"
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </section>
+
+      <RunReport
+        key={selected.run.id}
+        runId={selected.run.id}
+        needsRefresh={selected.confidence === null}
+      />
+      <ReviewPanel key={`review-${selected.run.id}`} projectId={p.id} runId={selected.run.id} />
+    </div>
+  );
+}
+
+function RunReport({ runId, needsRefresh }: { runId: string; needsRefresh: boolean }) {
+  const { data: q, isLoading } = useRunQuality(runId);
+  const qc = useQueryClient();
+  const p = useProjectContext();
+  // Older runs get their metrics on first view: refresh the run list so its score shows too.
+  useEffect(() => {
+    if (q && needsRefresh) void qc.invalidateQueries({ queryKey: reviewSummaryKey(p.id) });
+  }, [q, needsRefresh, qc, p.id]);
+  if (isLoading || !q) return <Skeleton className="h-96 w-full rounded-xl" />;
+  const { files, steps, findings, evidence } = q;
+  const parts = q.confidence.parts;
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Hero: the one number this view leads with */}
+      <section
+        aria-labelledby="conf-title"
+        className={cn(card, "flex flex-col gap-6 p-6 lg:flex-row lg:items-center lg:gap-10")}
+      >
+        <div className="flex shrink-0 flex-col gap-1">
+          <h3 id="conf-title" className="flex items-center gap-1.5 text-xs text-ink-muted">
+            <Gauge className="size-3.5" aria-hidden /> Confidence score
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="How the score is calculated"
+                  className="rounded-full text-ink-faint outline-none hover:text-ink-muted focus-visible:ring-3 focus-visible:ring-ring/25"
+                >
+                  <HelpCircle className="size-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                35 % AI confidence + 35 % evidence verified + 15 % coverage + 15 % completion.
+                Computed from the stored results; no AI call.
+              </TooltipContent>
+            </Tooltip>
+          </h3>
+          <span className="flex items-baseline gap-2">
+            <span className="font-heading text-5xl font-semibold tracking-tight text-ink tabular-nums">
+              {q.confidence.score}
+            </span>
+            <span className="text-sm font-medium text-ink-2">/ 100 · {q.confidence.label}</span>
+          </span>
+          <div className="w-56">
+            <Meter
+              value={q.confidence.score}
+              label="Confidence score"
+              severity={severityOf(q.confidence.score)}
+            />
+          </div>
+        </div>
+        <dl className="grid flex-1 gap-x-8 gap-y-4 sm:grid-cols-2">
+          {[
+            [
+              "AI confidence",
+              parts.aiConfidence,
+              "How sure the AI said it was, per finding (high / medium / low)",
+            ],
+            [
+              "Evidence verified",
+              parts.evidence,
+              "Quotes found in the cited document on the cited page",
+            ],
+            ["Coverage", parts.coverage, "Requirements the AI answered itself (not skipped)"],
+            ["Completion", parts.completion, "Vendors analysed and the summary written"],
+          ].map(([label, value, hint]) => (
+            <div key={label as string} className="flex flex-col gap-1.5">
+              <dt className="flex items-baseline justify-between gap-3 text-[13px]">
+                <span className="font-medium text-ink">{label}</span>
+                <span className="text-ink tabular-nums">{value} %</span>
+              </dt>
+              <dd className="flex flex-col gap-1">
+                <Meter
+                  value={value as number}
+                  label={label as string}
+                  severity={severityOf(value as number)}
+                  size="sm"
+                />
+                <span className="text-xs text-ink-muted">{hint}</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      {/* KPI row */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <StatTile
+          icon={FileStack}
+          label="Files scanned"
+          value={files.total}
+          detail={`${files.pages} pages · RFP, standards and proposals`}
+        />
+        <StatTile
+          icon={FileCheck2}
+          label="Processed correctly"
+          value={`${files.processed} / ${files.total}`}
+          detail={files.skipped ? `${files.skipped} unreadable, skipped` : "No file skipped"}
+        />
+        <StatTile
+          icon={Repeat}
+          label="AI calls"
+          value={steps.attempts}
+          detail={
+            steps.retries
+              ? `${steps.retries} retr${steps.retries === 1 ? "y" : "ies"} · ${steps.total} steps`
+              : `No retries · ${steps.total} steps`
+          }
+        />
+        <StatTile
+          icon={Activity}
+          label="Outcome"
+          value={
+            <span className="flex items-center gap-2 text-xl">
+              <RunIcon status={q.status} />
+              {STATUS_TEXT[q.status]}
+            </span>
+          }
+          detail={`${steps.done} done${steps.failed ? ` · ${steps.failed} failed` : ""}${steps.skipped ? ` · ${steps.skipped} skipped` : ""}${steps.cancelled ? ` · ${steps.cancelled} cancelled` : ""}`}
+        />
+        <StatTile
+          icon={Timer}
+          label={q.mode === "mock" ? "Time" : "Cost and time"}
+          value={
+            q.mode === "mock"
+              ? q.durationMs
+                ? formatDuration(q.durationMs / 1000)
+                : "—"
+              : `$${q.costUsd.toFixed(2)}`
+          }
+          detail={
+            q.mode === "mock"
+              ? "Demo AI (free)"
+              : `${q.durationMs ? formatDuration(q.durationMs / 1000) : "—"} · ${modelName(q.model)}${q.cacheHitPct != null ? ` · ${q.cacheHitPct} % from cache` : ""}`
+          }
+        />
+      </div>
+
+      {/* Distributions */}
+      <div className="grid gap-5 lg:grid-cols-3">
+        <section aria-labelledby="dist-status" className={cn(card, "flex flex-col gap-4 p-5")}>
+          <h3 id="dist-status" className="text-sm font-semibold text-ink">
+            Findings by status{" "}
+            <span className="font-normal text-ink-muted">({findings.total})</span>
+          </h3>
+          <StackedBar
+            label="Findings by status"
+            segments={[
+              {
+                key: "c",
+                label: "Compliant",
+                value: findings.byStatus.compliant,
+                fill: "bg-ok",
+                icon: CircleCheck,
+              },
+              {
+                key: "p",
+                label: "Partial",
+                value: findings.byStatus.partial,
+                fill: "bg-partial",
+                icon: Contrast,
+              },
+              {
+                key: "n",
+                label: "Non-compliant",
+                value: findings.byStatus.non_compliant,
+                fill: "bg-fail",
+                icon: CircleX,
+              },
+              {
+                key: "m",
+                label: "Not addressed",
+                value: findings.byStatus.not_addressed,
+                fill: "bg-missing",
+                icon: CircleMinus,
+              },
+            ]}
+          />
+          {findings.notAssessed > 0 && (
+            <p className="text-xs text-ink-muted">
+              {findings.notAssessed} requirement{findings.notAssessed === 1 ? " was" : "s were"}{" "}
+              skipped by the AI and counted as not addressed.
+            </p>
+          )}
+        </section>
+        <section aria-labelledby="dist-conf" className={cn(card, "flex flex-col gap-4 p-5")}>
+          <h3 id="dist-conf" className="text-sm font-semibold text-ink">
+            AI’s own confidence
+          </h3>
+          <StackedBar
+            label="AI confidence per finding"
+            segments={[
+              { key: "h", label: "High", value: findings.byConfidence.high, fill: "bg-brand" },
+              {
+                key: "m",
+                label: "Medium",
+                value: findings.byConfidence.medium,
+                fill: "bg-brand/55",
+              },
+              { key: "l", label: "Low", value: findings.byConfidence.low, fill: "bg-brand/25" },
+            ]}
+          />
+        </section>
+        <section aria-labelledby="dist-evidence" className={cn(card, "flex flex-col gap-4 p-5")}>
+          <h3 id="dist-evidence" className="text-sm font-semibold text-ink">
+            Evidence check{" "}
+            <span className="font-normal text-ink-muted">({evidence.quoted} quotes)</span>
+          </h3>
+          <StackedBar
+            label="Evidence check"
+            segments={[
+              {
+                key: "v",
+                label: "Found on cited page",
+                value: evidence.verified,
+                fill: "bg-ok",
+                icon: CircleCheck,
+              },
+              {
+                key: "o",
+                label: "On another page",
+                value: evidence.otherPage,
+                fill: "bg-partial",
+                icon: Contrast,
+              },
+              {
+                key: "n",
+                label: "Not found",
+                value: evidence.notFound,
+                fill: "bg-fail",
+                icon: CircleX,
+              },
+              {
+                key: "u",
+                label: "Not checkable",
+                value: evidence.unchecked,
+                fill: "bg-missing",
+                icon: CircleMinus,
+              },
+            ]}
+          />
+        </section>
+      </div>
+
+      {/* Table view per vendor */}
+      <section aria-labelledby="vendors-title" className={cn(card, "overflow-x-auto")}>
+        <h3 id="vendors-title" className="px-5 pt-4 text-sm font-semibold text-ink">
+          Per vendor
+        </h3>
+        <VendorTable q={q} />
+      </section>
+
+      <details className={cn(card, "group")}>
+        <summary className="cursor-pointer list-none px-5 py-4 text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
+          Files sent to the AI <span className="font-normal text-ink-muted">({files.total})</span>
+        </summary>
+        <div className="overflow-x-auto border-t border-border">
+          <table className="w-full min-w-[560px] text-[13px]">
+            <thead>
+              <tr className="border-b border-border text-2xs tracking-[0.06em] text-ink-muted uppercase">
+                <th scope="col" className="px-5 py-2 text-start font-semibold">
+                  File
+                </th>
+                <th scope="col" className="px-5 py-2 text-start font-semibold">
+                  From
+                </th>
+                <th scope="col" className="px-5 py-2 text-end font-semibold">
+                  Pages
+                </th>
+                <th scope="col" className="px-5 py-2 text-start font-semibold">
+                  Sent as
+                </th>
+                <th scope="col" className="px-5 py-2 text-start font-semibold">
+                  Processed
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {files.list.map((f) => (
+                <tr key={f.id} className="border-b border-border/60 last:border-0">
+                  <td className="px-5 py-2.5 text-ink" dir="auto">
+                    {f.name}
+                  </td>
+                  <td className="px-5 py-2.5 text-ink-2">{f.group === "rfp" ? "RFP" : f.owner}</td>
+                  <td className="px-5 py-2.5 text-end text-ink-2 tabular-nums">{f.pages ?? "—"}</td>
+                  <td className="px-5 py-2.5 text-ink-2">
+                    {f.sentAs === "pdf"
+                      ? "PDF (pages)"
+                      : f.sentAs === "image"
+                        ? "Image"
+                        : f.sentAs === "text"
+                          ? "Extracted text"
+                          : "Not readable"}
+                  </td>
+                  <td className="px-5 py-2.5">
+                    <span className="flex items-center gap-1.5 text-ink-2">
+                      {f.used ? (
+                        <CircleCheck className="size-4 text-ok" aria-hidden />
+                      ) : (
+                        <CircleMinus className="size-4 text-missing" aria-hidden />
+                      )}
+                      {f.used ? "Yes" : "No"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function VendorTable({ q }: { q: RunQualityDto }) {
+  return (
+    <table className="mt-2 w-full min-w-[760px] text-[13px]">
+      <thead>
+        <tr className="border-b border-border text-2xs tracking-[0.06em] text-ink-muted uppercase">
+          <th scope="col" className="px-5 py-2 text-start font-semibold">
+            Vendor
+          </th>
+          <th scope="col" className="px-5 py-2 text-end font-semibold">
+            Files / pages
+          </th>
+          <th scope="col" className="px-5 py-2 text-end font-semibold">
+            Findings
+          </th>
+          <th scope="col" className="px-5 py-2 text-end font-semibold">
+            Compliance
+          </th>
+          <th scope="col" className="px-5 py-2 text-end font-semibold">
+            Evidence verified
+          </th>
+          <th scope="col" className="px-5 py-2 text-end font-semibold">
+            AI confidence
+          </th>
+          <th scope="col" className="px-5 py-2 text-start font-semibold">
+            Analysis step
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {q.vendors.map((v) => (
+          <tr key={v.proposalId} className="border-b border-border/60 last:border-0">
+            <td className="px-5 py-3 font-medium text-ink" dir="auto">
+              {v.vendor}
+            </td>
+            <td className="px-5 py-3 text-end text-ink-2 tabular-nums">
+              {v.files} / {v.pages}
+            </td>
+            <td className="px-5 py-3 text-end text-ink-2 tabular-nums">{v.findings}</td>
+            <td className="px-5 py-3 text-end text-ink tabular-nums">
+              {v.scorePct != null ? `${v.scorePct} %` : "—"}
+            </td>
+            <td className="px-5 py-3 text-end tabular-nums">
+              {v.evidenceVerifiedPct != null ? (
+                <span className="inline-flex w-24 flex-col items-end gap-1">
+                  <span className="text-ink">{v.evidenceVerifiedPct} %</span>
+                  <Meter
+                    value={v.evidenceVerifiedPct}
+                    label={`${v.vendor} evidence verified`}
+                    severity={severityOf(v.evidenceVerifiedPct)}
+                    size="sm"
+                  />
+                </span>
+              ) : (
+                "—"
+              )}
+            </td>
+            <td className="px-5 py-3 text-end text-ink tabular-nums">
+              {v.aiConfidencePct != null ? `${v.aiConfidencePct} %` : "—"}
+            </td>
+            <td className="px-5 py-3 text-ink-2">
+              {v.analysisStatus ? STEP_STATUS_LABEL[v.analysisStatus] : "—"}
+              {v.analysisAttempts > 1 ? ` · ${v.analysisAttempts} attempts` : ""}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}

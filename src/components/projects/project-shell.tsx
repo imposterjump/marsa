@@ -10,6 +10,7 @@ import {
   ArchiveRestore,
   ArrowLeft,
   CalendarClock,
+  ClipboardCheck,
   Info,
   LayoutDashboard,
   Lock,
@@ -108,6 +109,7 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
     { href: base, label: "Overview", icon: LayoutDashboard },
     { href: `${base}/proposals`, label: "Proposals", icon: Users, count: p.proposalCount },
     { href: `${base}/evaluation`, label: "Evaluation", icon: p.proposalCount ? Sparkles : Lock },
+    { href: `${base}/ai-review`, label: "AI review", icon: ClipboardCheck },
   ];
 
   // On a single proposal (/proposals/[id]) the header shrinks to one line (P5.3): the vendor's

@@ -157,3 +157,7 @@ export interface RunConfig {
   /** Engine used for the run (AI_MODE when it started). */
   mode: "mock" | "live";
 }
+
+/** Human verdict on an analysis run (AI review, saved for improving the system). */
+export const REVIEW_VERDICTS = ["trust", "trust_with_edits", "do_not_trust"] as const;
+export type ReviewVerdict = (typeof REVIEW_VERDICTS)[number];

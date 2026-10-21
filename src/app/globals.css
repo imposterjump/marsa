@@ -311,6 +311,12 @@
   body {
     @apply bg-frame text-sm text-foreground;
   }
+  /* No rubber-band bounce past the end of the page (Edge / Chrome on touchpads showed the frame
+     background below the content) and no scroll chaining into the page behind. */
+  html,
+  body {
+    overscroll-behavior: none;
+  }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
@@ -428,6 +434,11 @@ mark.marsa-hit {
 }
 .marsa-pulse {
   animation: marsa-pulse 1.2s var(--ease-out-quint) 2;
+}
+
+/* A standard rule opened from an analysis finding (?rule=CODE). */
+.marsa-rule-hit {
+  background-color: var(--brand-soft) !important;
 }
 
 /* Mission control (P7.1): sweep on the active phase, gentle breathing on running steps. */

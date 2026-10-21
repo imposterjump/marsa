@@ -156,7 +156,7 @@ function SheetPage({ sheet }: { sheet: SheetPreview }) {
           {sheet.rows.length} rows{sheet.truncated ? " · preview truncated" : ""}
         </span>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 flex-1 overflow-auto overscroll-none">
         <table className="border-separate border-spacing-0 text-[9px] leading-snug">
           <tbody>
             {sheet.rows.map((row, i) => (

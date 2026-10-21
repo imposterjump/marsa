@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useSettings } from "@/hooks/use-settings";
 import { BrandMark, Wordmark } from "./brand-mark";
 import { isActive, NAV_ITEMS } from "./nav";
+import { AI_MODEL_LABEL } from "@/lib/labels";
 
 /** Desktop sidebar (≥ lg). Width comes from --sidebar-w, toggled pre-paint via data-sidebar. */
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
@@ -141,7 +142,7 @@ function AiModeChip() {
   const { data } = useSettings();
   if (!data) return <div className="h-14" />;
   const { aiMode, apiKeyConfigured } = data.runtime;
-  const model = data.aiModel === "claude-opus-5-5" ? "Claude Opus 5.5" : "Claude Sonnet 5.5";
+  const model = AI_MODEL_LABEL[data.aiModel] ?? data.aiModel;
   const state =
     aiMode === "mock"
       ? {

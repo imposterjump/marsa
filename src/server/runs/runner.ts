@@ -59,6 +59,8 @@ export interface RunnerDeps {
   forgetUploads?(docs: SourceDoc[]): void;
   mode: "mock" | "live";
   apiKeyConfigured: boolean;
+  /** Called after a run ends (any status), e.g. to compute its quality metrics. */
+  onFinished?(runId: string): Promise<unknown> | void;
 }
 
 interface Handle {
@@ -264,6 +266,9 @@ export function createRunner(deps: RunnerDeps) {
     };
     live.set(runId, handle);
     handle.done = execute(handle)
+      .then(async () => {
+        await deps.onFinished?.(runId);
+      })
       .catch((err) => console.error(`[runner] run ${runId} crashed:`, err))
       .finally(() => live.delete(runId));
     return handle;

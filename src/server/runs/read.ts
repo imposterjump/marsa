@@ -34,6 +34,8 @@ import type {
 } from "../../lib/api-types";
 import { etaSeconds } from "../../lib/plan";
 import type { ChecklistOutput } from "../ai/schemas";
+import type { LocalStorage } from "../storage/local";
+import { resolveSources } from "./sources";
 import {
   ACTIVE_RUN_STATUSES,
   getRun,
@@ -261,6 +263,18 @@ export function getRunResults(db: Db, runId: string): RunResultsDto {
   };
 }
 
+/** One vendor's results with each requirement's sources resolved to RFP pages / standard rules. */
+export async function getProposalResultWithSources(
+  db: Db,
+  storage: LocalStorage,
+  runId: string,
+  proposalId: string,
+): Promise<ProposalResultDto> {
+  const result = getProposalResult(db, runId, proposalId);
+  const sources = await resolveSources(db, storage, getRun(db, runId), result.requirements);
+  return { ...result, sources: Object.fromEntries(sources) };
+}
+
 export function getProposalResult(db: Db, runId: string, proposalId: string): ProposalResultDto {
   const run = getRun(db, runId);
   if (!run.config.proposalIds.includes(proposalId)) throw notFound("Proposal in this analysis");
@@ -316,6 +330,7 @@ export function getProposalResult(db: Db, runId: string, proposalId: string): Pr
     run: toRunDto(run),
     evaluation: evaluation ?? null,
     requirements: reqs,
+    sources: {},
     findings: findingDtos,
     comparison: (comparison?.data as ComparisonDto | undefined) ?? null,
     risks: riskRows,

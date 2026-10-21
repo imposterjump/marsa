@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Reorder, useDragControls } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -87,6 +87,17 @@ export function RulesEditor({ standard }: { standard: StandardDetailDto }) {
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
+  // ?rule=SEC-02 (links from analysis results): scroll to that rule and highlight it briefly.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("rule");
+    const el = code ? document.getElementById(`rule-${code}`) : null;
+    if (!el) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    el.classList.add("marsa-pulse", "marsa-rule-hit");
+    const t = setTimeout(() => el.classList.remove("marsa-pulse", "marsa-rule-hit"), 2600);
+    return () => clearTimeout(t);
+  }, [standard.rules.length]);
 
   const byId = useMemo(() => new Map(standard.rules.map((r) => [r.id, r])), [standard.rules]);
   const order = dragOrder ?? standard.rules.map((r) => r.id);
@@ -223,7 +234,8 @@ function RuleRow({
       dragListener={false}
       dragControls={controls}
       onDragEnd={onDragEnd}
-      className="group/rule relative border-b border-border/70 bg-surface last:border-b-0"
+      id={`rule-${rule.code}`}
+      className="group/rule relative scroll-mt-24 border-b border-border/70 bg-surface transition-colors duration-700 last:border-b-0"
       whileDrag={{ scale: 1.01, boxShadow: "var(--elev-lg)", zIndex: 5 }}
     >
       {editing ? (

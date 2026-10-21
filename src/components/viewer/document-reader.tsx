@@ -379,7 +379,7 @@ function ReaderBody({
         )}
 
         {/* ── Stage ── */}
-        <div ref={stageRef} className="relative min-w-0 flex-1 overflow-auto">
+        <div ref={stageRef} className="relative min-w-0 flex-1 overflow-auto overscroll-none">
           {quoteStatus && quote && <QuoteBanner status={quoteStatus} quote={quote} />}
           <div
             className="flex min-h-full min-w-full items-start justify-center"
@@ -648,7 +648,7 @@ function Filmstrip({
     <nav aria-label="Pages" className="hidden w-32 shrink-0 border-e border-stage-line md:block">
       <ol
         ref={listRef}
-        className="flex h-full [scrollbar-width:thin] flex-col items-center gap-4 overflow-y-auto px-3 py-5"
+        className="flex h-full [scrollbar-width:thin] flex-col items-center gap-4 overflow-y-auto overscroll-none px-3 py-5"
       >
         {sizes.map((s, i) => {
           const n = i + 1;

@@ -31,6 +31,7 @@ import {
   outcomeOf,
   type StepRow,
 } from "@/server/runs/store";
+import { clauseTokens, findToken } from "@/server/runs/sources";
 import { costFromUsage, etaSeconds, joinNames, planSteps } from "@/lib/plan";
 import { maxSeverity, riskSeverity } from "@/lib/scoring";
 
@@ -573,5 +574,26 @@ describe("wire format (P6.10)", () => {
       negotiationPoints: [],
     }) as { recommendedVendor: string | null };
     expect(summary.recommendedVendor).toBeNull();
+  });
+});
+
+describe("requirement sources (links to RFP clauses and standard rules)", () => {
+  it("extracts clause tokens and leaves standard rule codes alone", () => {
+    const rules = new Set(["SEC-02", "COM-01"]);
+    expect(clauseTokens("RFP §4.6.1; SEC-02", rules)).toEqual(["4.6.1"]);
+    expect(clauseTokens("Annex B TB-24", rules)).toEqual(["TB-24"]);
+    expect(clauseTokens("Annex C GC 10.1, SC 7.2", rules)).toEqual(["GC 10.1", "SC 7.2"]);
+    expect(clauseTokens("Addendum 1 Q3; COM-01", rules)).toEqual(["Q3"]);
+  });
+
+  it("finds the page where a clause starts a line, not a mention or a bare number", () => {
+    const pages = [
+      "Contents\nThe vendor shall comply with 4.6.1 below.",
+      "4.6 Licensing\n4.6.1 All licensing servers shall be on-premise.",
+      "8. Evaluation\n8 trucks per hour",
+    ];
+    expect(findToken(pages, "4.6.1")).toBe(1);
+    expect(findToken(pages, "8")).toBe(2);
+    expect(findToken(pages, "9.9.9")).toBe(-1);
   });
 });

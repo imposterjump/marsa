@@ -250,6 +250,28 @@ export interface RequirementDto {
   acceptance: string;
 }
 
+/** Where a requirement comes from, resolved to something the UI can open (src/server/runs/sources.ts). */
+export type RequirementSourceDto =
+  | {
+      kind: "rfp";
+      label: string;
+      /** Null when the reference could not be found in the RFP documents. */
+      documentId: string | null;
+      documentName: string | null;
+      page: number | null;
+      /** Text to highlight (the clause number), or null. */
+      needle: string | null;
+    }
+  | {
+      kind: "standard";
+      label: string;
+      standardId: string;
+      standardCode: string;
+      ruleCode: string;
+      ruleText: string;
+    }
+  | { kind: "notes"; label: string };
+
 export interface EvaluationDto {
   id: string;
   proposalId: string;
@@ -325,6 +347,8 @@ export interface ProposalResultDto {
   run: RunDto;
   evaluation: EvaluationDto | null;
   requirements: RequirementDto[];
+  /** Requirement id → where it comes from (RFP clause with page, standard rule). */
+  sources: Record<string, RequirementSourceDto[]>;
   findings: FindingDto[];
   comparison: ComparisonDto | null;
   risks: RiskDto[];
@@ -351,4 +375,96 @@ export interface GenJobDto {
   costUsd: number;
   createdAt: string;
   finishedAt: string | null;
+}
+
+// ─── AI review (run quality + human reviews) ─────────────────────────────────
+export interface RunQualityDto {
+  runId: string;
+  computedAt: string;
+  model: string;
+  mode: "mock" | "live";
+  status: RunStatus;
+  durationMs: number | null;
+  costUsd: number;
+  usage: TokenUsage | null;
+  /** Share of prompt tokens served from the prompt cache (0–100). */
+  cacheHitPct: number | null;
+  files: {
+    total: number;
+    pages: number;
+    /** Sent to the AI and used by a finished step. */
+    processed: number;
+    /** Not readable by the AI (unsupported format, password, no text). */
+    skipped: number;
+    list: {
+      id: string;
+      name: string;
+      group: "rfp" | "standard" | "proposal";
+      owner: string;
+      pages: number | null;
+      sentAs: "pdf" | "image" | "text" | "skipped";
+      used: boolean;
+    }[];
+  };
+  steps: {
+    total: number;
+    done: number;
+    failed: number;
+    skipped: number;
+    cancelled: number;
+    /** Calls made, including retries. */
+    attempts: number;
+    retries: number;
+  };
+  findings: {
+    total: number;
+    byStatus: StatusCounts;
+    byConfidence: { high: number; medium: number; low: number };
+    /** Requirements the AI skipped (counted as not addressed). */
+    notAssessed: number;
+  };
+  evidence: {
+    /** Findings that cite a quote. */
+    quoted: number;
+    /** Quote found on the cited page (or in the document when no page applies). */
+    verified: number;
+    /** Quote found, but on another page than cited. */
+    otherPage: number;
+    /** Quote not found in the cited document. */
+    notFound: number;
+    /** Could not be checked (no document matched, or no readable text). */
+    unchecked: number;
+  };
+  vendors: {
+    proposalId: string;
+    vendor: string;
+    files: number;
+    pages: number;
+    findings: number;
+    scorePct: number | null;
+    evidenceVerifiedPct: number | null;
+    aiConfidencePct: number | null;
+    analysisStatus: StepStatus | null;
+    analysisAttempts: number;
+  }[];
+  /** 0–100 summary of how much the run's output can be relied on (formula in quality.ts). */
+  confidence: {
+    score: number;
+    label: "High" | "Good" | "Fair" | "Low";
+    parts: { aiConfidence: number; evidence: number; coverage: number; completion: number };
+  };
+}
+
+export interface RunReviewDto {
+  id: string;
+  runId: string;
+  reviewer: string;
+  overall: number;
+  accuracy: number | null;
+  evidence: number | null;
+  completeness: number | null;
+  usefulness: number | null;
+  verdict: "trust" | "trust_with_edits" | "do_not_trust";
+  comment: string;
+  createdAt: string;
 }

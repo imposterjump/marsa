@@ -1,13 +1,28 @@
 "use client";
 
-import { BookOpen, CircleAlert, Quote } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowUpRight,
+  BookOpen,
+  CircleAlert,
+  FileText,
+  Quote,
+  ShieldCheck,
+  StickyNote,
+} from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FindingStatusPill, Pill, PriorityPill, RiskPill } from "@/components/ui/status-pill";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useProposalResult } from "@/hooks/use-runs";
-import type { FindingDto, ProposalResultDto, RequirementDto } from "@/lib/api-types";
+import type {
+  FindingDto,
+  ProposalResultDto,
+  RequirementDto,
+  RequirementSourceDto,
+} from "@/lib/api-types";
 import { FINDING_STATUSES, type FindingStatus } from "@/lib/domain";
 import { FINDING_STATUS_LABEL } from "@/lib/labels";
 
@@ -64,30 +79,34 @@ function Compliance({
   }));
   return (
     <div className="flex flex-col gap-5">
-      <section className={cn(card, "flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:gap-8")}>
-        <div className="flex flex-col">
-          <span className="font-heading text-4xl font-semibold tracking-tight text-ink tabular-nums">
-            {ev.scorePct}%
-          </span>
-          <span className="text-xs text-ink-muted">weighted compliance</span>
+      <section className={cn(card, "flex flex-col gap-4 p-5")}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
+          <div className="flex flex-col">
+            <span className="font-heading text-4xl font-semibold tracking-tight text-ink tabular-nums">
+              {ev.scorePct}%
+            </span>
+            <span className="text-xs text-ink-muted">weighted compliance</span>
+          </div>
+          <ul className="flex flex-wrap gap-2" aria-label="Findings by status">
+            {groups.map((g) => (
+              <li key={g.status}>
+                <FindingStatusPill
+                  status={g.status}
+                  label={`${g.items.length} ${FINDING_STATUS_LABEL[g.status].toLowerCase()}`}
+                />
+              </li>
+            ))}
+            {ev.mandatoryFailures > 0 && (
+              <li>
+                <Pill tone="fail">{ev.mandatoryFailures} mandatory not met</Pill>
+              </li>
+            )}
+          </ul>
         </div>
-        <ul className="flex flex-wrap gap-2" aria-label="Findings by status">
-          {groups.map((g) => (
-            <li key={g.status}>
-              <FindingStatusPill
-                status={g.status}
-                label={`${g.items.length} ${FINDING_STATUS_LABEL[g.status].toLowerCase()}`}
-              />
-            </li>
-          ))}
-          {ev.mandatoryFailures > 0 && (
-            <li>
-              <Pill tone="fail">{ev.mandatoryFailures} mandatory not met</Pill>
-            </li>
-          )}
-        </ul>
         {ev.summary && (
-          <p className="text-[13px] leading-relaxed text-ink-2 sm:flex-1">{ev.summary}</p>
+          <p className="max-w-4xl border-t border-border/70 pt-4 text-[13px] leading-relaxed text-ink-2">
+            {ev.summary}
+          </p>
         )}
       </section>
 
@@ -109,6 +128,7 @@ function Compliance({
                     n={i + 1}
                     f={f}
                     req={reqs.get(f.requirementId)}
+                    sources={data.sources[f.requirementId] ?? []}
                     status={g.status}
                     onEvidence={onEvidence}
                   />
@@ -125,51 +145,177 @@ function FindingRow({
   n,
   f,
   req,
+  sources,
   status,
   onEvidence,
 }: {
   n: number;
   f: FindingDto;
   req?: RequirementDto;
+  sources: RequirementSourceDto[];
   status: FindingStatus;
   onEvidence: (docId: string, page: number | null, quote: string) => void;
 }) {
+  // Short form for compliant findings; the explanation block for everything that falls short.
+  const explain = status !== "compliant";
   return (
-    <li className="flex gap-3 py-3 text-[13px]">
+    <li className="flex gap-3 py-4 text-[13px]">
       <span className="w-6 shrink-0 text-end font-semibold text-ink-muted tabular-nums">{n}.</span>
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-xs text-ink-muted">{f.code}</span>
           <span className="font-medium text-ink">{req?.title ?? f.code}</span>
           {req && <PriorityPill priority={req.priority} size="sm" short />}
-          {req?.sourceRef && <span className="text-xs text-ink-faint">{req.sourceRef}</span>}
         </div>
-        {f.assessment && <p className="leading-relaxed text-ink-2">{f.assessment}</p>}
-        {f.gap && status !== "compliant" && (
-          <p className="leading-relaxed text-ink-2">
-            <span className="font-medium text-ink">Gap: </span>
-            {f.gap}
-          </p>
-        )}
-        {f.evidenceQuote && (
-          <div className="flex flex-wrap items-start gap-2 rounded-md bg-surface-muted/70 px-3 py-2">
-            <Quote className="mt-0.5 size-3.5 shrink-0 text-ink-faint" aria-hidden />
-            <q className="min-w-0 flex-1 text-ink-2 italic" dir="auto">
-              {f.evidenceQuote}
-            </q>
-            {f.evidenceDocId && (
-              <Button
-                size="xs"
-                variant="ghost"
-                onClick={() => onEvidence(f.evidenceDocId!, f.evidencePage, f.evidenceQuote!)}
-              >
-                <BookOpen /> {f.evidencePage ? `Page ${f.evidencePage}` : "Open"}
-              </Button>
+
+        {explain ? (
+          <dl className="grid gap-x-4 gap-y-2 rounded-lg border border-border/70 bg-surface-muted/40 p-3 sm:grid-cols-[7.5rem_1fr]">
+            <dt className="text-xs font-semibold text-ink-muted">In the proposal</dt>
+            <dd className="flex flex-col gap-1.5 text-ink-2">
+              {status === "not_addressed" ? (
+                <span className="italic">Nothing in the proposal addresses this requirement.</span>
+              ) : (
+                <span>{f.vendorResponse || f.assessment}</span>
+              )}
+              {f.evidenceQuote && (
+                <span className="flex flex-wrap items-start gap-2">
+                  <Quote className="mt-0.5 size-3.5 shrink-0 text-ink-faint" aria-hidden />
+                  <q className="min-w-0 flex-1 text-ink-2 italic" dir="auto">
+                    {f.evidenceQuote}
+                  </q>
+                  {f.evidenceDocId && (
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      onClick={() => onEvidence(f.evidenceDocId!, f.evidencePage, f.evidenceQuote!)}
+                    >
+                      <BookOpen /> {f.evidencePage ? `Page ${f.evidencePage}` : "Open"}
+                    </Button>
+                  )}
+                </span>
+              )}
+            </dd>
+            <dt className="text-xs font-semibold text-ink-muted">Required</dt>
+            <dd className="text-ink">{req?.description || "See the source below."}</dd>
+            {(f.gap || (status !== "not_addressed" && f.assessment)) && (
+              <>
+                <dt className="text-xs font-semibold text-ink-muted">
+                  {status === "partial" ? "What is missing" : "Why it falls short"}
+                </dt>
+                <dd className="text-ink-2">{f.gap || f.assessment}</dd>
+              </>
             )}
-          </div>
+            <dt className="text-xs font-semibold text-ink-muted">Breaks</dt>
+            <dd>
+              <SourceChips sources={sources} fallback={req?.sourceRef} onOpen={onEvidence} />
+            </dd>
+          </dl>
+        ) : (
+          <>
+            {f.assessment && <p className="leading-relaxed text-ink-2">{f.assessment}</p>}
+            {f.evidenceQuote && (
+              <div className="flex flex-wrap items-start gap-2 rounded-md bg-surface-muted/70 px-3 py-2">
+                <Quote className="mt-0.5 size-3.5 shrink-0 text-ink-faint" aria-hidden />
+                <q className="min-w-0 flex-1 text-ink-2 italic" dir="auto">
+                  {f.evidenceQuote}
+                </q>
+                {f.evidenceDocId && (
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => onEvidence(f.evidenceDocId!, f.evidencePage, f.evidenceQuote!)}
+                  >
+                    <BookOpen /> {f.evidencePage ? `Page ${f.evidencePage}` : "Open"}
+                  </Button>
+                )}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+              Source <SourceChips sources={sources} fallback={req?.sourceRef} onOpen={onEvidence} />
+            </div>
+          </>
         )}
       </div>
     </li>
+  );
+}
+
+/**
+ * Where the requirement comes from, as links: an RFP clause opens the RFP in the reader on its
+ * page with the clause highlighted; a standard rule opens the standard with the rule highlighted.
+ */
+function SourceChips({
+  sources,
+  fallback,
+  onOpen,
+}: {
+  sources: RequirementSourceDto[];
+  fallback?: string;
+  onOpen: (docId: string, page: number | null, quote: string) => void;
+}) {
+  const chip =
+    "inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink-2";
+  const link =
+    "transition-colors hover:border-brand/50 hover:text-ink focus-visible:ring-3 focus-visible:ring-ring/25 outline-none";
+  if (!sources.length) {
+    return fallback ? (
+      <span className={chip}>{fallback}</span>
+    ) : (
+      <span className="text-ink-faint">—</span>
+    );
+  }
+  return (
+    <span className="flex flex-wrap gap-1.5">
+      {sources.map((s, i) => {
+        if (s.kind === "standard") {
+          return (
+            <Tooltip key={i}>
+              <TooltipTrigger asChild>
+                <Link
+                  href={`/standards/${s.standardId}?rule=${encodeURIComponent(s.ruleCode)}`}
+                  className={cn(chip, link)}
+                >
+                  <ShieldCheck className="size-3.5 text-brand" aria-hidden />
+                  <span className="font-mono">{s.label}</span>
+                  <ArrowUpRight className="size-3 text-ink-faint" aria-hidden />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-sm">
+                {s.ruleCode}: {s.ruleText}
+              </TooltipContent>
+            </Tooltip>
+          );
+        }
+        if (s.kind === "notes") {
+          return (
+            <span key={i} className={chip}>
+              <StickyNote className="size-3.5 text-ink-faint" aria-hidden /> {s.label}
+            </span>
+          );
+        }
+        if (!s.documentId) {
+          return (
+            <span key={i} className={chip} title="Not found in the RFP documents">
+              <FileText className="size-3.5 text-ink-faint" aria-hidden /> {s.label}
+            </span>
+          );
+        }
+        return (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onOpen(s.documentId!, s.page, s.needle ?? "")}
+            className={cn(chip, link)}
+            title={`Open ${s.documentName}${s.page ? `, page ${s.page}` : ""}`}
+          >
+            <FileText className="size-3.5 text-brand" aria-hidden />
+            <span className="truncate">{s.label}</span>
+            {s.page && <span className="text-ink-muted tabular-nums">p. {s.page}</span>}
+            <ArrowUpRight className="size-3 text-ink-faint" aria-hidden />
+          </button>
+        );
+      })}
+    </span>
   );
 }
 

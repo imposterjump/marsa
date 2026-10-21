@@ -17,6 +17,7 @@ export const ID_PREFIXES = {
   finding: "fnd",
   comparison: "cmp",
   risk: "rsk",
+  review: "rvw",
 } as const;
 
 export type IdKind = keyof typeof ID_PREFIXES;

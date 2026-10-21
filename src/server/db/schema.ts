@@ -32,6 +32,7 @@ import {
   REQUIREMENT_SOURCES,
   RISK_CATEGORIES,
   RISK_SEVERITIES,
+  REVIEW_VERDICTS,
   RUN_PHASES,
   RUN_STATUSES,
   STEP_STATUSES,
@@ -373,3 +374,35 @@ export const runSummaries = sqliteTable("run_summaries", {
   conditions: text("conditions", { mode: "json" }).$type<string[]>().notNull(),
   negotiationPoints: text("negotiation_points", { mode: "json" }).$type<string[]>().notNull(),
 });
+
+// ─── AI review: run quality metrics + human reviews (saved to improve the system) ──
+/** Quality metrics computed when a run finishes (src/server/runs/quality.ts). */
+export const runQuality = sqliteTable("run_quality", {
+  runId: text("run_id")
+    .primaryKey()
+    .references(() => analysisRuns.id, { onDelete: "cascade" }),
+  metrics: text("metrics", { mode: "json" }).$type<unknown>().notNull(),
+  computedAt: text("computed_at").notNull().default(now),
+});
+
+/** A person's rating of one run. Several per run; each keeps a snapshot of the run's metrics. */
+export const runReviews = sqliteTable(
+  "run_reviews",
+  {
+    id: text("id").primaryKey(),
+    runId: text("run_id")
+      .notNull()
+      .references(() => analysisRuns.id, { onDelete: "cascade" }),
+    reviewer: text("reviewer").notNull().default(""),
+    overall: integer("overall").notNull(),
+    accuracy: integer("accuracy"),
+    evidence: integer("evidence"),
+    completeness: integer("completeness"),
+    usefulness: integer("usefulness"),
+    verdict: text("verdict", { enum: REVIEW_VERDICTS }).notNull(),
+    comment: text("comment").notNull().default(""),
+    metricsSnapshot: text("metrics_snapshot", { mode: "json" }).$type<unknown>(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("run_reviews_run_idx").on(t.runId, t.createdAt)],
+);

@@ -110,7 +110,8 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
 
   const docs = docsOf(p, tab);
   const readerParam = params.get("reader");
-  const allDocs = [...p.commercialDocuments, ...p.technicalDocuments];
+  // The tender's RFP documents open in the same reader (requirement source links on the results).
+  const allDocs = [...p.commercialDocuments, ...p.technicalDocuments, ...project.rfpDocuments];
   const readerDoc =
     readerParam === null
       ? null
@@ -259,7 +260,11 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
               proposalId={p.id}
               tab={analysisTab}
               onEvidence={(docId, page, quote) =>
-                setQuery({ reader: docId, page: page && page > 1 ? String(page) : null, q: quote })
+                setQuery({
+                  reader: docId,
+                  page: page && page > 1 ? String(page) : null,
+                  q: quote || null,
+                })
               }
             />
           </motion.section>
@@ -308,6 +313,7 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
         groups={[
           { id: "commercial", label: "Commercial", docs: p.commercialDocuments },
           { id: "technical", label: "Technical", docs: p.technicalDocuments },
+          { id: "rfp", label: "RFP", docs: project.rfpDocuments },
         ]}
         docId={readerDoc?.id ?? null}
         quote={params.get("q")}
@@ -316,8 +322,9 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
           const envelope: Envelope = p.technicalDocuments.some((d) => d.id === docId)
             ? "technical"
             : "commercial";
+          const isRfp = project.rfpDocuments.some((d) => d.id === docId);
           setQuery({
-            tab: analysisTab ?? envelope,
+            tab: analysisTab ?? (isRfp ? tab : envelope),
             reader: docId,
             page: page > 1 ? String(page) : null,
             // The evidence quote belongs to its document; switching documents drops it.

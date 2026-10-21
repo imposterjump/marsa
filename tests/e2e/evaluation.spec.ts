@@ -58,6 +58,24 @@ test.describe("analysis pipeline and live progress (P6, P7)", () => {
     await ranking.getByRole("link", { name: "Open Meridian Scan Technologies" }).click();
     await page.getByRole("tab", { name: "Compliance" }).click();
     await expect(page.getByText("weighted compliance")).toBeVisible();
+    // Findings that fall short explain themselves and link to what they break
+    await expect(page.getByText("Required").first()).toBeVisible();
+    await expect(page.getByText("Breaks").first()).toBeVisible();
+    await page
+      .getByRole("button", { name: /01-RFP-NGPA-T-2026-014\.pdf/ })
+      .first()
+      .click();
+    const reader = page.getByRole("dialog");
+    await expect(reader.getByRole("tab", { name: "RFP", selected: true })).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.keyboard.press("Escape");
+    const rule = page.getByRole("link", { name: /CITS-2026 SEC-\d+/ }).first();
+    const ruleCode = ((await rule.textContent()) ?? "").match(/SEC-\d+/)![0];
+    await rule.click();
+    await expect(page).toHaveURL(new RegExp(`/standards/.+\\?rule=${ruleCode}`));
+    await expect(page.locator(`#rule-${ruleCode}`)).toBeVisible();
+    await page.goBack();
     await page.getByRole("tab", { name: "Risk" }).click();
     await expect(page.getByText("Overall risk of awarding to this vendor")).toBeVisible();
 
@@ -72,6 +90,27 @@ test.describe("analysis pipeline and live progress (P6, P7)", () => {
     await expect(page.getByRole("heading", { name: "Analysis complete" })).toBeVisible({
       timeout: 60_000,
     });
+
+    // AI review: one report per run, and a human review saved with it
+    await page.getByRole("link", { name: "AI review" }).click();
+    const runs = page.getByRole("region", { name: "Analysis runs" });
+    await expect(runs.getByRole("row")).toHaveCount(3); // header + 2 runs
+    await expect(page.getByText("Confidence score")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Files scanned")).toBeVisible();
+    await expect(page.getByText("16 / 16")).toBeVisible(); // processed correctly
+    await page
+      .getByRole("radiogroup", { name: "Overall rating" })
+      .getByRole("radio", { name: "4 of 5" })
+      .click();
+    await page.getByRole("radio", { name: "Trust with corrections" }).click();
+    await page.getByLabel("Comments").fill("Two partial findings needed corrections.");
+    await page.getByRole("button", { name: "Submit review" }).click();
+    await expect(page.getByText("Review saved")).toBeVisible();
+    await expect(page.getByText("Reviews of this run (1)")).toBeVisible();
+    await expect(page.getByText("Two partial findings needed corrections.")).toBeVisible();
+    const exported = await (await page.request.get("/api/reviews/export")).json();
+    expect(exported.reviews).toHaveLength(1);
+    expect(exported.reviews[0]).toMatchObject({ overall: 4, verdict: "trust_with_edits" });
   });
 
   test("generate proposals with AI (mock writer, real DOCX + PDF)", async ({ page }) => {
