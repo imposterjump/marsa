@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // E2E/screenshot builds use their own folder (NEXT_DIST_DIR=.next-e2e) so a production build
+  // never touches the dev server's cache in .next/dev (HMR "hash mismatch" reload loop, G-51).
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   // Single Node server deployment (Docker / Railway / Render / VPS) — see docs/RDD.md §15.
   output: "standalone",
   // The floating dev badge overlapped the sidebar footer; errors still surface in dev.

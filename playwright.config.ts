@@ -31,6 +31,7 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 300_000,
     // E2E always runs against mock AI and its own data folder.
-    env: { AI_MODE: "mock", DATA_DIR: "./data/e2e" },
+    // NEXT_DIST_DIR keeps this build out of .next, which the user's dev server uses (G-51).
+    env: { AI_MODE: "mock", DATA_DIR: "./data/e2e", NEXT_DIST_DIR: ".next-e2e" },
   },
 });

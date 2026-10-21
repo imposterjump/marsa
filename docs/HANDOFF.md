@@ -41,6 +41,7 @@ npx tsx scripts/test-inputs/build-phase-1.ts   # regenerate Phase 1 test documen
 npx tsx scripts/screenshots.ts http://localhost:3100 <outDir>   # design-review screenshots (server on a throwaway DATA_DIR)
 ```
 Ports: **3000** user's dev server · **3100** my screenshot/diagnosis server · **3200** Playwright · **3300** standalone smoke test.
+Build folders: `.next/dev` = dev server cache · `.next` = default `next build` · **`.next-e2e`** = E2E/screenshot builds (`NEXT_DIST_DIR=.next-e2e`, G-51).
 Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright) · `data/shots`, `data/diag` (throwaway). All gitignored.
 
 ## 3. Environment facts
@@ -106,6 +107,7 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | G-47 | ℹ️ Rule | **Sample data = test inputs.** `scripts/test-inputs/build-phase-4.ts` writes `test-inputs/seed/manifest.json`; `src/server/seed` ingests the files it lists from `SEED_DIR` (default `./test-inputs`). The seed reuses standards/vendors with the same name or code (the user's CITS-2026 is linked, never changed) and replaces only `is_sample` projects | Regenerate PDFs → rerun the builder → the manifest stays in sync. Docker (P9.7) must copy `test-inputs/` or set `SEED_DIR` |
 | G-48 | ℹ️ Fact | New route folders → `RouteContext<"/api/…">` / `PageProps<…>` fail typecheck until the route types are regenerated | Run `npx next typegen` (also part of `npm run typecheck`) after adding routes |
 | G-49 | ℹ️ Fact | E2E specs reset the workspace with `POST /api/dev/reset {confirm:"RESET"}` (deletes projects, standards, vendors, files; keeps settings) | Use it in `beforeEach` instead of deleting entities one by one |
+| G-51 | ✅ Solved | **Dev reload loop.** Every open page reloaded ~3×/s; the dev log showed `GET /standards` + `✓ Compiled in 0ms` endlessly. In the browser: on each HMR connect the server sent `turbopack-message … "type":"restart"` for the entry chunk list, then `reloadPage: "HMR hash mismatch"`. Cause: the dev cache in `.next/dev` was stale (entry chunk file from hours earlier) after many production builds into the same `.next` folder (E2E / screenshot builds) while `next dev` was running. Visual Studio's indexer churning `.vs/` and `.next/` made it worse | Stop dev → delete **`.next/dev`** (build cache only) → restart. Prevention: E2E builds now use **`NEXT_DIST_DIR=.next-e2e`** (`next.config.ts` `distDir`, set in `playwright.config.ts`); use the same env for any manual `next build`/`next start` while the user's dev server runs. Diagnose with a page's WebSocket frames (scratch script: log `framereceived` of the HMR socket) |
 | G-45 | ℹ️ Rule | *(Superseded by G-50.)* Tab content under `/projects/[projectId]` reads the project with `useProjectContext()` | See G-50 for the current structure |
 | G-50 | ✅ Solved | Dev log: "Route /projects/[projectId]: Could not validate that a segment in your UI has instant navigation … Dropped segment: page.tsx". The layout awaited `params` in a Suspense boundary that **wrapped `{children}`**, so the tab pages were never part of the static shell | The layout renders `<Suspense><ProjectHeader/></Suspense>` and `{children}` **side by side**. Each page wraps its content in `<ProjectRoute params fallback>` (server: own Suspense + await params → client `ProjectGate` providing `useProjectContext()`). The tab fade moved to `[projectId]/template.tsx`. Never pass `{children}` into a component that awaits params |
 
@@ -162,7 +164,8 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 - **Anything calling Claude for real** → ask the user first (💳), log the cost.
 - **UI work** → Harbor tokens only (G-23), 4-px spacing, logical properties, icon + label for status, reduced motion. Self-review with `scripts/screenshots.ts` before showing the user.
 - **Test documents** → §0 rule 3 (no hints, consistent, legitimate). Update `test-inputs/SCENARIO.md`.
-- **End of phase** → §0 rule 1: run the app, give the link and bullets.
+- **Builds while the user's dev server runs** → `NEXT_DIST_DIR=.next-e2e` (G-51). If pages start reloading by themselves: stop dev, delete `.next/dev`, restart.
+- **End of phase** → §0 rule 1: run the app, give the link and bullets, plus the exact click-by-click main test case. Commit locally; push only after the user's OK (§0 rule 5).
 
 ## 8. Session log
 ### 2026-10-21 · Session 1: Planning
