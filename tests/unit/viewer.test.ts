@@ -3,7 +3,15 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildPreview, parseDelimited } from "@/server/documents/preview";
 import { paginate } from "@/lib/paginate";
-import { estimateCostUsd, estimateSeconds, formatDuration, planRun } from "@/lib/plan";
+import {
+  costFromUsage,
+  estimateBidsUsd,
+  estimateRun,
+  estimateSeconds,
+  formatDuration,
+  planRun,
+  type RunEstimateInput,
+} from "@/lib/plan";
 import { findQuotePage, normalizeForMatch, quoteNeedles, textContainsQuote } from "@/lib/quote";
 
 const pack = (f: string) =>
@@ -35,16 +43,87 @@ describe("analysis plan (RDD §7.1)", () => {
     );
   });
 
-  it("cost grows with pages and vendors, Sonnet is cheaper than Opus", () => {
-    const base = { sharedPages: 20, vendorPages: [13, 14, 16, 14] };
-    const opus = estimateCostUsd({ model: "claude-opus-5-5", ...base });
-    expect(opus).toBeGreaterThan(0.5);
-    expect(opus).toBeLessThan(10);
-    expect(estimateCostUsd({ model: "claude-sonnet-5-5", ...base })).toBeLessThan(opus);
+  // Real document sizes of the PCS sample tender + the three Phase 6 bids (P6.10 live run).
+  const pcs: RunEstimateInput = {
+    shared: {
+      pdfPages: 7,
+      images: 0,
+      textChars: 0,
+      rulesCount: 14,
+      rulesChars: 2_022,
+      rfpPageEquivalents: 3,
+    },
+    vendors: [6, 6, 6].map((p) => ({ pdfPages: p, images: 0, textChars: 0 })),
+    previousRequirements: 31,
+  };
+
+  it("reproduces the measured Sonnet run (PCS, 3 vendors: $1.17) within 10 %", () => {
+    const e = estimateRun(pcs, { model: "claude-sonnet-5-5", concurrency: 3 });
+    expect(e.usd).toBeGreaterThan(1.17 * 0.9);
+    expect(e.usd).toBeLessThan(1.17 * 1.1);
+    expect(e.low).toBeLessThan(e.usd);
+    expect(e.high).toBeGreaterThan(e.usd);
+    expect(e).toMatchObject({ steps: 11, requirements: 31, requirementsEstimated: false });
+  });
+
+  it("prices models and vendors sensibly", () => {
+    const sonnet = estimateRun(pcs, { model: "claude-sonnet-5-5", concurrency: 3 }).usd;
+    const opus = estimateRun(pcs, { model: "claude-opus-5-5", concurrency: 3 }).usd;
+    const haiku = estimateRun(pcs, { model: "claude-haiku-5-5", concurrency: 3 }).usd;
+    expect(opus).toBeGreaterThan(sonnet * 2);
+    expect(haiku).toBeLessThan(sonnet / 10);
+    const five = estimateRun(
+      { ...pcs, vendors: [...pcs.vendors, ...pcs.vendors.slice(0, 2)] },
+      { model: "claude-sonnet-5-5", concurrency: 3 },
+    );
+    expect(five.usd).toBeGreaterThan(sonnet);
+    expect(five.steps).toBe(17);
     expect(
-      estimateCostUsd({ model: "claude-opus-5-5", sharedPages: 20, vendorPages: [13] }),
-    ).toBeLessThan(opus);
-    expect(estimateCostUsd({ model: "claude-opus-5-5", sharedPages: 20, vendorPages: [] })).toBe(0);
+      estimateRun({ ...pcs, vendors: [] }, { model: "claude-opus-5-5", concurrency: 3 }).usd,
+    ).toBe(0);
+    // Without an earlier run the requirement count is estimated from rules + RFP pages.
+    const fresh = estimateRun(
+      { ...pcs, previousRequirements: null },
+      { model: "claude-sonnet-5-5", concurrency: 3 },
+    );
+    expect(fresh.requirementsEstimated).toBe(true);
+    expect(fresh.requirements).toBeGreaterThan(14);
+  });
+
+  it("the large X-ray tender costs what the measured run suggests (≈ $4.5 on Sonnet)", () => {
+    const xray: RunEstimateInput = {
+      shared: {
+        pdfPages: 24,
+        images: 1,
+        textChars: 18_196,
+        rulesCount: 38,
+        rulesChars: 5_196,
+        rfpPageEquivalents: 20,
+      },
+      vendors: [14, 14, 13, 16].map((p) => ({ pdfPages: p, images: 0, textChars: 0 })),
+      previousRequirements: 91,
+    };
+    const e = estimateRun(xray, { model: "claude-sonnet-5-5", concurrency: 3 });
+    expect(e.usd).toBeGreaterThan(3.8);
+    expect(e.usd).toBeLessThan(5.2);
+  });
+
+  it("Haiku costs 5× more per token above 100K prompt tokens", () => {
+    const u = (prompt: number) => ({
+      inputTokens: prompt,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    expect(costFromUsage("claude-haiku-5-5", u(100_000))).toBeCloseTo(0.01, 6);
+    expect(costFromUsage("claude-haiku-5-5", u(200_000))).toBeCloseTo(0.1, 6);
+    expect(costFromUsage("claude-sonnet-5-5", u(200_000))).toBeCloseTo(0.4, 6);
+  });
+
+  it("estimates generated bids from the measured Sonnet job (2 bids: $0.19)", () => {
+    const usd = estimateBidsUsd(pcs, { model: "claude-sonnet-5-5", count: 2 });
+    expect(usd).toBeGreaterThan(0.15);
+    expect(usd).toBeLessThan(0.3);
   });
 
   it("formats durations", () => {

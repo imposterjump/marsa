@@ -15,11 +15,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useBidsEstimate } from "@/hooks/use-estimate";
 import { useGenJob, useInvalidateProposals, useStartGenJob } from "@/hooks/use-generate";
 import { useSettings } from "@/hooks/use-settings";
 import type { BidProfileDto, GenJobDto, ProjectDetailDto } from "@/lib/api-types";
 import { DEFAULT_AI_MODEL } from "@/lib/domain";
-import { MODEL_PRICES, TOKENS_PER_PAGE } from "@/lib/plan";
+import { AI_MODEL_LABEL } from "@/lib/labels";
 
 const PROFILES: { id: BidProfileDto; name: string; blurb: string }[] = [
   {
@@ -44,22 +45,6 @@ const ITEM_STATUS: Record<GenJobDto["items"][number]["status"], string> = {
   failed: "Failed",
 };
 
-/** Rough cost: the tender is cached once, then each bid adds its own output (live AI only). */
-function estimateUsd(project: ProjectDetailDto, n: number, model: keyof typeof MODEL_PRICES) {
-  const price = MODEL_PRICES[model];
-  const pages =
-    project.rfpDocuments.reduce((s, d) => s + (d.pageCount ?? 4), 0) +
-    project.standards.reduce((s, x) => s + x.documentPages, 0);
-  const shared = pages * TOKENS_PER_PAGE + 6_000;
-  const usd =
-    (shared * price.cacheWrite +
-      shared * (n - 1) * price.cacheRead +
-      n * 3_000 * price.input +
-      n * 12_000 * price.output) /
-    1e6;
-  return Math.round(usd * 100) / 100;
-}
-
 /**
  * PRD FR-4.3 / P7.5: generate realistic vendor proposals from the RFP. One bid per chosen profile,
  * rendered as a technical DOCX and a financial PDF and submitted as an "AI" proposal.
@@ -80,6 +65,7 @@ export function GenerateProposalsDialog({
   const invalidate = useInvalidateProposals(project.id);
   const live = settings?.runtime.aiMode === "live";
   const model = settings?.aiModel ?? DEFAULT_AI_MODEL;
+  const bidsUsd = useBidsEstimate(project.id, Math.max(1, chosen.length), open);
   const running = job?.status === "running";
   const showJob = job && (running || start.isSuccess);
 
@@ -145,7 +131,7 @@ export function GenerateProposalsDialog({
               <p className="mt-2 text-xs text-ink-muted">
                 {chosen.length} proposal{chosen.length === 1 ? "" : "s"} ·{" "}
                 {live
-                  ? `≈ $${estimateUsd(project, Math.max(1, chosen.length), model).toFixed(2)} with ${model} (rough estimate)`
+                  ? `≈ $${(bidsUsd ?? 0).toFixed(2)} with ${AI_MODEL_LABEL[model]}`
                   : "free (demo AI)"}
               </p>
             </fieldset>

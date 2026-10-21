@@ -112,7 +112,7 @@ export type Theme = (typeof THEMES)[number];
 export const REPORT_LANGUAGES = ["en", "ar"] as const;
 export type ReportLanguage = (typeof REPORT_LANGUAGES)[number];
 
-export const AI_MODELS = ["claude-opus-5-5", "claude-sonnet-5-5"] as const;
+export const AI_MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"] as const;
 export type AiModel = (typeof AI_MODELS)[number];
 export const DEFAULT_AI_MODEL: AiModel = "claude-opus-5-5";
 

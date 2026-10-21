@@ -1,4 +1,5 @@
 import type {
+  AiModel,
   ProjectCategory,
   FindingStatus,
   Priority,
@@ -66,4 +67,10 @@ export const PROPOSAL_SOURCE_LABEL: Record<ProposalSource, string> = {
   seed: "Sample",
   simulator: "Simulator",
   ai: "AI-generated",
+};
+
+export const AI_MODEL_LABEL: Record<AiModel, string> = {
+  "claude-opus-5-5": "Claude Opus 5.5",
+  "claude-sonnet-5-5": "Claude Sonnet 5.5",
+  "claude-haiku-5-5": "Claude Haiku 5.5",
 };

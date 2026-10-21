@@ -19,6 +19,7 @@
 ## Decision log
 | Date | Decision | By |
 |---|---|---|
+| 2026-10-21 | **Haiku 5.5 added** as a third model (cheap end-to-end tests); realistic cost estimate before every live run; **no spending cap for now**; live runs are started by you in the UI, never by me alone | You |
 | 2026-10-21 | **Projects use the standard categories**; a project offers its own category + General standards; a General project offers all | You |
 | 2026-10-21 | **Documents open in a full-screen reader** (our own, replaces the browser PDF viewer); the Commercial/Technical tabs and View open it directly | You |
 | 2026-10-21 | **Push to GitHub only after you have tested a phase** | You |

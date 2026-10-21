@@ -6,7 +6,8 @@
  * - structured outputs via output_config.format (schema from the SDK's betaZodOutputFormat),
  *   parsed and validated here so enum-like values can be normalised first (the SDK moves `enum`
  *   into the description, so the API does not enforce it);
- * - server-side refusal fallbacks (`fallbacks: "default"`, beta header) shipped from day one;
+ * - server-side refusal fallbacks (`fallbacks: "default"`, beta header) on Opus and Sonnet; Haiku 5.5
+ *   has no server-side fallback and rejects the parameter (400), so it is left out there;
  * - stop_reason checked before reading content; typed SDK errors pass through (SDK retries 429/5xx).
  * Server-only: the API key never reaches the browser.
  */
@@ -23,6 +24,8 @@ export { AiError, type CallResult } from "./result";
 export const EFFORT = "high" as const; // RDD §7.3; one value for every step keeps the cache warm
 export const MAX_TOKENS = 64_000;
 const FALLBACK_BETA = "server-side-fallback-2026-07-01";
+/** Models without server-side refusal fallbacks (the parameter is a 400 on them). */
+export const supportsFallbacks = (model: string) => !model.startsWith("claude-haiku");
 
 const globalForAi = globalThis as typeof globalThis & { __marsaAnthropic?: Anthropic };
 
@@ -71,8 +74,9 @@ export async function callStructured<S extends z.ZodType>({
       system: [{ type: "text", text: system }],
       messages: [{ role: "user", content }],
       output_config: { effort, format: { type, schema: jsonSchema } },
-      betas: [FALLBACK_BETA],
-      fallbacks: "default",
+      ...(supportsFallbacks(model)
+        ? { betas: [FALLBACK_BETA], fallbacks: "default" as const }
+        : {}),
     },
     { signal },
   );

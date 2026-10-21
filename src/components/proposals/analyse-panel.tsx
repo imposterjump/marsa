@@ -7,19 +7,17 @@ import { StartRunButton } from "@/components/evaluation/start-run-button";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/status-pill";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useRunEstimate } from "@/hooks/use-estimate";
 import { useSettings } from "@/hooks/use-settings";
 import type { ProjectDetailDto, ProposalSummaryDto } from "@/lib/api-types";
 import { DEFAULT_AI_MODEL, DEFAULT_CONCURRENCY } from "@/lib/domain";
-import { estimateCostUsd, estimateSeconds, formatDuration, planRun } from "@/lib/plan";
-
-const MODEL_LABEL = {
-  "claude-opus-5-5": "Claude Opus 5.5",
-  "claude-sonnet-5-5": "Claude Sonnet 5.5",
-} as const;
+import { AI_MODEL_LABEL } from "@/lib/labels";
+import { estimateSeconds, formatDuration, planRun } from "@/lib/plan";
 
 /**
  * PRD FR-5.3: the "Analyse & process" action bar under the proposals table. Shows what the run
- * will cover (proposals, standards, T = 3N + 2 steps) with a rough time and cost estimate.
+ * will cover (proposals, standards, T = 3N + 2 steps) with a time and cost estimate calibrated on
+ * real runs (estimateRun).
  * The button starts the pipeline (P6); with live AI it confirms the estimated cost first.
  */
 export function AnalysePanel({
@@ -34,21 +32,11 @@ export function AnalysePanel({
   const plan = planRun(n);
   const mode = settings?.runtime.aiMode ?? "mock";
   const model = settings?.aiModel ?? DEFAULT_AI_MODEL;
-  const seconds = estimateSeconds(n, {
-    concurrency: settings?.concurrency ?? DEFAULT_CONCURRENCY,
-    mode,
-  });
-  const sharedPages =
-    project.rfpDocuments.reduce((s, d) => s + (d.pageCount ?? 4), 0) +
-    project.standards.reduce((s, x) => s + x.documentPages, 0);
-  const cost =
-    mode === "live"
-      ? estimateCostUsd({
-          model,
-          sharedPages,
-          vendorPages: proposals.map((p) => p.documentCounts.pages || 10),
-        })
-      : 0;
+  const estimate = useRunEstimate(project.id);
+  const seconds =
+    mode === "live" && estimate
+      ? estimate.seconds
+      : estimateSeconds(n, { concurrency: settings?.concurrency ?? DEFAULT_CONCURRENCY, mode });
   const rules = project.standards.reduce((s, x) => s + x.rulesCount, 0);
   const incomplete = proposals.filter(
     (p) => !p.documentCounts.commercial || !p.documentCounts.technical,
@@ -150,8 +138,32 @@ export function AnalysePanel({
               />
               <Stat label="Time" value={`≈ ${formatDuration(seconds)}`} />
               <Stat
-                label={mode === "live" ? `Cost · ${MODEL_LABEL[model]}` : "Cost"}
-                value={mode === "live" ? `≈ $${cost.toFixed(2)}` : "Free (demo AI)"}
+                label={mode === "live" ? `Cost · ${AI_MODEL_LABEL[model]}` : "Cost"}
+                value={
+                  mode !== "live" ? (
+                    "Free (demo AI)"
+                  ) : estimate ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          tabIndex={0}
+                          className="cursor-help underline decoration-dotted underline-offset-4"
+                        >
+                          ≈ ${estimate.usd.toFixed(2)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        Likely ${estimate.low.toFixed(2)}–${estimate.high.toFixed(2)}, for{" "}
+                        {estimate.requirementsEstimated ? "about " : ""}
+                        {estimate.requirements} requirements
+                        {estimate.requirementsEstimated ? " (estimated)" : " (as in the last run)"}.
+                        Calibrated on real runs; most of the cost is the AI writing its findings.
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    "…"
+                  )
+                }
               />
             </dl>
           )}
@@ -211,11 +223,7 @@ export function AnalysePanel({
               </Link>
             </Button>
           ) : n > 0 && (project.status === "open" || project.status === "evaluated") ? (
-            <StartRunButton
-              projectId={project.id}
-              costUsd={mode === "live" ? cost : undefined}
-              className="w-full lg:w-auto"
-            />
+            <StartRunButton projectId={project.id} className="w-full lg:w-auto" />
           ) : (
             <Tooltip>
               <TooltipTrigger asChild>

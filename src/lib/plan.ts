@@ -62,48 +62,228 @@ export function estimateSeconds(
   );
 }
 
-/** USD per million tokens (from the claude-api reference, checked 2026-10-21). */
-export const MODEL_PRICES: Record<
-  AiModel,
-  { input: number; output: number; cacheWrite: number; cacheRead: number }
-> = {
-  "claude-opus-5-5": { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 },
-  "claude-sonnet-5-5": { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 },
-};
-
-/** A PDF page sent to Claude costs roughly this many input tokens (text + page image). */
-export const TOKENS_PER_PAGE = 2_000;
+// ─── Prices and the run cost estimate (calibrated on real runs, HANDOFF G-65) ──
+interface TokenPrices {
+  input: number;
+  output: number;
+  cacheWrite: number;
+  cacheRead: number;
+}
 
 /**
- * Rough cost of one run. The shared context (RFP + standards) is written to the prompt cache once
- * and read by every later step; each vendor's documents are read by its analyse step only.
+ * USD per million tokens (claude-api reference, checked 2026-10-21). Cache writes are 1.25× and
+ * reads 0.1× of input (0.05× on Opus 5.5). Haiku 5.5 is priced by prompt size: above 100K tokens
+ * per request everything costs 5×.
  */
-export function estimateCostUsd({
-  model,
-  sharedPages,
-  vendorPages,
-}: {
-  model: AiModel;
-  /** Pages of RFP + standard documents. */
-  sharedPages: number;
-  /** Pages per vendor (commercial + technical). */
-  vendorPages: number[];
-}): number {
-  const n = vendorPages.length;
-  if (!n) return 0;
-  const price = MODEL_PRICES[model];
-  const shared = sharedPages * TOKENS_PER_PAGE + 6_000; // + rules and instructions
-  const plan = planRun(n);
-  const compareSteps = plan.skipped ? 0 : n;
-  const cachedReads = n + compareSteps + n + 1; // every step after the checklist re-reads the shared prefix
-  const input =
-    shared * (price.cacheWrite / 1e6) +
-    shared * cachedReads * (price.cacheRead / 1e6) +
-    vendorPages.reduce((s, p) => s + p * TOKENS_PER_PAGE, 0) * (price.input / 1e6) +
-    (compareSteps * 12_000 + n * 15_000 + 25_000) * (price.input / 1e6); // findings passed between steps
-  const output =
-    (8_000 + n * 9_000 + compareSteps * 3_500 + n * 3_500 + 4_000) * (price.output / 1e6);
-  return Math.round((input + output) * 100) / 100;
+export const MODEL_PRICES: Record<AiModel, TokenPrices & { longPrompt?: TokenPrices }> = {
+  "claude-opus-5-5": { input: 4, output: 20, cacheWrite: 5, cacheRead: 0.2 },
+  "claude-sonnet-5-5": { input: 2, output: 10, cacheWrite: 2.5, cacheRead: 0.2 },
+  "claude-haiku-5-5": {
+    input: 0.1,
+    output: 0.5,
+    cacheWrite: 0.125,
+    cacheRead: 0.01,
+    longPrompt: { input: 0.5, output: 2.5, cacheWrite: 0.625, cacheRead: 0.05 },
+  },
+};
+const LONG_PROMPT_TOKENS = 100_000;
+
+/** Prices that apply to one request with this many prompt tokens (cached ones included). */
+function pricesFor(model: AiModel, promptTokens: number): TokenPrices {
+  const p = MODEL_PRICES[model];
+  return p.longPrompt && promptTokens > LONG_PROMPT_TOKENS ? p.longPrompt : p;
+}
+
+/** Measured on Sonnet 5.5 runs (P6.10): tokens per unit of input or output. */
+const TOKENS = {
+  sharedPdfPage: 2_750, // RFP and standard pages (dense text)
+  vendorPdfPage: 2_350, // proposal pages
+  image: 1_600,
+  charsPerToken: 3.8, // DOCX / XLSX / text documents, standard rules
+  checklistPerReq: 185, // the checklist JSON every later step re-reads
+  digestPerReq: 110, // one vendor's analysis as passed to compare / risk / summary
+  outChecklistPerReq: 220,
+  outAnalyzePerReq: 450, // findings incl. adaptive thinking
+} as const;
+/** Output tokens per second incl. thinking (Sonnet measured; Opus and Haiku assumed). */
+const SPEED: Record<AiModel, number> = {
+  "claude-opus-5-5": 110,
+  "claude-sonnet-5-5": 170,
+  "claude-haiku-5-5": 260,
+};
+/** Opus writes somewhat more per finding (assumed until measured). */
+const OUTPUT_FACTOR: Record<AiModel, number> = {
+  "claude-opus-5-5": 1.2,
+  "claude-sonnet-5-5": 1,
+  "claude-haiku-5-5": 1,
+};
+/** The prompt cache lives 5 minutes from the request that last used it; keep a margin. */
+const CACHE_TTL_S = 270;
+
+export interface DocSizes {
+  pdfPages: number;
+  images: number;
+  /** Characters of documents sent as text (DOCX, XLSX, TXT…). */
+  textChars: number;
+}
+
+export interface RunEstimateInput {
+  /** RFP + standard documents, plus the standards' rules. */
+  shared: DocSizes & { rulesCount: number; rulesChars: number; rfpPageEquivalents: number };
+  vendors: DocSizes[];
+  /** Requirement count of the latest finished run (a re-run checks the same list). */
+  previousRequirements: number | null;
+}
+
+export interface RunEstimate {
+  usd: number;
+  low: number;
+  high: number;
+  seconds: number;
+  requirements: number;
+  requirementsEstimated: boolean;
+  steps: number;
+}
+
+function stepUsd(
+  model: AiModel,
+  t: { uncached: number; read: number; write: number; out: number },
+): number {
+  const p = pricesFor(model, t.uncached + t.read + t.write);
+  return (
+    (t.uncached * p.input + t.read * p.cacheRead + t.write * p.cacheWrite + t.out * p.output) / 1e6
+  );
+}
+
+/**
+ * Realistic cost of one analysis run, step by step, with the same cache behaviour as the
+ * pipeline (two shared output formats, G-58; cache entries expire after 5 minutes, I-22). The
+ * model reproduces the measured Sonnet runs within a few percent; the range covers how much the
+ * AI writes (findings and thinking vary by about ±20 %).
+ */
+export function estimateRun(
+  input: RunEstimateInput,
+  { model, concurrency }: { model: AiModel; concurrency: number },
+): RunEstimate {
+  const n = input.vendors.length;
+  if (!n) {
+    return {
+      usd: 0,
+      low: 0,
+      high: 0,
+      seconds: 0,
+      requirements: 0,
+      requirementsEstimated: false,
+      steps: 0,
+    };
+  }
+  const { shared } = input;
+  const docTokens = (d: DocSizes, perPage: number) =>
+    d.pdfPages * perPage + d.images * TOKENS.image + d.textChars / TOKENS.charsPerToken;
+  const S =
+    docTokens(shared, TOKENS.sharedPdfPage) +
+    shared.rulesChars / TOKENS.charsPerToken +
+    shared.rulesCount * 12 +
+    1_500;
+  const estimated = input.previousRequirements == null;
+  const R =
+    input.previousRequirements ??
+    Math.min(
+      250,
+      Math.max(
+        shared.rulesCount + 5,
+        Math.round(shared.rulesCount + 3.5 * shared.rfpPageEquivalents),
+      ),
+    );
+  const C = TOKENS.checklistPerReq * R;
+  const D = TOKENS.digestPerReq * R;
+  const V = input.vendors.map((v) => docTokens(v, TOKENS.vendorPdfPage) + 300);
+  const f = OUTPUT_FACTOR[model];
+  const out = {
+    checklist: TOKENS.outChecklistPerReq * R * f,
+    analyze: TOKENS.outAnalyzePerReq * R * f,
+    compare: (2_000 + 30 * R) * f,
+    risk: (4_800 + 30 * R) * f,
+    summary: (500 + 550 * n) * f,
+  };
+  const c = Math.max(1, Math.floor(concurrency));
+  const waves = Math.ceil(n / c);
+  const secs = (tokens: number) => tokens / SPEED[model] + 8;
+  const compares = n >= 2;
+
+  let usd = stepUsd(model, { uncached: 900, read: 0, write: S, out: out.checklist });
+  // Analyses share the checklist's format: the first reads ①, the others ① + ②.
+  V.forEach((v, i) => {
+    usd += stepUsd(
+      model,
+      i === 0
+        ? { uncached: 600, read: S, write: C + v, out: out.analyze }
+        : { uncached: 600, read: S + C, write: v, out: out.analyze },
+    );
+  });
+  // Comparisons use the other format: the first re-writes ① + ②.
+  if (compares) {
+    for (let i = 0; i < n; i++) {
+      usd += stepUsd(model, {
+        uncached: D * n + 500,
+        read: i === 0 ? 0 : S + C,
+        write: i === 0 ? S + C : 0,
+        out: out.compare,
+      });
+    }
+  }
+  // Risk steps reuse the analyses' cache only if it has not expired in the meantime.
+  const analyzeTime = waves * secs(out.analyze);
+  const compareTime = compares ? waves * secs(out.compare) : 0;
+  const riskHit = analyzeTime + compareTime < CACHE_TTL_S;
+  V.forEach((v, i) => {
+    usd += stepUsd(
+      model,
+      riskHit
+        ? { uncached: D + 1_000, read: S + C + v, write: 0, out: out.risk }
+        : i === 0
+          ? { uncached: D + 1_000, read: 0, write: S + C + v, out: out.risk }
+          : { uncached: D + 1_000, read: S + C, write: v, out: out.risk },
+    );
+  });
+  const riskTime = waves * secs(out.risk);
+  const summaryHit = compares && riskTime + secs(out.compare) < CACHE_TTL_S;
+  usd += stepUsd(model, {
+    uncached: D * n + 2_500 * n,
+    read: summaryHit ? S + C : 0,
+    write: summaryHit ? 0 : S + C,
+    out: out.summary,
+  });
+
+  const round2 = (x: number) => Math.round(x * 100) / 100;
+  return {
+    usd: round2(usd),
+    low: round2(usd * 0.8),
+    high: round2(usd * 1.25),
+    seconds: Math.round(
+      secs(out.checklist) + analyzeTime + compareTime + riskTime + secs(out.summary),
+    ),
+    requirements: R,
+    requirementsEstimated: estimated,
+    steps: planRun(n).total,
+  };
+}
+
+/** Cost of generating AI bids (P7.5): the tender is cached once, each bid adds ~7k output tokens. */
+export function estimateBidsUsd(
+  input: Pick<RunEstimateInput, "shared">,
+  { model, count }: { model: AiModel; count: number },
+): number {
+  if (count <= 0) return 0;
+  const { shared } = input;
+  const S =
+    shared.pdfPages * TOKENS.sharedPdfPage +
+    shared.images * TOKENS.image +
+    (shared.textChars + shared.rulesChars) / TOKENS.charsPerToken +
+    1_500;
+  let usd = stepUsd(model, { uncached: 2_000, read: 0, write: S, out: 7_000 });
+  usd += (count - 1) * stepUsd(model, { uncached: 2_000, read: S, write: 0, out: 7_000 });
+  return Math.round(usd * 1.15 * 100) / 100; // bids vary in length; round up a little
 }
 
 export function formatDuration(seconds: number): string {
@@ -203,8 +383,9 @@ export function etaSeconds(
 
 /** Real cost of recorded usage (USD, 4 decimals). Unknown models (mock) cost 0. */
 export function costFromUsage(model: string, u: TokenUsage): number {
-  const price = MODEL_PRICES[model as AiModel];
-  if (!price) return 0;
+  if (!MODEL_PRICES[model as AiModel]) return 0;
+  // One step's usage is one request (plus a retry at most), so its prompt size picks the tier.
+  const price = pricesFor(model as AiModel, u.inputTokens + u.cacheReadTokens + u.cacheWriteTokens);
   const usd =
     (u.inputTokens * price.input +
       u.outputTokens * price.output +

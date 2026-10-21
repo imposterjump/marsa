@@ -24,6 +24,13 @@ const MODELS: { id: AiModel; name: string; blurb: string; price: string }[] = [
     blurb: "Faster and half the price. Slightly less depth on very long, complex proposals.",
     price: "$2 / $10 per million input / output tokens",
   },
+  {
+    id: "claude-haiku-5-5",
+    name: "Claude Haiku 5.5",
+    blurb:
+      "Fastest and cheapest, for trying the pipeline end to end. Rougher calls on partial compliance and subtle conflicts.",
+    price: "$0.10 / $0.50 per million tokens (prompts ≤ 100K tokens; 5× above)",
+  },
 ];
 
 export function AiSection() {
@@ -55,7 +62,7 @@ export function AiSection() {
             aria-labelledby="model-label"
             value={data.aiModel}
             onValueChange={(v) => save.mutate({ aiModel: v as AiModel })}
-            className="grid gap-3 sm:grid-cols-2"
+            className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
           >
             {MODELS.map((m) => {
               const selected = data.aiModel === m.id;
