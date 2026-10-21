@@ -29,12 +29,12 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
   - DOCX / XLSX / CSV / TXT / image reader sources (P5.6);
   - pdf.js text layer + evidence deep links `?q=` with highlight and pulse (P5.7);
   - fullscreen (F), scrubber, collapsible filmstrip, single-page mode.
-- **Git:** P4 + P5 are committed locally only; push after the user confirms testing (§0 rule 5). `origin/main` is at P3 (8c61011).
+- **Git:** P4 + P5 **pushed at the user's explicit request** ("push both … but mark phase 5 untested still"). **Phase 5 is UNTESTED by the user**; the P5.8 viewer checkpoint is still open, so carry any feedback into Phase 6.
 - **User's own data (`data/`):**
   - CITS-2026.
   - PRJ-2026-001 (IT & security, open, 2 RFP PDFs, 4 vendor proposals).
   - DB backup from before migration 0002: `data/backups/`.
-- **Next:** the user tests `test-inputs/phase-5/README.md` (Part 1 + Part 2) → push → **Phase 6: AI pipeline 💳**. Ask before any real API spend. Mock mode first; the planner and estimates already exist in `src/lib/plan.ts`.
+- **Next:** **Phase 6: AI pipeline 💳** (in progress). The user has not yet tested `test-inputs/phase-5/README.md`. Ask before any real API spend. Mock mode first; the planner and estimates already exist in `src/lib/plan.ts`.
 - **App runs?** `npm run dev` → http://localhost:3000.
 - **All checks green?** `npm run check` ✔ (**110 unit**) · `npm run test:e2e` ✔ **18/18** · build ✔.
 

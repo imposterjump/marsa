@@ -4,14 +4,14 @@
 > Legend: ⬜ not started · 🟦 in progress · ✅ done · ⏸ blocked / waiting on you · ➖ skipped / rejected
 
 ## Now
-- **Current phase:** P5 Proposals & viewer ✅ → **🧑 viewer checkpoint: waiting for your test** (then push), then **P6 AI pipeline 💳**.
+- **Current phase:** **P6 AI pipeline 💳** (started 2026-10-21). P5 is built and pushed but **not yet tested by you** (viewer checkpoint P5.8 still open).
 - **Test it:** http://localhost:3000/projects · guide: [test-inputs/phase-5/README.md](../test-inputs/phase-5/README.md) (Part 1 + Part 2)
 - **Session handoff notes:** [HANDOFF.md](HANDOFF.md) (read first every session).
 
 ## Waiting on you
 | # | Item | Where |
 |---|---|---|
-| 1 | **Test Phase 5 (viewer checkpoint P5.8)**: categories, reader, Analyse panel, evidence links. I push P4 + P5 to GitHub after your OK | [test-inputs/phase-5/README.md](../test-inputs/phase-5/README.md) |
+| 1 | **Test Phase 5 (viewer checkpoint P5.8)**: categories, reader, Analyse panel, evidence links. **UNTESTED** (pushed at your request before testing) | [test-inputs/phase-5/README.md](../test-inputs/phase-5/README.md) |
 | 1b | Phase 1 design checkpoint (P1.9): no feedback received yet, assumed OK | — |
 | 2 | Confirm "RDD" = the technical requirements & design document (my interpretation) | [RDD.md](RDD.md) |
 
@@ -50,7 +50,7 @@
 | P2 Settings & Standards | ✅ | 2026-10-21 · 68 unit + 13 E2E green · ingest pulled forward from P3.2 |
 | P3 Projects & RFP | ✅ | 2026-10-21 · 86 unit + 15 E2E green · New project is a 4-step wizard (fading steps) instead of one scroll-spy page |
 | P4 Vendor simulation | ✅ | 2026-10-21 · 95 unit + 17 E2E green · local commit, push after your test |
-| P5 Proposals & viewer 🧑 | ✅ | 2026-10-21 · 110 unit + 18 E2E green · viewer checkpoint waiting for your OK |
+| P5 Proposals & viewer 🧑 | 🟦 | 2026-10-21 · built, 110 unit + 18 E2E green, pushed · **untested by you** (P5.8 checkpoint open) |
 | P6 AI pipeline 💳 | ⬜ | |
 | P7 Live progress + AI proposals | ⬜ | |
 | P8 Results UX 🧑 | ⬜ | |
