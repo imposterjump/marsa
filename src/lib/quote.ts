@@ -1,7 +1,8 @@
 /**
  * Evidence quotes (P5.7, RDD §8.5): find a quote in rendered text and highlight it.
  * Matching ignores case, whitespace, typographic quotes/dashes and soft hyphens, because PDF text
- * layers split words into spans and drop or add spaces. Only the first ~80 characters are used.
+ * layers split words into spans and drop or add spaces. The first ~80 characters locate the quote;
+ * the highlight then extends over as much of the whole quote as follows on the page.
  */
 
 const NEEDLE_CHARS = 80;
@@ -111,10 +112,17 @@ export function highlightQuote(root: HTMLElement, quote: string): HTMLElement | 
   const needle = needles.find((n) => hay.includes(n));
   if (!needle) return null;
   const at = hay.indexOf(needle);
+  // The needle only locates the quote (its first ~80 characters). Highlight as much of the whole
+  // quote as follows from there, so a full sentence or clause is marked, not just its start.
+  const full = normalizeForMatch(quote);
+  let length = needle.length;
+  while (at + length < hay.length && length < full.length && hay[at + length] === full[length]) {
+    length++;
+  }
 
   // Group the matched characters by text node: [first offset, last offset].
   const spans = new Map<Text, [number, number]>();
-  for (let i = at; i < at + needle.length; i++) {
+  for (let i = at; i < at + length; i++) {
     const { node, offset } = map[i];
     const s = spans.get(node);
     spans.set(node, s ? [s[0], offset] : [offset, offset]);

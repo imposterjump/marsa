@@ -79,6 +79,39 @@ test.describe("analysis pipeline and live progress (P6, P7)", () => {
     await expect(page).toHaveURL(new RegExp(`/standards/.+\\?rule=${ruleCode}`));
     await expect(page.locator(`#rule-${ruleCode}`)).toBeVisible();
     await page.goBack();
+
+    // A spreadsheet clause opens highlighted across the whole row, and the highlight stays put
+    // (pages rebuilt on every render once made it re-highlight ~1,800 times a second, G-72).
+    const detail = (await (await page.request.get(`/api/projects/${xray.id}`)).json()) as {
+      rfpDocuments: { id: string; originalName: string }[];
+    };
+    const annexB = detail.rfpDocuments.find((d) => d.originalName.endsWith(".xlsx"))!;
+    const proposalUrl = new URL(page.url());
+    proposalUrl.searchParams.set("reader", annexB.id);
+    proposalUrl.searchParams.set(
+      "q",
+      "TB-24 Software Hosting of all components (incl. licensing, telemetry, updates)",
+    );
+    await page.goto(proposalUrl.pathname + proposalUrl.search);
+    await expect(page.locator("mark.marsa-hit").first()).toBeVisible({ timeout: 20_000 });
+    expect(await page.locator("mark.marsa-hit").count()).toBeGreaterThanOrEqual(3);
+    const churn = await page.evaluate(
+      () =>
+        new Promise<number>((resolve) => {
+          let n = 0;
+          const obs = new MutationObserver((ms) => {
+            for (const m of ms) for (const x of m.addedNodes) if (x.nodeName === "MARK") n++;
+          });
+          obs.observe(document.body, { childList: true, subtree: true });
+          setTimeout(() => {
+            obs.disconnect();
+            resolve(n);
+          }, 1500);
+        }),
+    );
+    expect(churn).toBe(0);
+    await page.keyboard.press("Escape");
+
     await page.getByRole("tab", { name: "Risk" }).click();
     await expect(page.getByText("Overall risk of awarding to this vendor")).toBeVisible();
 

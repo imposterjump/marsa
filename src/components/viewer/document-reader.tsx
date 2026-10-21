@@ -211,10 +211,36 @@ function ReaderBody({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quoteKey, source.status]);
   const quoteStatus = quoteState?.key === quoteKey ? quoteState.status : quote ? "searching" : null;
+  // Pulse and scroll once per quote and page: a highlight re-applied by a re-render must not
+  // trigger another state update (that was a highlight ↔ render loop on sheet pages, G-72).
+  const lastHit = useRef<string | null>(null);
   const onHighlight = (mark: HTMLElement | null) => {
-    if (!mark) return;
+    if (!mark) {
+      lastHit.current = null; // coming back to the quote's page pulses and scrolls again
+      return;
+    }
+    const hitKey = `${quoteKey}|${current}`;
+    if (lastHit.current === hitKey) return;
+    lastHit.current = hitKey;
     setPulse(Date.now());
-    mark.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    requestAnimationFrame(() => {
+      // Sheet and text pages scroll inside themselves (and are CSS-scaled): centre the mark in
+      // those inner areas first, otherwise a row near the bottom stays cut off (G-72).
+      for (let a = mark.parentElement; a && a !== stageRef.current; a = a.parentElement) {
+        if (!/(auto|scroll)/.test(getComputedStyle(a).overflowY)) continue;
+        if (a.scrollHeight <= a.clientHeight) continue;
+        const box = a.getBoundingClientRect();
+        const m = mark.getBoundingClientRect();
+        const scale = box.height / a.clientHeight || 1;
+        a.scrollTop += (m.top - box.top - (box.height - m.height) / 2) / scale;
+      }
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      mark.scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
+        behavior: reduce ? "auto" : "smooth",
+      });
+    });
   };
 
   // Keyboard: ← → PageUp/Down Home End, + − 0, F. Inputs keep their own keys.

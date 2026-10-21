@@ -31,7 +31,7 @@ import {
   outcomeOf,
   type StepRow,
 } from "@/server/runs/store";
-import { clauseTokens, findToken } from "@/server/runs/sources";
+import { clauseText, clauseTokens, findToken, stripRunningLines } from "@/server/runs/sources";
 import { costFromUsage, etaSeconds, joinNames, planSteps } from "@/lib/plan";
 import { maxSeverity, riskSeverity } from "@/lib/scoring";
 
@@ -595,5 +595,28 @@ describe("requirement sources (links to RFP clauses and standard rules)", () => 
     expect(findToken(pages, "4.6.1")).toBe(1);
     expect(findToken(pages, "8")).toBe(2);
     expect(findToken(pages, "9.9.9")).toBe(-1);
+  });
+});
+
+describe("clause text for RFP highlights", () => {
+  it("takes the whole clause up to the next clause heading", () => {
+    const page =
+      "4.6 Software\n4.6.1 All software components shall be hosted\non-premise at the CDC. MANDATORY\n4.6.2 No scan image shall leave the territory.";
+    expect(clauseText(page, "4.6.1")).toBe(
+      "4.6.1 All software components shall be hosted on-premise at the CDC. MANDATORY",
+    );
+  });
+
+  it("keeps a table clause to its own row, without cell separators", () => {
+    const text =
+      "| Ref | Area | Requirement |\n| TB-24 | Software | Hosting of all components | M |\n| TB-25 | Software | Data residency | M |";
+    expect(clauseText(text, "TB-24", true)).toBe("TB-24 Software Hosting of all components M");
+  });
+
+  it("drops running headers and footers repeated on most pages", () => {
+    const pages = [1, 2, 3, 4].map(
+      (n) => `NGPA/T/2026/014 · Request for Proposal\nClause text ${n}.\nPage ${n} of 4`,
+    );
+    expect(stripRunningLines(pages)[1]).toBe("Clause text 2.");
   });
 });

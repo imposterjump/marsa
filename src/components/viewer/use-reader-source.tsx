@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { api } from "@/lib/api-client";
@@ -61,6 +61,51 @@ export function useReaderSource(doc: DocumentDto | undefined): ReaderSource {
     staleTime: Infinity,
   });
 
+  // Stable page objects: the reader re-highlights when a page changes identity, so pages rebuilt
+  // on every render made the evidence highlight run in a loop (HANDOFF G-72).
+  const imageSize = image.size;
+  const imagePages = useMemo<HtmlPage[] | null>(
+    () =>
+      doc && imageSize
+        ? [
+            {
+              w: imageSize.w,
+              h: imageSize.h,
+              text: "",
+              render: () => (
+                // eslint-disable-next-line @next/next/no-img-element -- user-uploaded file served by our API
+                <img
+                  src={doc.url}
+                  alt={doc.originalName}
+                  className="block size-full object-contain"
+                />
+              ),
+            },
+          ]
+        : null,
+    [doc, imageSize],
+  );
+  const previewPages = useMemo<HtmlPage[] | null>(() => {
+    const p = preview.data;
+    if (!p) return null;
+    if (p.kind === "sheets") {
+      return p.sheets.map((s) => ({
+        ...A4_LANDSCAPE,
+        text: s.rows.map((r) => r.join(" ")).join("\n"),
+        render: () => <SheetPage sheet={s} />,
+      }));
+    }
+    if (p.kind === "text") {
+      const mono = ["json", "xml", "csv", "log"].includes(ext);
+      return paginate(p.text).map((chunk) => ({
+        ...A4,
+        text: chunk,
+        render: () => <TextPage text={chunk} mono={mono} />,
+      }));
+    }
+    return null;
+  }, [preview.data, ext]);
+
   if (!doc) return { status: "none" };
   if (kind === "pdf") {
     if (pdfState.error)
@@ -73,23 +118,8 @@ export function useReaderSource(doc: DocumentDto | undefined): ReaderSource {
   }
   if (kind === "image") {
     if (image.error) return { status: "error", message: "This image couldn't be loaded." };
-    if (!image.size) return { status: "loading" };
-    const { w, h } = image.size;
-    return {
-      status: "ready",
-      kind: "html",
-      pages: [
-        {
-          w,
-          h,
-          text: "",
-          render: () => (
-            // eslint-disable-next-line @next/next/no-img-element -- user-uploaded file served by our API
-            <img src={doc.url} alt={doc.originalName} className="block size-full object-contain" />
-          ),
-        },
-      ],
-    };
+    if (!imagePages) return { status: "loading" };
+    return { status: "ready", kind: "html", pages: imagePages };
   }
   if (isDocx) {
     if (docx.error)
@@ -103,30 +133,7 @@ export function useReaderSource(doc: DocumentDto | undefined): ReaderSource {
   if (wantsPreview) {
     if (preview.isError) return { status: "error", message: "This file couldn't be previewed." };
     if (!preview.data) return { status: "loading" };
-    const p = preview.data;
-    if (p.kind === "sheets") {
-      return {
-        status: "ready",
-        kind: "html",
-        pages: p.sheets.map((s) => ({
-          ...A4_LANDSCAPE,
-          text: s.rows.map((r) => r.join(" ")).join("\n"),
-          render: () => <SheetPage sheet={s} />,
-        })),
-      };
-    }
-    if (p.kind === "text") {
-      const mono = ["json", "xml", "csv", "log"].includes(ext);
-      return {
-        status: "ready",
-        kind: "html",
-        pages: paginate(p.text).map((chunk) => ({
-          ...A4,
-          text: chunk,
-          render: () => <TextPage text={chunk} mono={mono} />,
-        })),
-      };
-    }
+    if (previewPages) return { status: "ready", kind: "html", pages: previewPages };
   }
   return { status: "none" };
 }
