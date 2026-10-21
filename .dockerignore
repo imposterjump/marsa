@@ -1,0 +1,19 @@
+# Secrets: the API key must be passed at runtime (docker run -e / platform secrets), never baked in.
+.env
+.env.*
+!.env.example
+
+# Runtime data lives on a mounted volume, not in the image
+data
+
+# Build/dev artefacts and tooling
+node_modules
+.next
+.git
+.vs
+.vscode
+coverage
+playwright-report
+test-results
+claude
+docs

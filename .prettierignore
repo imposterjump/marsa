@@ -1,0 +1,12 @@
+node_modules
+.next
+data
+drizzle
+package-lock.json
+claude
+public
+coverage
+playwright-report
+test-results
+*.md
+.env*
