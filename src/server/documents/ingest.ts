@@ -2,7 +2,7 @@
  * Store an uploaded file and register it in `documents` (RDD §5.1).
  * Validates (blocked type / empty / size), sniffs real content, hashes, counts PDF pages,
  * stores atomically, inserts the row — and removes the file again if the DB insert fails.
- * Text extraction for DOCX/XLSX arrives with P3.2.
+ * Extracts text for DOCX/XLSX/TXT (extract-text.ts); PDFs and images go to Claude natively.
  */
 import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
@@ -12,6 +12,7 @@ import type { LocalStorage } from "../storage/local";
 import { ApiError } from "../api-errors";
 import { checkFile, extensionOf, isLegacy } from "../../lib/files";
 import { newId } from "../../lib/ids";
+import { extractText } from "./extract-text";
 import { readPdfMeta } from "./pdf-meta";
 import { contentMatchesExtension, isAiReadable, mimeFor, sanitizeFileName, sniff } from "./sniff";
 
@@ -64,6 +65,9 @@ export async function ingestDocument(
     pageCount = 1;
   }
 
+  // Text for non-PDF formats (DOCX/XLSX/TXT…), used by the AI pipeline (RDD §5.2). Never fatal.
+  const textContent = aiReadable ? await extractText(originalName, input.bytes).catch(() => null) : null;
+
   const id = newId("document");
   const dir =
     input.owner.kind === "standard"
@@ -89,6 +93,7 @@ export async function ingestDocument(
         sha256: crypto.createHash("sha256").update(input.bytes).digest("hex"),
         storagePath,
         pageCount,
+        textContent,
         aiReadable,
       })
       .run();

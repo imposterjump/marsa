@@ -3,6 +3,7 @@ import { json, notFound, withErrors } from "@/server/api";
 import { getDb } from "@/server/db/client";
 import { toDocumentDto } from "@/server/documents/dto";
 import { deleteDocument, getDocument } from "@/server/documents/ingest";
+import { assertRfpRemovable, touchProject } from "@/server/services/projects";
 import { getStorage } from "@/server/storage";
 
 type Ctx = RouteContext<"/api/documents/[documentId]">;
@@ -17,6 +18,10 @@ export const GET = withErrors(async (_req: Request, ctx: Ctx) => {
 
 export const DELETE = withErrors(async (_req: Request, ctx: Ctx) => {
   const { documentId } = await ctx.params;
-  await deleteDocument(getDb(), getStorage(), documentId);
+  const db = getDb();
+  const row = getDocument(db, documentId);
+  if (row?.kind === "rfp" && row.projectId) assertRfpRemovable(db, row.projectId);
+  await deleteDocument(db, getStorage(), documentId);
+  if (row?.projectId) touchProject(db, row.projectId);
   return new Response(null, { status: 204 });
 });

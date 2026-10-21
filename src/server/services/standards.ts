@@ -23,27 +23,38 @@ const code = z
   .regex(/^[A-Za-z][A-Za-z0-9._-]*$/, "Use letters, digits, - . _ and start with a letter.")
   .transform((v) => v.toUpperCase());
 
+// Patch schemas are built from default-free fields: zod 4's .partial() still applies
+// .default()s, which made a PATCH {isActive} wipe the description (HANDOFF G-42).
+const standardFields = {
+  code,
+  title: z.string().trim().min(3, "Title must be at least 3 characters.").max(140),
+  category: z.enum(STANDARD_CATEGORIES),
+  description: z.string().trim().max(2000),
+  isActive: z.boolean(),
+};
 export const standardInputSchema = z
   .object({
-    code,
-    title: z.string().trim().min(3, "Title must be at least 3 characters.").max(140),
-    category: z.enum(STANDARD_CATEGORIES),
-    description: z.string().trim().max(2000).default(""),
-    isActive: z.boolean().default(true),
+    ...standardFields,
+    description: standardFields.description.default(""),
+    isActive: standardFields.isActive.default(true),
   })
   .strict();
-export const standardPatchSchema = standardInputSchema.partial().strict();
+export const standardPatchSchema = z.object(standardFields).partial().strict();
 
+const ruleFields = {
+  code: code.optional().nullable(),
+  text: z.string().trim().min(1, "Rule text is required.").max(RULE_TEXT_MAX),
+  priority: z.enum(PRIORITIES),
+};
 export const ruleInputSchema = z
   .object({
-    code: code.optional().nullable(),
-    text: z.string().trim().min(1, "Rule text is required.").max(RULE_TEXT_MAX),
-    priority: z.enum(PRIORITIES).default("important"),
+    ...ruleFields,
+    priority: ruleFields.priority.default("important"),
     /** Only used to restore a deleted rule at its old position (undo). */
     sortOrder: z.number().int().min(0).optional(),
   })
   .strict();
-export const rulePatchSchema = ruleInputSchema.omit({ sortOrder: true }).partial().strict();
+export const rulePatchSchema = z.object(ruleFields).partial().strict();
 export const bulkRulesSchema = z
   .object({
     rules: z

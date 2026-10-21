@@ -16,7 +16,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={resolvedTheme}
-      position="bottom-right"
+      // Top-centre (HANDOFF G-43): bottom-right toasts covered primary actions (wizard Continue,
+      // the paste dialog's "Add N rules"), and sonner pauses a hovered toast so it never left.
+      // Dialog and step footers sit at the bottom; nothing actionable lives at the top centre.
+      position="top-center"
       gap={10}
       className="toaster group"
       icons={{

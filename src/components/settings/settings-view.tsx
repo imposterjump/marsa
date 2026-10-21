@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { Tabs as TabsPrimitive } from "radix-ui";
 import { toast } from "sonner";
 import { Monitor, Moon, Palette, Scale, Sparkles, Sun, UserRound, Wrench } from "lucide-react";
 import { cn } from "cn";
@@ -28,26 +30,30 @@ const SECTIONS = [
   { id: "demo", label: "Demo tools", icon: Wrench },
 ] as const;
 
-export function SettingsView() {
-  const [active, setActive] = useState<string>("profile");
+type SectionId = (typeof SECTIONS)[number]["id"];
+const IDS = SECTIONS.map((x) => x.id) as readonly string[];
 
-  // Scroll-spy: highlight the section currently in view.
-  useEffect(() => {
-    const els = SECTIONS.map((s) => document.getElementById(`settings-${s.id}`)).filter(
-      Boolean,
-    ) as HTMLElement[];
-    const io = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible[0]) setActive(visible[0].target.id.replace("settings-", ""));
-      },
-      { rootMargin: "-20% 0px -60% 0px" },
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
+// Selected tab lives in the URL hash (#scoring or #settings-scoring) so links can deep-link a tab.
+const subscribeHash = (cb: () => void) => {
+  window.addEventListener("hashchange", cb);
+  return () => window.removeEventListener("hashchange", cb);
+};
+const readHashTab = (): SectionId => {
+  const h = decodeURIComponent(window.location.hash.slice(1)).replace(/^settings-/, "");
+  return (IDS.includes(h) ? h : "profile") as SectionId;
+};
+const selectTab = (id: SectionId) => {
+  history.replaceState(null, "", `#${id}`);
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
+};
+
+/**
+ * Settings as tabs (user feedback, Phase 2): only the selected section is shown; switching fades
+ * the current one out and the new one in. Vertical tab list on desktop, scrollable chips on mobile.
+ */
+export function SettingsView() {
+  const active = useSyncExternalStore(subscribeHash, readHashTab, () => "profile" as SectionId);
+  const current = SECTIONS.find((x) => x.id === active)!;
 
   return (
     <div className="flex flex-col gap-10">
@@ -55,45 +61,74 @@ export function SettingsView() {
         title="Settings"
         description="Personalise your workspace, choose how the AI evaluates proposals, and tune the scoring."
       />
-      <div className="grid gap-10 lg:grid-cols-[200px_minmax(0,1fr)]">
-        <nav aria-label="Settings sections" className="hidden lg:block">
-          <ul className="sticky top-24 flex flex-col gap-1">
-            {SECTIONS.map(({ id, label, icon: Icon }) => (
-              <li key={id}>
-                <a
-                  href={`#settings-${id}`}
-                  aria-current={active === id ? "true" : undefined}
-                  className={cn(
-                    "flex h-9 items-center gap-2.5 rounded-lg px-3 text-sm transition-colors focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none",
-                    active === id
-                      ? "bg-surface font-medium text-ink shadow-xs"
-                      : "text-ink-muted hover:bg-surface-muted hover:text-ink",
-                  )}
-                >
-                  <Icon aria-hidden className={cn("size-4", active === id && "text-brand")} />
-                  {label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="flex max-w-3xl flex-col gap-6">
-          <ProfileSection />
-          <AppearanceSection />
-          <AiSection />
-          <ScoringSection />
-          <Section
-            id="demo"
-            title="Demo tools"
-            description="Vendor simulator, re-seed sample data, reset all data."
-          >
-            <PhaseNote
-              phase={4}
-              text="Open the vendor simulator, load the sample tender and reset the workspace."
-            />
-          </Section>
+      <TabsPrimitive.Root
+        value={active}
+        onValueChange={(v) => selectTab(v as SectionId)}
+        orientation="vertical"
+        className="grid gap-8 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-10"
+      >
+        <TabsPrimitive.List
+          aria-label="Settings sections"
+          className="-mx-1 flex [scrollbar-width:none] gap-1 overflow-x-auto px-1 pb-1 lg:sticky lg:top-24 lg:mx-0 lg:flex-col lg:self-start lg:overflow-visible lg:px-0 lg:pb-0"
+        >
+          {SECTIONS.map(({ id, label, icon: Icon }) => (
+            <TabsPrimitive.Trigger
+              key={id}
+              value={id}
+              className={cn(
+                "group/tab relative flex h-9 shrink-0 items-center gap-2.5 rounded-lg px-3 text-sm whitespace-nowrap outline-none",
+                "transition-colors duration-150 focus-visible:ring-3 focus-visible:ring-ring/25",
+                "text-ink-muted hover:bg-surface-muted hover:text-ink",
+                "data-[state=active]:font-medium data-[state=active]:text-ink data-[state=active]:hover:bg-transparent",
+              )}
+            >
+              {active === id && (
+                <motion.span
+                  layoutId="settings-tab"
+                  className="absolute inset-0 rounded-lg border border-border bg-surface shadow-xs"
+                  transition={{ type: "spring", stiffness: 420, damping: 36 }}
+                />
+              )}
+              <Icon
+                aria-hidden
+                className="relative size-4 group-data-[state=active]/tab:text-brand"
+              />
+              <span className="relative">{label}</span>
+            </TabsPrimitive.Trigger>
+          ))}
+        </TabsPrimitive.List>
+
+        <div className="max-w-3xl min-w-0">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={current.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <TabsPrimitive.Content value={current.id} forceMount className="outline-none">
+                {current.id === "profile" && <ProfileSection />}
+                {current.id === "appearance" && <AppearanceSection />}
+                {current.id === "ai" && <AiSection />}
+                {current.id === "scoring" && <ScoringSection />}
+                {current.id === "demo" && (
+                  <Section
+                    id="demo"
+                    title="Demo tools"
+                    description="Vendor simulator, re-seed sample data, reset all data."
+                  >
+                    <PhaseNote
+                      phase={4}
+                      text="Open the vendor simulator, load the sample tender and reset the workspace."
+                    />
+                  </Section>
+                )}
+              </TabsPrimitive.Content>
+            </motion.div>
+          </AnimatePresence>
         </div>
-      </div>
+      </TabsPrimitive.Root>
     </div>
   );
 }

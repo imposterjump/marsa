@@ -2,7 +2,16 @@
  * Response shapes shared by route handlers and client hooks.
  * Client code imports types from here — never from src/server (HANDOFF G-18).
  */
-import type { AiModel, Priority, ReportLanguage, StandardCategory, Theme, Weights } from "./domain";
+import type {
+  AiModel,
+  Priority,
+  ProjectCategory,
+  ProjectStatus,
+  ReportLanguage,
+  StandardCategory,
+  Theme,
+  Weights,
+} from "./domain";
 
 export interface SettingsDto {
   customerName: string;
@@ -74,4 +83,39 @@ export interface StandardDetailDto extends StandardDto {
 
 export interface ApiErrorBody {
   error: { code: string; message: string; details?: unknown };
+}
+
+export interface ProjectDto {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  category: ProjectCategory;
+  notes: string;
+  deadline: string | null; // YYYY-MM-DD
+  status: ProjectStatus;
+  isSample: boolean;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt: string | null;
+}
+
+export interface ProjectSummaryDto extends ProjectDto {
+  rfpCount: number;
+  proposalCount: number;
+  standardCount: number;
+}
+
+export interface ProjectStandardRef {
+  id: string;
+  code: string;
+  title: string;
+  category: string;
+  isActive: boolean;
+}
+
+export interface ProjectDetailDto extends ProjectDto {
+  rfpDocuments: DocumentDto[];
+  standards: ProjectStandardRef[];
+  proposalCount: number;
 }

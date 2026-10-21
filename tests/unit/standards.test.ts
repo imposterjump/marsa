@@ -14,7 +14,9 @@ import {
   listStandards,
   reorderRules,
   standardInputSchema,
+  standardPatchSchema,
   updateRule,
+  updateStandard,
 } from "@/server/services/standards";
 import { createLocalStorage, type LocalStorage } from "@/server/storage/local";
 
@@ -136,5 +138,31 @@ describe("standards service", () => {
     expect(listStandards(db)).toEqual([]);
     expect(await storage.exists(doc.storagePath)).toBe(false);
     expect(() => getStandard(db, s.id)).toThrow(/not found/);
+  });
+});
+
+describe("patch schemas (G-42: zod .partial() keeps defaults)", () => {
+  it("a partial standard patch never fills in defaults", async () => {
+    const { rulePatchSchema } = await import("@/server/services/standards");
+    expect(standardPatchSchema.parse({ isActive: false })).toEqual({ isActive: false });
+    expect(standardPatchSchema.parse({ description: "x" })).toEqual({ description: "x" });
+    expect(rulePatchSchema.parse({ text: "Edited" })).toEqual({ text: "Edited" });
+  });
+
+  it("toggling a standard keeps its description", () => {
+    const s = createStandard(
+      db,
+      standardInputSchema.parse({
+        code: "CITS-2026",
+        title: "Customs IT Security",
+        category: "IT & security",
+        description: "Applies to all IT systems.",
+      }),
+    );
+    updateStandard(db, s.id, standardPatchSchema.parse({ isActive: false }));
+    expect(getStandard(db, s.id)).toMatchObject({
+      isActive: false,
+      description: "Applies to all IT systems.",
+    });
   });
 });
