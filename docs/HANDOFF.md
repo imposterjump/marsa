@@ -15,7 +15,7 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
 
 ## 0. The user's standing rules (apply to every phase)
 1. **End of every phase:** start the app (`npm run dev` → http://localhost:3000, `AI_MODE=mock`), give the user the **localhost link** and a **bullet list of what was done**, so they can test each feature and send feedback.
-2. **Every phase generates its test inputs** in `test-inputs/phase-N/` with a `README.md` test guide (steps + expected results). Inputs must be **deep and production-like** (multi-page, real formats, realistic detail), not one-page toys.
+2. **Every phase generates its test inputs** in `test-inputs/phase-N/` with a `README.md` test guide (steps + expected results). Inputs must be **deep and production-like** (multi-page, real formats, realistic detail), not one-page toys. **The user tests with ONE format for now: PDF.** The primary path is the RFP PDF `test-inputs/phase-1/rfp-pack/01-RFP-NGPA-T-2026-014.pdf` and, from Phase 4, vendor proposals as PDF. Always give the user exact copy-paste values for every form field. Other formats are optional extras.
 3. **Never help the AI** in test documents: no evaluator hints, no "this is non-compliant" wording, no pre-computed answers. **The RFP pack and the standards must not contradict each other.** **Vendor proposals must be legitimate, coherent bids.** Then let the AI work. Human-only reference notes go in `test-inputs/SCENARIO.md` (never uploaded).
 4. Plan → ask → build. The user approves recommendations before they are built. Report progress briefly when a phase runs long (the user asked "are you stuck?").
 
@@ -48,7 +48,7 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | Node / npm | Node **24.15.0** · npm **11.12.1** (`engines.node >= 24`) |
 | npm script shell | **PowerShell 5.1** (user's global `~/.npmrc`). Don't change it. See G-01 |
 | Repo path | `C:\work\mawane2 w gamarek`: **contains spaces**. Always quote paths |
-| Git | `main`, commit per finished subtask/phase (REC-22) |
+| Git | `main`, commit per finished subtask/phase (REC-22). Remote **origin = https://github.com/imposterjump/marsa.git** (private). Push after every phase (see G-31) |
 | Key versions | next 16.4.2 · react 19.3 · tailwind 4.3 · shadcn CLI 4.22 (radix-nova) · drizzle-orm 0.45 · better-sqlite3 13 · zod 4.6 · motion 14.5 · TanStack Query 5.104 · vitest 5 · Playwright 1.64 · docx 9.13 · exceljs 4.4 · pdfjs-dist 6.4.299 |
 | Secrets | The user's real Anthropic key is in **`.env`** (gitignored). `.env.local` = non-secret overrides. See G-07 |
 | PDF rendering for review | The Read tool can't render PDFs (no poppler). See G-24 |
@@ -86,6 +86,7 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | G-28 | ✅ Solved | `field-sizing-content` on Textarea sized it to its long placeholder and blew out grid columns | Removed; Textarea uses `resize-y` |
 | G-29 | ✅ Solved | The Next dev indicator ("N" badge) covered the sidebar footer | `devIndicators: false` in next.config (errors still show) |
 | G-30 | ℹ️ Rule | `useSyncExternalStore` subscribe functions must be **module-level constants** (otherwise React resubscribes every render) | See `subscribeSidebar` in `use-client-store.ts` |
+| G-31 | ℹ️ Rule | No `gh` CLI. The user's global git `credential.helper` is `wincred`, so a plain push in a non-interactive shell can't prompt for a login | Push with: `GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper=manager push` (Git Credential Manager; it popped a GitHub sign-in once, and is now cached). Before every push, scan history: `git log -p --all \| grep -cE 'sk-ant-[A-Za-z0-9_-]{10,}'` must be 0 |
 
 ## 5. Open issues & carry-overs
 | ID | Status | Issue | Plan |
