@@ -57,7 +57,7 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
   - Part B: live Opus 5.5 via `AI_MODE=live` in `.env.local`. B1 ≈ $2–4, B2 ≈ $7–10, B3 ≈ $0.4.
   - Then push P6 + P7 → **Phase 8: Results UX 🧑** (the Compliance / Comparison / Risk tabs exist as a basic P6 view).
 - **App runs?** `npm run dev` → http://localhost:3000.
-- **All checks green?** `npm run check` ✔ (**151 unit + integration**) · `npm run test:e2e` ✔ (see the session log) · build ✔.
+- **All checks green?** `npm run check` ✔ (**163 unit + integration**) · `npm run test:e2e` ✔ (see the session log) · build ✔.
 
 ## 2. Quick start for a new session
 ```bash

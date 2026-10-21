@@ -6,6 +6,7 @@
 ## Now
 - **Current phase:** **P6 AI pipeline ✅ + P7 Live progress ✅ → waiting for your test** (you asked to test both together). P5 is pushed but not yet tested by you (viewer checkpoint P5.8).
 - **Test it:** http://localhost:3000/projects · guide: [test-inputs/phase-6/README.md](../test-inputs/phase-6/README.md) (Part A free, Part B live Opus)
+- **Meeting demo:** POC inputs ready (rehearsal + meeting sets), guide: [test-inputs/poc-inputs/README.md](../test-inputs/poc-inputs/README.md). Everything is pushed.
 - **Session handoff notes:** [HANDOFF.md](HANDOFF.md) (read first every session).
 
 ## Waiting on you
