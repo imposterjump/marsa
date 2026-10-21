@@ -1,20 +1,21 @@
 import { Suspense } from "react";
-import { ProjectShell, ProjectShellSkeleton } from "@/components/projects/project-shell";
+import { ProjectHeader, ProjectHeaderSkeleton } from "@/components/projects/project-shell";
 
-// Reading `params` must happen inside <Suspense> under cacheComponents (HANDOFF G-36).
-// The shell loads the project once and hands it to the tab pages through context.
+// Only the header awaits `params` (inside <Suspense>, G-36). The tab pages render BESIDE it, not
+// inside it: each page resolves the id in its own boundary (<ProjectRoute>), so every page segment
+// is part of the static shell and passes instant-navigation validation (HANDOFF G-50).
 export default function ProjectLayout({ children, params }: LayoutProps<"/projects/[projectId]">) {
   return (
-    <Suspense fallback={<ProjectShellSkeleton />}>
-      <ProjectFromParams params={params}>{children}</ProjectFromParams>
-    </Suspense>
+    <div className="flex flex-col gap-8">
+      <Suspense fallback={<ProjectHeaderSkeleton />}>
+        <HeaderFromParams params={params} />
+      </Suspense>
+      {children}
+    </div>
   );
 }
 
-async function ProjectFromParams({
-  params,
-  children,
-}: Pick<LayoutProps<"/projects/[projectId]">, "params" | "children">) {
+async function HeaderFromParams({ params }: Pick<LayoutProps<"/projects/[projectId]">, "params">) {
   const { projectId } = await params;
-  return <ProjectShell projectId={projectId}>{children}</ProjectShell>;
+  return <ProjectHeader projectId={projectId} />;
 }

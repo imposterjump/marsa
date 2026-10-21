@@ -50,21 +50,38 @@ const ProjectContext = createContext<ProjectDetailDto | null>(null);
 /** The loaded project for the tab pages under /projects/[projectId]. */
 export function useProjectContext(): ProjectDetailDto {
   const p = useContext(ProjectContext);
-  if (!p) throw new Error("useProjectContext must be used inside <ProjectShell>");
+  if (!p) throw new Error("useProjectContext must be used inside <ProjectGate>");
   return p;
 }
 
-export function ProjectShell({
+/**
+ * Loads the project for a tab page and provides it through context. The query is shared with
+ * <ProjectHeader> (same key), so it is fetched once. Errors render nothing: the header shows them.
+ */
+export function ProjectGate({
   projectId,
+  fallback,
   children,
 }: {
   projectId: string;
+  fallback: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const { data: p, isLoading } = useProject(projectId);
+  if (isLoading) return fallback;
+  if (!p) return null;
+  return <ProjectContext.Provider value={p}>{children}</ProjectContext.Provider>;
+}
+
+/**
+ * Breadcrumbs, header, status banner and section tabs of a project. Rendered by the layout
+ * beside (not around) the tab pages, so each page segment stays in the static shell (G-50).
+ */
+export function ProjectHeader({ projectId }: { projectId: string }) {
   const { data: p, isLoading, error } = useProject(projectId);
   const pathname = usePathname();
 
-  if (isLoading) return <ProjectShellSkeleton />;
+  if (isLoading) return <ProjectHeaderSkeleton />;
   if (error || !p) {
     const notFound = error instanceof ApiClientError && error.status === 404;
     return (
@@ -94,91 +111,79 @@ export function ProjectShell({
   ];
 
   return (
-    <ProjectContext.Provider value={p}>
-      <div className="flex flex-col gap-8">
-        <SetBreadcrumbs crumbs={[{ label: "Projects", href: "/projects" }, { label: p.code }]} />
-        <PageHeader
-          eyebrow={
-            <span className="flex items-center gap-2">
-              <span className="font-mono tracking-normal normal-case">{p.code}</span>
-              <span aria-hidden>·</span>
-              <span>{PROJECT_CATEGORY_LABEL[p.category]}</span>
-            </span>
-          }
-          title={<span dir="auto">{p.name}</span>}
-          description={
-            <>
-              {p.description && (
-                <span className="mt-1 line-clamp-3 block" dir="auto" title={p.description}>
-                  {p.description}
-                </span>
-              )}
-              <span className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
-                <ProjectStatusPill status={p.status} />
-                {p.isSample && (
-                  <Pill tone="info" size="md">
-                    Sample data
-                  </Pill>
-                )}
-                <span className="inline-flex items-center gap-1.5 text-ink-2">
-                  <CalendarClock className="size-4 text-ink-faint" aria-hidden />
-                  {p.deadline ? deadlineLabel(p.deadline) : "No submission deadline"}
-                </span>
+    <div className="flex flex-col gap-8">
+      <SetBreadcrumbs crumbs={[{ label: "Projects", href: "/projects" }, { label: p.code }]} />
+      <PageHeader
+        eyebrow={
+          <span className="flex items-center gap-2">
+            <span className="font-mono tracking-normal normal-case">{p.code}</span>
+            <span aria-hidden>·</span>
+            <span>{PROJECT_CATEGORY_LABEL[p.category]}</span>
+          </span>
+        }
+        title={<span dir="auto">{p.name}</span>}
+        description={
+          <>
+            {p.description && (
+              <span className="mt-1 line-clamp-3 block" dir="auto" title={p.description}>
+                {p.description}
               </span>
-            </>
-          }
-          actions={<HeaderActions project={p} />}
-        />
+            )}
+            <span className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
+              <ProjectStatusPill status={p.status} />
+              {p.isSample && (
+                <Pill tone="info" size="md">
+                  Sample data
+                </Pill>
+              )}
+              <span className="inline-flex items-center gap-1.5 text-ink-2">
+                <CalendarClock className="size-4 text-ink-faint" aria-hidden />
+                {p.deadline ? deadlineLabel(p.deadline) : "No submission deadline"}
+              </span>
+            </span>
+          </>
+        }
+        actions={<HeaderActions project={p} />}
+      />
 
-        <StatusBanner project={p} />
+      <StatusBanner project={p} />
 
-        <nav aria-label="Project sections" className="-mt-2 border-b border-border">
-          <ul className="-mb-px flex [scrollbar-width:none] gap-6 overflow-x-auto">
-            {tabs.map((t) => {
-              const active = t.href === base ? pathname === base : pathname.startsWith(t.href);
-              return (
-                <li key={t.href} className="shrink-0">
-                  <Link
-                    href={t.href}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "relative flex h-11 items-center gap-2 rounded-t-md px-0.5 text-sm font-medium transition-colors outline-none",
-                      "focus-visible:ring-3 focus-visible:ring-ring/25",
-                      active ? "text-ink" : "text-ink-muted hover:text-ink",
-                    )}
-                  >
-                    <t.icon className="size-4" aria-hidden />
-                    {t.label}
-                    {t.count != null && t.count > 0 && (
-                      <span className="rounded-full bg-surface-muted px-1.5 text-2xs leading-5 font-semibold text-ink-2 tabular-nums">
-                        {t.count}
-                      </span>
-                    )}
-                    {active && (
-                      <motion.span
-                        layoutId="project-tab"
-                        className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-brand"
-                        transition={{ type: "spring", stiffness: 480, damping: 38 }}
-                      />
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        <motion.div
-          key={pathname}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          className="min-w-0"
-        >
-          {children}
-        </motion.div>
-      </div>
-    </ProjectContext.Provider>
+      <nav aria-label="Project sections" className="-mt-2 border-b border-border">
+        <ul className="-mb-px flex [scrollbar-width:none] gap-6 overflow-x-auto">
+          {tabs.map((t) => {
+            const active = t.href === base ? pathname === base : pathname.startsWith(t.href);
+            return (
+              <li key={t.href} className="shrink-0">
+                <Link
+                  href={t.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "relative flex h-11 items-center gap-2 rounded-t-md px-0.5 text-sm font-medium transition-colors outline-none",
+                    "focus-visible:ring-3 focus-visible:ring-ring/25",
+                    active ? "text-ink" : "text-ink-muted hover:text-ink",
+                  )}
+                >
+                  <t.icon className="size-4" aria-hidden />
+                  {t.label}
+                  {t.count != null && t.count > 0 && (
+                    <span className="rounded-full bg-surface-muted px-1.5 text-2xs leading-5 font-semibold text-ink-2 tabular-nums">
+                      {t.count}
+                    </span>
+                  )}
+                  {active && (
+                    <motion.span
+                      layoutId="project-tab"
+                      className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-brand"
+                      transition={{ type: "spring", stiffness: 480, damping: 38 }}
+                    />
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </div>
   );
 }
 
@@ -330,7 +335,7 @@ function HeaderActions({ project: p }: { project: ProjectDetailDto }) {
   );
 }
 
-export function ProjectShellSkeleton() {
+export function ProjectHeaderSkeleton() {
   return (
     <div className="flex flex-col gap-8" aria-busy>
       <div className="flex flex-col gap-3">
@@ -339,10 +344,15 @@ export function ProjectShellSkeleton() {
         <Skeleton className="h-6 w-64" />
       </div>
       <Skeleton className="h-11 w-80" />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <Skeleton className="h-96 rounded-xl" />
-        <Skeleton className="h-96 rounded-xl" />
-      </div>
+    </div>
+  );
+}
+
+export function ProjectPageSkeleton() {
+  return (
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]" aria-busy>
+      <Skeleton className="h-96 rounded-xl" />
+      <Skeleton className="h-96 rounded-xl" />
     </div>
   );
 }
