@@ -2,18 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import {
-  Bot,
-  FlaskConical,
-  KeyRound,
-  Monitor,
-  Moon,
-  Palette,
-  Scale,
-  Sun,
-  UserRound,
-  Wrench,
-} from "lucide-react";
+import { Monitor, Moon, Palette, Scale, Sparkles, Sun, UserRound, Wrench } from "lucide-react";
 import { cn } from "cn";
 import { useTheme } from "@/components/theme-provider";
 import { useSidebarCollapsed } from "@/hooks/use-client-store";
@@ -22,18 +11,19 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { Pill } from "@/components/ui/status-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { KeyValueList } from "@/components/data/key-value-list";
 import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import type { Theme } from "@/lib/domain";
 import { setSidebarCollapsed } from "@/lib/theme";
+import { AiSection } from "./ai-section";
+import { ScoringSection } from "./scoring-section";
+import { PhaseNote, Section } from "./settings-section";
 
 const SECTIONS = [
   { id: "profile", label: "Profile", icon: UserRound },
   { id: "appearance", label: "Appearance", icon: Palette },
-  { id: "ai", label: "AI & runtime", icon: Bot },
+  { id: "ai", label: "AI & runtime", icon: Sparkles },
   { id: "scoring", label: "Scoring", icon: Scale },
   { id: "demo", label: "Demo tools", icon: Wrench },
 ] as const;
@@ -63,7 +53,7 @@ export function SettingsView() {
     <div className="flex flex-col gap-10">
       <PageHeader
         title="Settings"
-        description="Personalise your workspace and see how the AI is configured."
+        description="Personalise your workspace, choose how the AI evaluates proposals, and tune the scoring."
       />
       <div className="grid gap-10 lg:grid-cols-[200px_minmax(0,1fr)]">
         <nav aria-label="Settings sections" className="hidden lg:block">
@@ -91,16 +81,7 @@ export function SettingsView() {
           <ProfileSection />
           <AppearanceSection />
           <AiSection />
-          <Section
-            id="scoring"
-            title="Scoring"
-            description="Weights per requirement priority and credit for partial compliance (PRD FR-9.4)."
-          >
-            <PhaseNote
-              phase={2}
-              text="Editable weights (Mandatory 3 · Important 2 · Desirable 1) and partial credit (50%) with a live example score."
-            />
-          </Section>
+          <ScoringSection />
           <Section
             id="demo"
             title="Demo tools"
@@ -113,48 +94,6 @@ export function SettingsView() {
           </Section>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Section({
-  id,
-  title,
-  description,
-  children,
-}: {
-  id: string;
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      id={`settings-${id}`}
-      aria-labelledby={`settings-${id}-title`}
-      className="scroll-mt-24 rounded-xl border border-border bg-surface shadow-xs"
-    >
-      <div className="flex flex-col gap-1 border-b border-border/70 px-6 py-5">
-        <h2
-          id={`settings-${id}-title`}
-          className="font-heading text-base font-semibold tracking-tight text-ink"
-        >
-          {title}
-        </h2>
-        {description && <p className="text-[13px] text-ink-muted">{description}</p>}
-      </div>
-      <div className="px-6 py-6">{children}</div>
-    </section>
-  );
-}
-
-function PhaseNote({ phase, text }: { phase: number; text: string }) {
-  return (
-    <div className="flex items-start gap-3 rounded-lg bg-surface-muted/70 px-4 py-3 text-[13px] text-ink-2">
-      <Pill tone="neutral" size="sm">
-        Phase {phase}
-      </Pill>
-      <span className="leading-relaxed">{text}</span>
     </div>
   );
 }
@@ -291,62 +230,6 @@ function AppearanceSection() {
           />
         </div>
       </div>
-    </Section>
-  );
-}
-
-function AiSection() {
-  const { data } = useSettings();
-  if (!data) {
-    return (
-      <Section id="ai" title="AI & runtime">
-        <Skeleton className="h-32 w-full" />
-      </Section>
-    );
-  }
-  const { aiMode, apiKeyConfigured, maxUploadMb } = data.runtime;
-  return (
-    <Section
-      id="ai"
-      title="AI & runtime"
-      description="Read-only in Phase 1. Model choice and report language become editable in Phase 2."
-    >
-      <KeyValueList
-        items={[
-          {
-            label: "AI mode",
-            value:
-              aiMode === "mock" ? (
-                <Pill tone="info" icon={FlaskConical}>
-                  Mock (fixtures, $0)
-                </Pill>
-              ) : (
-                <Pill tone="brand" icon={Bot}>
-                  Live (Anthropic API)
-                </Pill>
-              ),
-          },
-          {
-            label: "API key",
-            value: apiKeyConfigured ? (
-              <Pill tone="ok" icon={KeyRound}>
-                Configured on the server
-              </Pill>
-            ) : (
-              <Pill tone="partial" icon={KeyRound}>
-                Missing: add ANTHROPIC_API_KEY to .env
-              </Pill>
-            ),
-          },
-          {
-            label: "Default model",
-            value: data.aiModel === "claude-opus-5-5" ? "Claude Opus 5.5" : "Claude Sonnet 5.5",
-          },
-          { label: "Report language", value: data.reportLanguage === "en" ? "English" : "Arabic" },
-          { label: "Max upload size", value: `${maxUploadMb} MB per file` },
-          { label: "Parallel AI steps", value: String(data.concurrency) },
-        ]}
-      />
     </Section>
   );
 }

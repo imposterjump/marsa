@@ -20,12 +20,12 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
 4. Plan → ask → build. The user approves recommendations before they are built. Report progress briefly when a phase runs long (the user asked "are you stuck?").
 
 ## 1. Where we are (update every session)
-- **Last session:** 2026-10-21 (session 3, Phase 1).
-- **Done:** Planning · **Phase 0** · **Phase 1** (P1.1–P1.8 built; P1.9 self-review done with screenshots; user review pending).
-- **Next subtask:** wait for the user's Phase 1 feedback, then **P2.1** Settings page completion (AI model select, report language, scoring weights with live example) → P2.2–P2.4 Standards library. Phase 2 must also generate `test-inputs/phase-2/` (three standards consistent with the RFP pack, see SCENARIO.md).
-- **App runs?** Yes: `npm run dev` → http://localhost:3000 (redirects to /projects; first run shows the welcome dialog). UI kit at `/dev/ui`.
-- **All checks green?** `npm run check` (lint + typecheck + contrast + 39 unit tests) ✔ · `npm run test:e2e` 10/10 ✔ · `npm run build` 0 warnings (last verified in P0; rerun before P2 work).
-- **User approvals:** all REC-01…REC-22 approved.
+- **Last session:** 2026-10-21 (session 4, Phase 2).
+- **Done:** Planning · Phase 0 · Phase 1 · **Phase 2** (Settings completed + Standards library with rules editor and document uploads). The document ingest pipeline and the file-streaming route were pulled forward from P3.2.
+- **Next subtask:** wait for the user's Phase 2 feedback, then **P3.1** Projects service + API → P3.3 Projects page → P3.4 New project → P3.5/P3.6. Phase 3 must generate `test-inputs/phase-3/README.md` with exact copy-paste values (the RFP PDF from Phase 1 + the project fields the user already received in chat: name, description, category Equipment, deadline 30/11/2026, notes empty).
+- **App runs?** `npm run dev` → http://localhost:3000.
+- **All checks green?** `npm run check` ✔ (lint, typecheck, contrast, **68 unit**) · `npm run test:e2e` ✔ **13/13** (now a production build, see G-32) · `npm run build` ✔ 0 warnings (`/standards/[standardId]` = ◐ Partial Prerender).
+- **GitHub:** pushed to origin/main after every phase (G-31).
 
 ## 2. Quick start for a new session
 ```bash
@@ -87,6 +87,15 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | G-29 | ✅ Solved | The Next dev indicator ("N" badge) covered the sidebar footer | `devIndicators: false` in next.config (errors still show) |
 | G-30 | ℹ️ Rule | `useSyncExternalStore` subscribe functions must be **module-level constants** (otherwise React resubscribes every render) | See `subscribeSidebar` in `use-client-store.ts` |
 | G-31 | ℹ️ Rule | No `gh` CLI. The user's global git `credential.helper` is `wincred`, so a plain push in a non-interactive shell can't prompt for a login | Push with: `GIT_TERMINAL_PROMPT=0 git -c credential.helper= -c credential.helper=manager push` (Git Credential Manager; it popped a GitHub sign-in once, and is now cached). Before every push, scan history: `git log -p --all \| grep -cE 'sk-ant-[A-Za-z0-9_-]{10,}'` must be 0 |
+| G-32 | ✅ Solved | **E2E against `next dev` was flaky**: a cold dev server intermittently **reload-looped** the first page (*"7 × navigated to /projects"*). Parallel spec files also reset each other's data in the shared SQLite DB | `playwright.config.ts` now builds and runs a **production server** (`npx next build && npx next start -p 3200`; the "next start does not work with output: standalone" warning is harmless). Settings: `workers: 1`, `reuseExistingServer: false`. 13/13 green and stable on repeat runs. Kill leftover project `node.exe` before a run if port 3200 is busy (G-09) |
+| G-33 | ℹ️ Rule | **TanStack Query skips per-call `mutate(…, { onSuccess })` callbacks when the component unmounts.** An optimistic delete removes the row → its toast/Undo never showed | Fire follow-ups from a component that stays mounted, using `mutateAsync().then(...)` (see `deleteWithUndo` in `rules-editor.tsx`) |
+| G-34 | ℹ️ Rule | **Hydration mismatch with client-fetched data**: the server renders loading states, but a query can resolve before React hydrates a later subtree → *"Hydration failed because the server rendered HTML didn't match"* (seen on /settings and /projects) | Every query hook returns `useHydrationSafe(useQuery(...))` (`src/hooks/hydration-safe.ts`): no data until hydration finishes. **New query hooks must use it.** `useHydrated()` lives in `use-client-store.ts` |
+| G-35 | ℹ️ Rule | With cacheComponents, **`usePathname()` outside `<Suspense>` makes the production build fail on routes with dynamic params** (*"Next.js encountered URL data `usePathname()` in a Client Component outside of `<Suspense>`"*) | All shell pathname readers sit in small Suspense boundaries: `LiveNavLinks` (fallback: no active item), `LiveTrail` (empty breadcrumb), `TitleSync` + `ScrollReset` (null). Keep new `usePathname`/`useParams`/`useSearchParams` readers inside Suspense |
+| G-36 | ℹ️ Rule | Reading `params` in a page outside `<Suspense>` → *"Next.js encountered runtime data during prerendering"* | Pattern (see `src/app/(shell)/standards/[standardId]/page.tsx`): the page returns `<Suspense fallback={<Skeleton/>}><FromParams params={params}/></Suspense>` and the async child awaits `params`. Build shows the route as ◐ Partial Prerender |
+| G-37 | ✅ Solved | **The window scrolled instead of the content panel** (flex `flex-1` overrode the panel height), so the sticky topbar and settings section nav scrolled away (missed in the P1 review) | At `lg` the frame is `h-dvh overflow-hidden`, the right column `min-h-0`, and `#app-scroll` (`flex-1 min-h-0 overflow-y-auto`) is the only scroller. Scroll programmatically via `#app-scroll`. `ScrollReset` skips the first load and honours `#section` hashes |
+| G-38 | ℹ️ Fact | pdfjs-dist **6.4** in Node: use `pdfjs-dist/legacy/build/pdf.mjs`. `isEvalSupported` was removed. `destroy()` is on the **loading task** (`task.destroy()`), not the document. Must be in `serverExternalPackages` | See `src/server/documents/pdf-meta.ts` (page count; encrypted → `aiReadable=false`) |
+| G-39 | ℹ️ Rule | Uploads: **one file per request** via XHR (`src/lib/upload.ts`, real progress events). Server: `await req.formData()` (no proxy, so no 10 MB proxy limit). `ingestDocument()` sniffs magic bytes; a renamed file → 415 `file_content_mismatch`; storage is atomic, and the file is deleted again if the DB insert fails | Reuse `ingestDocument()` for RFP and proposal uploads (owners `rfp` / `commercial` / `technical`) |
+| G-40 | ℹ️ Fact | `api()` returns `undefined` for HTTP 204 (DELETE endpoints return 204 or the deleted row) | — |
 
 ## 5. Open issues & carry-overs
 | ID | Status | Issue | Plan |
@@ -97,10 +106,12 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | I-04 | 🔴 Open | Dockerfile not written. Copy `.next/standalone` + `.next/static` + `public`; `drizzle/` is traced; **never** include `.env`; mount `/app/data` | P9.7 |
 | I-05 | ✅ Solved | SQLite UNIQUE → HTTP 409 | `toErrorResponse()` in `src/server/api.ts` (unit-tested) |
 | I-06 | ℹ️ Note | Sample vendor names must not match real companies | Check in P4.1 |
-| I-07 | 🔴 Open | Settings → Scoring and Demo tools are placeholders; AI section is read-only | P2.1 (scoring, model, language), P4.3 (demo tools) |
+| I-07 | 🟡 Partly solved | Scoring + AI settings done in P2.1. **Demo tools** section still a placeholder | P4.3 (demo tools) |
 | I-08 | 🔴 Open | Projects hero stats are static 0; "New project" is disabled with a "Phase 3" tooltip; the search/filter controls are disabled | P3.3 / P3.4 |
-| I-09 | 🔴 Open | Topbar breadcrumb only knows static section titles (`src/components/shell/nav.ts`) | P3.5: add dynamic crumbs (project name) |
+| I-09 | ✅ Solved | Dynamic breadcrumbs | `BreadcrumbProvider` + `<SetBreadcrumbs crumbs={[...]}/>` in detail pages (used by standards; reuse for projects) |
 | I-10 | 🔴 Open | `#run-pill-slot` in the Topbar is an empty placeholder | P7.3 |
+| I-12 | 🔴 Open | Text extraction for DOCX/XLSX/TXT (`documents.textContent`) is not built yet; only PDF page count + AI-readable flag | P3.2 |
+| I-13 | ℹ️ Minor | Settings scroll-spy highlights the section in the upper band of the viewport, so near the page bottom it may highlight the previous section | Optional polish (P9) |
 | I-11 | ℹ️ Note | Settings `theme` and `sidebarCollapsed` are saved to the DB, but the source of truth for display is localStorage + `<html>` attributes (per browser) | Fine for a single-user prototype |
 
 ## 6. Small decisions made while coding
@@ -113,6 +124,10 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 - **Data primitives** (`src/components/data/`): `ProgressRing` (`scoreTone`: ≥85 ok, ≥70 partial, else fail), `StackedStatusBar`, `StatTile`, `KeyValueList` (`emphasis`), `DataTable<T>` (sortable, `aria-sort`, skeleton, empty).
 - **UI extras:** `Pill`/`FindingStatusPill`/`RiskPill`/`ProjectStatusPill`, `SegmentedControl` (sliding indicator), `InitialsAvatar` (deterministic tints), `FileIcon`, `Field` (label + ARIA wiring + error), `EmptyState`, `PageHeader`, `Kbd`, `Dropzone` (`upload?: (file, onProgress) => Promise`; duplicate key = name + size).
 - **Illustrations:** `src/components/illustrations.tsx` (ProjectsArt, StandardsArt, DocumentsArt). Logo: `src/components/shell/brand-mark.tsx`.
+- **Standards:** codes are uppercase and unique (DB index). Rule codes are unique per standard (case-insensitive). An empty code gets `PREFIX-NN` (prefix from the last rule, else the standard code's first part). Bulk paste format: `CODE | text | priority` (or TAB-separated; M/I/D aliases; code optional), parser in `src/lib/rules-parse.ts`. Delete = immediate plus an Undo toast that re-creates the rule at its old `sortOrder`.
+- **Priority pills** (`PriorityPill`): Mandatory = info/blue, Important = brand/teal, Desirable = neutral. Deliberately not red/amber/green, so priority never reads as a compliance status.
+- **Scoring:** `src/lib/scoring.ts` `computeScore()` / `computeCategoryScores()` is pure and shared with P6. The Settings live example uses 10 fixed findings: defaults → 66.7%.
+- **Documents API:** `GET /api/documents/:id/file` (inline; `?download=1`; single Range → 206; RFC 5987 UTF-8 filename for Arabic names), `GET/DELETE /api/documents/:id`. DTO via `toDocumentDto()` (never exposes storage paths).
 - **Test-input generators** live in `scripts/test-inputs/` (HTML→PDF/PNG via Playwright Chromium in `lib/pdf.ts`; DOCX via `docx`; XLSX via `exceljs`).
 
 ## 7. Before you start a task, consider…
@@ -142,3 +157,9 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 - **User rules added mid-phase:** end each phase with the running app + link + bullets; generate deep test inputs per phase; **don't help the AI**; RFP ↔ standards consistent; vendor proposals legitimate (§0).
 - Test inputs: `test-inputs/phase-1/` (RFP pack: 13-page RFP PDF, site plan PNG, Annex B XLSX with 6 sheets, Annex C DOCX, Addendum PDF; edge cases: Arabic file name, scanned letter image, long name, legacy .doc, .exe, empty, 55 MB; 21-file bulk) + `README.md` test guide + `test-inputs/SCENARIO.md`. Hints were removed after the user's rule.
 - Checks: `npm run check` ✔ (39 unit), E2E 10/10 ✔.
+
+### 2026-10-21 · Session 4: Phase 2
+- Built: Settings (AI model cards, report language, parallel steps, scoring weights + partial credit + live example), Standards list (search, filter, cards, active toggle, delete with type-to-confirm), standard detail (rules editor: inline edit, priority select, drag + Alt+arrow reorder, delete with Undo, Paste rules dialog with live validation), documents panel (real uploads with progress, open/download/delete), dynamic breadcrumbs. Server: document ingest (sniffing, sha256, PDF page count), file streaming with Range, standards/rules/documents APIs.
+- Test inputs: `test-inputs/phase-2/` (3 standard PDFs consistent with the RFP pack, README with exact copy-paste blocks generated from the same data).
+- Problems hit (all solved, see §4): G-32 (flaky dev-server E2E → production build), G-33 (unmount skips mutate callbacks → Undo toast missing), G-34 (hydration mismatch from early-resolving queries), G-35/G-36 (cacheComponents Suspense rules for `usePathname`/`params`; the build would have failed), G-37 (window scrolled instead of the panel; sticky header/nav broken since P1), G-38 (pdf.js v6 API changes), and a mobile overflow in the rules card.
+- Checks: 68 unit ✔, 13 E2E ✔ (twice), build ✔.

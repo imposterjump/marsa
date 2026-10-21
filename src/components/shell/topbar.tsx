@@ -1,19 +1,68 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useBreadcrumbContext, type Crumb } from "./breadcrumbs";
 import { CustomerChip } from "./customer-chip";
 import { pageTitleFor } from "./nav";
 import { ThemeToggle } from "./theme-toggle";
 
-export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
-  const pathname = usePathname();
-  const section = pathname.split("/")[1] ?? "";
+/** Static trail from the URL: "/standards" → Standards; "/projects/new" → Projects › New project. */
+function staticCrumbs(pathname: string): Crumb[] {
+  const section = `/${pathname.split("/")[1] ?? ""}`;
+  const sectionTitle = pageTitleFor(section);
   const title = pageTitleFor(pathname);
-  const sectionTitle = pageTitleFor(`/${section}`);
+  return sectionTitle === title
+    ? [{ label: title }]
+    : [{ label: sectionTitle, href: section }, { label: title }];
+}
 
+function LiveTrail() {
+  const pathname = usePathname();
+  const { crumbs } = useBreadcrumbContext();
+  return <Trail trail={crumbs ?? staticCrumbs(pathname)} />;
+}
+
+function Trail({ trail }: { trail: Crumb[] }) {
+  return (
+    <ol className="flex min-w-0 items-center gap-1.5 text-sm">
+      {trail.map((c, i) => {
+        const last = i === trail.length - 1;
+        return (
+          <li
+            key={`${i}-${c.label}`}
+            className={last ? "min-w-0 truncate" : "flex shrink-0 items-center gap-1.5"}
+          >
+            {last || !c.href ? (
+              <span
+                className="px-1 font-medium text-ink"
+                aria-current={last ? "page" : undefined}
+                dir="auto"
+              >
+                {c.label}
+              </span>
+            ) : (
+              <>
+                <Link
+                  href={c.href}
+                  className="rounded-md px-1 text-ink-muted transition-colors hover:text-ink focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
+                >
+                  {c.label}
+                </Link>
+                <ChevronRight aria-hidden className="size-3.5 text-ink-faint" />
+              </>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border/70 bg-background/80 px-4 backdrop-blur-md sm:px-6 lg:rounded-t-2xl lg:px-8">
       <Button
@@ -27,28 +76,9 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
       </Button>
 
       <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
-        <ol className="flex min-w-0 items-center gap-1.5 text-sm">
-          {sectionTitle !== title ? (
-            <>
-              <li className="shrink-0">
-                <Link
-                  href={`/${section}`}
-                  className="rounded-md px-1 text-ink-muted transition-colors hover:text-ink focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
-                >
-                  {sectionTitle}
-                </Link>
-              </li>
-              <ChevronRight aria-hidden className="size-3.5 shrink-0 text-ink-faint" />
-              <li className="truncate font-medium text-ink" aria-current="page">
-                {title}
-              </li>
-            </>
-          ) : (
-            <li className="truncate px-1 font-medium text-ink" aria-current="page">
-              {title}
-            </li>
-          )}
-        </ol>
+        <Suspense fallback={<Trail trail={[]} />}>
+          <LiveTrail />
+        </Suspense>
       </nav>
 
       {/* Run-status pill slot (P7.3) */}

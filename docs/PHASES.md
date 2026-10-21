@@ -49,7 +49,7 @@ Goal: the Harbor look and feel, reusable components, and the 3-item sidebar shel
 | P2.1 | Settings page: sections Profile · Appearance · AI (model, report language, key status) · Scoring (weights, partial credit, with a live example score) · Demo tools (placeholders until P4) · auto-save toasts | Changes persist across a reload. An invalid weight is rejected inline |
 | P2.2 | Standards service + API (CRUD standards, rules CRUD + reorder, documents upload) | Integration tests pass |
 | P2.3 | Standards list page: cards (code, title, category, rule count, docs count, active switch), search, `+ New standard`, empty state | Create, toggle, and delete work with optimistic UI |
-| P2.4 | Standard detail: inline rules table editor (add row, edit in place, priority pill, drag reorder, delete with undo toast) + documents dropzone + viewer preview link | 10 rules added and reordered by keyboard. Documents upload and preview |
+| P2.4 | Standard detail: inline rules table editor (add row, edit in place, priority pill, drag reorder, delete with undo toast) + **Paste rules** (bulk `CODE \| text \| priority`) + documents dropzone + open/download | 10 rules added and reordered by keyboard. Documents upload and open. *(Done: ingest + file streaming from P3.2 were pulled forward here)* |
 
 ## P3 — Projects & RFP creation
 | ID | Subtask | Done when |

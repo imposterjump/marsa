@@ -5,19 +5,8 @@ import { ZodError, type ZodType } from "zod";
  * Uniform API errors: `{ error: { code, message, details? } }` + proper HTTP status.
  * Throw `ApiError` from services/handlers; wrap handlers with `withErrors`.
  */
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    public code: string,
-    message: string,
-    public details?: unknown,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
-export const notFound = (what: string) => new ApiError(404, "not_found", `${what} not found.`);
+export { ApiError, notFound } from "./api-errors";
+import { ApiError } from "./api-errors";
 
 export function errorResponse(status: number, code: string, message: string, details?: unknown) {
   return Response.json(

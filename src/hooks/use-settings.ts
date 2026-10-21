@@ -3,10 +3,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import type { SettingsDto } from "@/lib/api-types";
+import { useHydrationSafe } from "./hydration-safe";
 
 export const settingsKey = ["settings"] as const;
 
 export function useSettings() {
+  return useHydrationSafe(useSettingsQuery());
+}
+
+function useSettingsQuery() {
   return useQuery({
     queryKey: settingsKey,
     queryFn: () => api<SettingsDto>("/api/settings"),

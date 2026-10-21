@@ -4,7 +4,10 @@ const PORT = 3200;
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  fullyParallel: false, // one shared SQLite DB per E2E run
+  fullyParallel: false,
+  // One worker: all specs share one SQLite DB and one dev server (parallel files reset each
+  // other's data and trigger concurrent cold compiles → reloads/hydration noise). HANDOFF G-32.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"], ["html", { open: "never" }]],
@@ -20,10 +23,13 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npx next dev -p ${PORT}`,
+    // Production build, not `next dev`: dev mode's HMR intermittently reload-looped the first
+    // page on a cold server (HANDOFF G-32). `next start` warns about output:standalone but works.
+    command: `npx next build && npx next start -p ${PORT}`,
     url: `http://localhost:${PORT}/api/health`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    // Never silently reuse a leftover server (stale data/DB); a busy port fails loudly instead.
+    reuseExistingServer: false,
+    timeout: 300_000,
     // E2E always runs against mock AI and its own data folder.
     env: { AI_MODE: "mock", DATA_DIR: "./data/e2e" },
   },

@@ -32,6 +32,8 @@ interface DropzoneProps {
   upload?: UploadFn;
   /** Called whenever the list of accepted (non-rejected) items changes. */
   onChange?: (items: DropzoneItem[]) => void;
+  /** Remove a row ~1.2 s after its upload succeeds (when the parent lists stored files itself). */
+  removeOnDone?: boolean;
   disabled?: boolean;
   className?: string;
 }
@@ -46,6 +48,7 @@ export function Dropzone({
   maxFiles = 20,
   upload,
   onChange,
+  removeOnDone,
   disabled,
   className,
 }: DropzoneProps) {
@@ -81,6 +84,9 @@ export function Dropzone({
       try {
         await upload(item.file, (pct) => patch(item.id, { progress: Math.round(pct) }));
         patch(item.id, { status: "done", progress: 100 });
+        if (removeOnDone) {
+          setTimeout(() => commit((prev) => prev.filter((i) => i.id !== item.id)), 1200);
+        }
       } catch (err) {
         patch(item.id, {
           status: "error",
@@ -88,7 +94,7 @@ export function Dropzone({
         });
       }
     },
-    [upload, patch],
+    [upload, patch, removeOnDone, commit],
   );
 
   const addFiles = useCallback(

@@ -12,6 +12,15 @@ export type ProjectCategory = (typeof PROJECT_CATEGORIES)[number];
 export const DOCUMENT_KINDS = ["rfp", "commercial", "technical", "standard"] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 
+export const STANDARD_CATEGORIES = [
+  "IT & security",
+  "Safety & environment",
+  "Commercial & legal",
+  "Quality",
+  "General",
+] as const;
+export type StandardCategory = (typeof STANDARD_CATEGORIES)[number];
+
 export const PRIORITIES = ["mandatory", "important", "desirable"] as const;
 export type Priority = (typeof PRIORITIES)[number];
 

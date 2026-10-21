@@ -89,17 +89,21 @@ export const projects = sqliteTable(
 );
 
 // ─── Standards ────────────────────────────────────────────────────────────────
-export const standards = sqliteTable("standards", {
-  id: text("id").primaryKey(),
-  code: text("code").notNull(),
-  title: text("title").notNull(),
-  category: text("category").notNull().default("general"),
-  description: text("description").notNull().default(""),
-  isActive: bool("is_active").notNull().default(true),
-  isSample: bool("is_sample").notNull().default(false),
-  createdAt: createdAt(),
-  updatedAt: updatedAt(),
-});
+export const standards = sqliteTable(
+  "standards",
+  {
+    id: text("id").primaryKey(),
+    code: text("code").notNull(),
+    title: text("title").notNull(),
+    category: text("category").notNull().default("general"),
+    description: text("description").notNull().default(""),
+    isActive: bool("is_active").notNull().default(true),
+    isSample: bool("is_sample").notNull().default(false),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("standards_code_uq").on(t.code)],
+);
 
 export const standardRules = sqliteTable(
   "standard_rules",
@@ -114,7 +118,10 @@ export const standardRules = sqliteTable(
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: createdAt(),
   },
-  (t) => [index("standard_rules_standard_idx").on(t.standardId, t.sortOrder)],
+  (t) => [
+    index("standard_rules_standard_idx").on(t.standardId, t.sortOrder),
+    uniqueIndex("standard_rules_code_uq").on(t.standardId, t.code),
+  ],
 );
 
 export const projectStandards = sqliteTable(

@@ -4,14 +4,15 @@
 > Legend: ⬜ not started · 🟦 in progress · ✅ done · ⏸ blocked / waiting on you · ➖ skipped / rejected
 
 ## Now
-- **Current phase:** P1 Design system & shell ✅ → **waiting for your Phase 1 feedback**, then **P2 Settings & Standards**.
-- **Test it:** http://localhost:3000 · UI kit http://localhost:3000/dev/ui · guide: [test-inputs/phase-1/README.md](../test-inputs/phase-1/README.md)
+- **Current phase:** P2 Settings & Standards ✅ → **waiting for your Phase 2 feedback**, then **P3 Projects & RFP**.
+- **Test it:** http://localhost:3000/standards · guide: [test-inputs/phase-2/README.md](../test-inputs/phase-2/README.md)
 - **Session handoff notes:** [HANDOFF.md](HANDOFF.md) (read first every session).
 
 ## Waiting on you
 | # | Item | Where |
 |---|---|---|
-| 1 | **Test Phase 1 and send feedback** (design checkpoint P1.9) | [test-inputs/phase-1/README.md](../test-inputs/phase-1/README.md) |
+| 1 | **Test Phase 2 and send feedback** | [test-inputs/phase-2/README.md](../test-inputs/phase-2/README.md) |
+| 1b | Phase 1 design checkpoint (P1.9): no feedback received yet, assumed OK | — |
 | 2 | Confirm "RDD" = the technical requirements & design document (my interpretation) | [RDD.md](RDD.md) |
 
 ## Decision log
@@ -32,6 +33,10 @@
 | 2026-10-21 | **Every phase ends** with the app running + localhost link + bullet list of what's done, and generates **deep, production-like test inputs** in `test-inputs/phase-N/` | You |
 | 2026-10-21 | **Test documents never help the AI**; RFP pack and standards must not contradict each other; vendor proposals must be legitimate bids | You |
 | 2026-10-21 | Next 16 config redirect for `/` (not page-level `redirect()`), `devIndicators: false` | Claude (P1, HANDOFF G-21/G-29) |
+| 2026-10-21 | The user tests with **PDF only** and wants **exact copy-paste values** per form | You |
+| 2026-10-21 | GitHub repo `imposterjump/marsa` (private); push after every phase | You |
+| 2026-10-21 | Standards: **Paste rules** (bulk, `CODE \| text \| priority`) added to P2.4 so testing doesn't require typing 38 rules | Claude (P2) |
+| 2026-10-21 | E2E runs against a production build (`next build && next start`), 1 worker | Claude (P2, HANDOFF G-32) |
 
 ## Phase status
 | Phase | Status | Notes |
@@ -39,7 +44,7 @@
 | Planning (PRD, RDD, PHASES, PROGRESS) | ✅ | 2026-10-21 |
 | P0 Foundation | ✅ | 2026-10-21. Build 0 warnings, 10 unit + 2 E2E tests green |
 | P1 Design system & shell 🧑 | ✅ | 2026-10-21 · 39 unit + 10 E2E green · awaiting your review |
-| P2 Settings & Standards | ⬜ | |
+| P2 Settings & Standards | ✅ | 2026-10-21 · 68 unit + 13 E2E green · ingest pulled forward from P3.2 |
 | P3 Projects & RFP | ⬜ | |
 | P4 Vendor simulation | ⬜ | |
 | P5 Proposals & viewer 🧑 | ⬜ | |
@@ -72,14 +77,14 @@
 - ⏸ P1.9 🧑 Design checkpoint: self-review done (screenshots); **your review pending**
 
 ### P2 Settings & Standards
-- ⬜ P2.1 Settings page
-- ⬜ P2.2 Standards service + API
-- ⬜ P2.3 Standards list page
-- ⬜ P2.4 Standard detail (rules editor + documents)
+- ✅ P2.1 Settings page
+- ✅ P2.2 Standards service + API
+- ✅ P2.3 Standards list page
+- ✅ P2.4 Standard detail (rules editor + documents)
 
 ### P3 Projects & RFP
 - ⬜ P3.1 Projects service + API
-- ⬜ P3.2 Document ingest + file streaming
+- 🟦 P3.2 Document ingest + file streaming: ingest, sniffing, page count and streaming done in P2; DOCX/XLSX text extraction pending (HANDOFF I-12)
 - ⬜ P3.3 Projects page (hero, filters, cards)
 - ⬜ P3.4 New project page
 - ⬜ P3.5 Project layout + tabs
@@ -157,3 +162,4 @@
 | 2026-10-21 (S1) | Requirements gathered (7 decisions). Skills reviewed (epic-design, frontend, backend, architect, claude-api). UI research (dashboards, bid-comparison tools, viewers). Wrote PRD, RDD, PHASES, PROGRESS. 22 recommendations awaiting approval. |
 | 2026-10-21 (S2) | Phase 0 complete: Next 16.4 + Tailwind 4 + shadcn (radix-nova, RTL) scaffold, Drizzle/SQLite schema (16 tables), typed env, traversal-safe storage, `/api/health`, Vitest + Playwright. Created HANDOFF.md. 7 environment issues found and solved (HANDOFF §4). |
 | 2026-10-21 (S3) | Phase 1 complete: Harbor design system (tokens, contrast-checked), ~25 components, motion primitives, app shell, welcome/profile, settings API + page, `/dev/ui`. Test inputs generated (`test-inputs/phase-1`, realistic tender pack, no evaluator hints). Fixed during self-review: title override, reload loop, lint rules, layout bugs (HANDOFF §8). |
+| 2026-10-21 (S4) | Phase 2 complete: Settings (AI model, language, parallel steps, scoring with live example), Standards library (CRUD, rules editor, paste, reorder, undo, documents with real uploads), document ingest + streaming, dynamic breadcrumbs. Test inputs: 3 standard PDFs + copy-paste README. Fixed: hydration mismatch, Suspense build rules, scroll container, Undo toast, flaky E2E. |

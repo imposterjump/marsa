@@ -50,3 +50,15 @@ export function useToday(): string | null {
     () => null,
   );
 }
+
+/**
+ * false during SSR and hydration, true afterwards (and immediately on client navigations).
+ * Used to keep the first client render identical to the server HTML (HANDOFF G-34).
+ */
+export function useHydrated(): boolean {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+}

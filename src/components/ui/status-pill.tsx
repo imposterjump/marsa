@@ -15,7 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "cn";
-import type { FindingStatus, ProjectStatus, RiskSeverity } from "@/lib/domain";
+import type { FindingStatus, Priority, ProjectStatus, RiskSeverity } from "@/lib/domain";
 import { FINDING_STATUS_LABEL, PROJECT_STATUS_LABEL, RISK_SEVERITY_LABEL } from "@/lib/labels";
 
 type Tone =
@@ -132,6 +132,31 @@ export function ProjectStatusPill({ status, size }: { status: ProjectStatus; siz
   return (
     <Pill tone={s.tone} icon={s.icon} size={size} spin={s.spin}>
       {PROJECT_STATUS_LABEL[status]}
+    </Pill>
+  );
+}
+
+const PRIORITY: Record<Priority, { tone: Tone; label: string; short: string }> = {
+  mandatory: { tone: "info", label: "Mandatory", short: "M" },
+  important: { tone: "brand", label: "Important", short: "I" },
+  desirable: { tone: "neutral", label: "Desirable", short: "D" },
+};
+
+/** Requirement priority. Deliberately not red/amber/green so it never reads as a compliance status. */
+export function PriorityPill({
+  priority,
+  size,
+  short,
+}: {
+  priority: Priority;
+  size?: "sm" | "md";
+  short?: boolean;
+}) {
+  const p = PRIORITY[priority];
+  return (
+    <Pill tone={p.tone} size={size} className={short ? "min-w-6 justify-center px-1.5" : undefined}>
+      <span aria-hidden={short || undefined}>{short ? p.short : p.label}</span>
+      {short && <span className="sr-only">{p.label}</span>}
     </Pill>
   );
 }

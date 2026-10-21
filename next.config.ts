@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   // The floating dev badge overlapped the sidebar footer; errors still surface in dev.
   devIndicators: false,
+  // pdf.js (page counting on upload) must not be bundled into server chunks.
+  serverExternalPackages: ["pdfjs-dist"],
   // PRD FR-1.1: the app opens on Projects. A config redirect (not a page-level redirect())
   // keeps Next 16 instant-navigation validation happy.
   redirects: async () => [{ source: "/", destination: "/projects", permanent: false }],

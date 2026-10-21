@@ -109,7 +109,7 @@ Priority: **P0** = must work for the prototype demo, **P1** = should, **P2** = n
 
 ### FR-8 Standards (P0)
 - **FR-8.1** A library of standards, each with a title, code, category, description, and **active** toggle.
-- **FR-8.2** Each standard has **rules** (code, text, priority: Mandatory / Important / Desirable) with inline add, edit, reorder, and delete.
+- **FR-8.2** Each standard has **rules** (code, text, priority: Mandatory / Important / Desirable) with inline add, edit, reorder, and delete, plus **Paste rules** to add many at once (one per line: `CODE | text | priority`).
 - **FR-8.3** Upload **standard documents** (any file). These are sent to the AI together with the rules.
 - **FR-8.4** *(P2, REC-18)* "Extract rules with AI" from an uploaded standard document, producing editable rules.
 
