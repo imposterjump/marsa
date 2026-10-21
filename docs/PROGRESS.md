@@ -4,14 +4,14 @@
 > Legend: ⬜ not started · 🟦 in progress · ✅ done · ⏸ blocked / waiting on you · ➖ skipped / rejected
 
 ## Now
-- **Current phase:** P3 Projects & RFP ✅ → **waiting for your Phase 3 feedback**, then **P4 Vendors & proposals**.
-- **Test it:** http://localhost:3000/projects · guide: [test-inputs/phase-3/README.md](../test-inputs/phase-3/README.md)
+- **Current phase:** P4 Vendor simulation ✅ → **waiting for your Phase 4 test** (then push), then **P5 Proposals & viewer**.
+- **Test it:** http://localhost:3000/projects · guide: [test-inputs/phase-4/README.md](../test-inputs/phase-4/README.md)
 - **Session handoff notes:** [HANDOFF.md](HANDOFF.md) (read first every session).
 
 ## Waiting on you
 | # | Item | Where |
 |---|---|---|
-| 1 | **Test Phase 3 and send feedback** (Phase 2 tested: CITS-2026 created; feedback on Settings tabs and toast placement applied) | [test-inputs/phase-3/README.md](../test-inputs/phase-3/README.md) |
+| 1 | **Test Phase 4 and send feedback** (Phase 3 tested ✔; paste-dialog height fixed). I push to GitHub only after your OK | [test-inputs/phase-4/README.md](../test-inputs/phase-4/README.md) |
 | 1b | Phase 1 design checkpoint (P1.9): no feedback received yet, assumed OK | — |
 | 2 | Confirm "RDD" = the technical requirements & design document (my interpretation) | [RDD.md](RDD.md) |
 
@@ -46,7 +46,7 @@
 | P1 Design system & shell 🧑 | ✅ | 2026-10-21 · 39 unit + 10 E2E green · awaiting your review |
 | P2 Settings & Standards | ✅ | 2026-10-21 · 68 unit + 13 E2E green · ingest pulled forward from P3.2 |
 | P3 Projects & RFP | ✅ | 2026-10-21 · 86 unit + 15 E2E green · New project is a 4-step wizard (fading steps) instead of one scroll-spy page |
-| P4 Vendor simulation | ⬜ | |
+| P4 Vendor simulation | ✅ | 2026-10-21 · 95 unit + 17 E2E green · local commit, push after your test |
 | P5 Proposals & viewer 🧑 | ⬜ | |
 | P6 AI pipeline 💳 | ⬜ | |
 | P7 Live progress + AI proposals | ⬜ | |
@@ -91,16 +91,16 @@
 - ✅ P3.6 Overview tab (RFP documents, notes, details, standards picker, progress timeline)
 
 ### P4 Vendor simulation
-- ⬜ P4.1 Sample content (fictional, labelled)
-- ⬜ P4.2 File generators + 4 vendor profiles
-- ⬜ P4.3 Seed / reset commands + Demo tools
-- ⬜ P4.4 Vendors + proposals services/API
-- ⬜ P4.5 `/vendor-portal` simulator
+- ✅ P4.1 Sample content: X-ray tender (Phase 1 pack) + Port Community System tender, 3 standards, labelled *Sample*
+- ✅ P4.2 Generators + 4 vendor bids (commercial + technical PDFs, F-1/F-2/F-5/F-6), seed manifest
+- ✅ P4.3 Seed / remove / reset (API + `npm run seed` / `npm run reset -- --yes`) + Settings → Demo tools
+- ✅ P4.4 Vendors + proposals services/API (resubmission replaces files)
+- ✅ P4.5 `/vendor-portal` simulator
 
 ### P5 Proposals & viewer
-- ⬜ P5.1 Proposals table
+- 🟦 P5.1 Proposals table (built in P4: sortable table, View, remove; empty-state CTA. Left: score/risk columns after P6)
 - ⬜ P5.2 Analyse & process panel
-- ⬜ P5.3 Proposal workspace + tabs
+- 🟦 P5.3 Proposal workspace + tabs (basic version in P4: vendor header, ‹ › nav, Commercial/Technical tabs with `?tab=`, locked analysis tabs; compact project header pending)
 - ⬜ P5.4 Sheet Stack core + page turns
 - ⬜ P5.5 Filmstrip, toolbar, scrubber, keyboard
 - ⬜ P5.6 Sources (PDF, DOCX, XLSX, image, text, other)
@@ -162,5 +162,6 @@
 | 2026-10-21 (S1) | Requirements gathered (7 decisions). Skills reviewed (epic-design, frontend, backend, architect, claude-api). UI research (dashboards, bid-comparison tools, viewers). Wrote PRD, RDD, PHASES, PROGRESS. 22 recommendations awaiting approval. |
 | 2026-10-21 (S2) | Phase 0 complete: Next 16.4 + Tailwind 4 + shadcn (radix-nova, RTL) scaffold, Drizzle/SQLite schema (16 tables), typed env, traversal-safe storage, `/api/health`, Vitest + Playwright. Created HANDOFF.md. 7 environment issues found and solved (HANDOFF §4). |
 | 2026-10-21 (S3) | Phase 1 complete: Harbor design system (tokens, contrast-checked), ~25 components, motion primitives, app shell, welcome/profile, settings API + page, `/dev/ui`. Test inputs generated (`test-inputs/phase-1`, realistic tender pack, no evaluator hints). Fixed during self-review: title override, reload loop, lint rules, layout bugs (HANDOFF §8). |
+| 2026-10-21 (S5b) | Phase 4 complete (local commit, not pushed): vendor simulator, proposals table + proposal page, vendors/proposals API, sample data + Demo tools, 4 realistic vendor bids. Fixed: paste-rules dialog taller than the screen (now scrolls inside, buttons pinned). New rule: push only after your test. |
 | 2026-10-21 (S5) | Phase 3 complete: Settings as fading tabs (your feedback), projects service + API, text extraction, Projects home with real data, 4-step New project wizard, project workspace (Overview / Proposals / Evaluation). Fixed: publishing wiped the deadline (zod `.partial()` defaults, same latent bug in Phase 2 standards/rules; your data was unaffected), toasts covering footer buttons (now top-centre). Test guide: `test-inputs/phase-3/README.md`. |
 | 2026-10-21 (S4) | Phase 2 complete: Settings (AI model, language, parallel steps, scoring with live example), Standards library (CRUD, rules editor, paste, reorder, undo, documents with real uploads), document ingest + streaming, dynamic breadcrumbs. Test inputs: 3 standard PDFs + copy-paste README. Fixed: hydration mismatch, Suspense build rules, scroll container, Undo toast, flaky E2E. |

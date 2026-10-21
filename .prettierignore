@@ -10,3 +10,4 @@ playwright-report
 test-results
 *.md
 .env*
+test-inputs/seed/manifest.json

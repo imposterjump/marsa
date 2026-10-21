@@ -19,8 +19,9 @@ import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import type { Theme } from "@/lib/domain";
 import { setSidebarCollapsed } from "@/lib/theme";
 import { AiSection } from "./ai-section";
+import { DemoSection } from "./demo-section";
 import { ScoringSection } from "./scoring-section";
-import { PhaseNote, Section } from "./settings-section";
+import { Section } from "./settings-section";
 
 const SECTIONS = [
   { id: "profile", label: "Profile", icon: UserRound },
@@ -112,18 +113,7 @@ export function SettingsView() {
                 {current.id === "appearance" && <AppearanceSection />}
                 {current.id === "ai" && <AiSection />}
                 {current.id === "scoring" && <ScoringSection />}
-                {current.id === "demo" && (
-                  <Section
-                    id="demo"
-                    title="Demo tools"
-                    description="Vendor simulator, re-seed sample data, reset all data."
-                  >
-                    <PhaseNote
-                      phase={4}
-                      text="Open the vendor simulator, load the sample tender and reset the workspace."
-                    />
-                  </Section>
-                )}
+                {current.id === "demo" && <DemoSection />}
               </TabsPrimitive.Content>
             </motion.div>
           </AnimatePresence>

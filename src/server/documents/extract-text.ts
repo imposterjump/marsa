@@ -14,7 +14,8 @@ export async function extractText(fileName: string, bytes: Uint8Array): Promise<
   let text: string | null = null;
   if (ext === "docx") text = await docxToText(bytes);
   else if (ext === "xlsx" || ext === "xlsm") text = await xlsxToText(bytes);
-  else if (["txt", "md", "csv", "tsv", "json", "xml"].includes(ext)) text = new TextDecoder("utf-8").decode(bytes);
+  else if (["txt", "md", "csv", "tsv", "json", "xml"].includes(ext))
+    text = new TextDecoder("utf-8").decode(bytes);
   if (text && text.length > TEXT_CONTENT_MAX) {
     text = `${text.slice(0, TEXT_CONTENT_MAX)}\n\n[… truncated: document longer than ${TEXT_CONTENT_MAX.toLocaleString()} characters]`;
   }
@@ -45,14 +46,19 @@ export function htmlToText(html: string): string {
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<table[\s\S]*?<\/table>/gi, (table) => {
       const rows = [...table.matchAll(/<tr[\s\S]*?<\/tr>/gi)].map((r) =>
-        [...r[0].matchAll(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi)].map((c) => decode(c[1]).replace(/\|/g, "/")),
+        [...r[0].matchAll(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi)].map((c) =>
+          decode(c[1]).replace(/\|/g, "/"),
+        ),
       );
       if (rows.length === 0) return "";
       const lines = rows.map((cells) => `| ${cells.join(" | ")} |`);
       lines.splice(1, 0, `|${rows[0].map(() => " --- ").join("|")}|`);
       return `\n\n${lines.join("\n")}\n\n`;
     })
-    .replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_m, n, t) => `\n\n${"#".repeat(Number(n))} ${decode(t)}\n\n`)
+    .replace(
+      /<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi,
+      (_m, n, t) => `\n\n${"#".repeat(Number(n))} ${decode(t)}\n\n`,
+    )
     .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_m, t) => `\n- ${decode(t)}`)
     .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (_m, t) => `\n${decode(t)}\n`);
   out = decode(out.replace(/\n/g, "\u0000")).replace(/\u0000/g, "\n"); // strip leftover tags, keep newlines

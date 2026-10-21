@@ -2,7 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import type { ProjectDetailDto, ProjectDto, ProjectStandardRef, ProjectSummaryDto } from "@/lib/api-types";
+import type {
+  ProjectDetailDto,
+  ProjectDto,
+  ProjectStandardRef,
+  ProjectSummaryDto,
+} from "@/lib/api-types";
 import type { ProjectCategory } from "@/lib/domain";
 import { useHydrationSafe } from "./hydration-safe";
 
@@ -21,7 +26,10 @@ export function useProjects() {
   return useHydrationSafe(useProjectsQuery());
 }
 function useProjectsQuery() {
-  return useQuery({ queryKey: projectsKey, queryFn: () => api<ProjectSummaryDto[]>("/api/projects") });
+  return useQuery({
+    queryKey: projectsKey,
+    queryFn: () => api<ProjectSummaryDto[]>("/api/projects"),
+  });
 }
 
 export function useProject(id: string | null) {

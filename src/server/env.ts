@@ -11,6 +11,8 @@ const envSchema = z.object({
   AI_MODE: z.enum(["mock", "live"]).default("mock"),
   DATA_DIR: z.string().trim().min(1).default("./data"),
   MAX_UPLOAD_MB: z.coerce.number().int().positive().max(500).default(50),
+  /** Folder with seed/manifest.json and the sample files it lists (Demo tools, `npm run seed`). */
+  SEED_DIR: z.string().trim().min(1).default("./test-inputs"),
 });
 
 export type Env = z.infer<typeof envSchema> & {
@@ -20,6 +22,8 @@ export type Env = z.infer<typeof envSchema> & {
   uploadsDir: string;
   /** Absolute path of the SQLite database file. */
   dbFile: string;
+  /** Absolute path of SEED_DIR. */
+  seedDir: string;
 };
 
 function loadEnv(): Env {
@@ -38,6 +42,7 @@ function loadEnv(): Env {
     dataDir,
     uploadsDir: path.join(/*turbopackIgnore: true*/ dataDir, "uploads"),
     dbFile: path.join(/*turbopackIgnore: true*/ dataDir, "app.db"),
+    seedDir: path.resolve(/*turbopackIgnore: true*/ process.cwd(), parsed.data.SEED_DIR),
   };
 }
 

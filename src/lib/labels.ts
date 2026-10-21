@@ -3,6 +3,7 @@ import type {
   FindingStatus,
   Priority,
   ProjectStatus,
+  ProposalSource,
   RiskSeverity,
   RunPhase,
   StepStatus,
@@ -59,4 +60,10 @@ export const PROJECT_CATEGORY_LABEL: Record<ProjectCategory, string> = {
   services: "Services",
   works: "Works",
   other: "Other",
+};
+
+export const PROPOSAL_SOURCE_LABEL: Record<ProposalSource, string> = {
+  seed: "Sample",
+  simulator: "Simulator",
+  ai: "AI-generated",
 };

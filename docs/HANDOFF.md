@@ -18,15 +18,16 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
 2. **Every phase generates its test inputs** in `test-inputs/phase-N/` with a `README.md` test guide (steps + expected results). Inputs must be **deep and production-like** (multi-page, real formats, realistic detail), not one-page toys. **The user tests with ONE format for now: PDF.** The primary path is the RFP PDF `test-inputs/phase-1/rfp-pack/01-RFP-NGPA-T-2026-014.pdf` and, from Phase 4, vendor proposals as PDF. Always give the user exact copy-paste values for every form field. Other formats are optional extras.
 3. **Never help the AI** in test documents: no evaluator hints, no "this is non-compliant" wording, no pre-computed answers. **The RFP pack and the standards must not contradict each other.** **Vendor proposals must be legitimate, coherent bids.** Then let the AI work. Human-only reference notes go in `test-inputs/SCENARIO.md` (never uploaded).
 4. Plan → ask → build. The user approves recommendations before they are built. Report progress briefly when a phase runs long (the user asked "are you stuck?").
+5. **Don't push to GitHub until the user has tested the phase themselves** (user, after Phase 3: "next time dont push unless i test the phase myself"). Commit locally; push when they confirm. Each phase hand-over also includes the **exact click-by-click main working case** (go here → press this → paste this → expect that).
 
 ## 1. Where we are (update every session)
-- **Last session:** 2026-10-21 (session 5, Phase 3).
-- **Done:** Planning · Phase 0 · Phase 1 · Phase 2 · **Phase 3** (Projects: service + API, text extraction, Projects home with real data, 4-step New project wizard, project workspace with Overview / Proposals / Evaluation tabs). Settings now uses fading tabs (user feedback).
-- **User's own data (`data/`):** standard **CITS-2026** (14 rules, 8 M · 5 I · 1 D, with description) created by the user in Phase 2. No projects yet. The user creates PRJ-2026-001 from `test-inputs/phase-3/README.md`.
-- **Next subtask:** wait for the user's Phase 3 feedback, then **Phase 4**: vendors + proposals (seed data, vendor simulator page, AI-generated proposals), the Proposals tab table (vendor, date, View), and the proposal PDFs in `test-inputs/phase-4/`. Proposals must be legitimate, coherent bids against the Phase 1 RFP and CITS-2026 (§0 rule 3).
+- **Last session:** 2026-10-21 (session 5, Phases 3 + 4).
+- **Done:** Planning · P0 · P1 · P2 · P3 (tested by the user: "works fine") · **P4 built, waiting for the user's test**. Phase 4 = vendors + proposals service/API, vendor simulator `/vendor-portal`, Proposals table + first proposal page (Commercial/Technical tabs; P5.1/P5.3 pulled forward in basic form), sample data (seed manifest + Demo tools + `npm run seed`/`reset`), four vendor proposal PDFs. Also fixed the user's report "paste-rules dialog too tall, Add button off-screen" (G-46).
+- **Git:** P3 was pushed (8c61011). **P4 is committed locally only; push after the user confirms testing** (§0 rule 5).
+- **User's own data (`data/`):** CITS-2026 (14 rules) + PRJ-2026-001 (open, 1 RFP PDF). The user will now add the Addendum PDF and submit the 4 vendors through the simulator (`test-inputs/phase-4/README.md`).
+- **Next subtask:** wait for Phase 4 feedback → push → **Phase 5**: Sheet Stack viewer (P5.4–P5.7), Analyse & process panel (P5.2), proposal workspace polish (P5.3: compact project header on proposal pages, I-18), viewer checkpoint 🧑 (P5.8).
 - **App runs?** `npm run dev` → http://localhost:3000.
-- **All checks green?** `npm run check` ✔ (lint, typecheck, contrast, **86 unit**) · `npm run test:e2e` ✔ **15/15** · `npm run build` ✔ (`/projects/[projectId]` + tabs = ◐ Partial Prerender).
-- **GitHub:** pushed to origin/main after every phase (G-31).
+- **All checks green?** `npm run check` ✔ (lint, typecheck, contrast, **95 unit**) · `npm run test:e2e` ✔ **17/17** · `npm run build` ✔.
 
 ## 2. Quick start for a new session
 ```bash
@@ -49,7 +50,7 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | Node / npm | Node **24.15.0** · npm **11.12.1** (`engines.node >= 24`) |
 | npm script shell | **PowerShell 5.1** (user's global `~/.npmrc`). Don't change it. See G-01 |
 | Repo path | `C:\work\mawane2 w gamarek`: **contains spaces**. Always quote paths |
-| Git | `main`, commit per finished subtask/phase (REC-22). Remote **origin = https://github.com/imposterjump/marsa.git** (private). Push after every phase (see G-31) |
+| Git | `main`, commit per finished subtask/phase (REC-22). Remote **origin = https://github.com/imposterjump/marsa.git** (private). Push **only after the user has tested the phase** (§0 rule 5; how: G-31) |
 | Key versions | next 16.4.2 · react 19.3 · tailwind 4.3 · shadcn CLI 4.22 (radix-nova) · drizzle-orm 0.45 · better-sqlite3 13 · zod 4.6 · motion 14.5 · TanStack Query 5.104 · vitest 5 · Playwright 1.64 · docx 9.13 · exceljs 4.4 · pdfjs-dist 6.4.299 |
 | Secrets | The user's real Anthropic key is in **`.env`** (gitignored). `.env.local` = non-secret overrides. See G-07 |
 | PDF rendering for review | The Read tool can't render PDFs (no poppler). See G-24 |
@@ -101,6 +102,10 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | G-42 | ✅ Solved | **zod 4 `.partial()` still applies `.default()`s.** `projectPatchSchema = projectInputSchema.partial()` made PATCH `{status:"open"}` reset deadline/description/notes/category. The same latent bug existed since Phase 2 (`standardPatchSchema`: toggling Active wiped the description; `rulePatchSchema`: editing text reset priority to Important) | Patch schemas are now built from **default-free field objects** (`projectFields`, `standardFields`, `ruleFields`); only the create schema adds defaults. Regression tests in `projects.test.ts` / `standards.test.ts`. Never derive a patch schema from a schema with defaults |
 | G-43 | ✅ Solved | Toasts at **bottom-right** covered primary buttons in footers (wizard **Continue**; paste dialog **Add 14 rules**, reported by the user), and sonner **pauses a hovered toast**, so it never left | Toaster is `position="top-center"` (`src/components/ui/sonner.tsx`). Don't add toasts that only repeat what the page already shows (the wizard's upload toast was removed) |
 | G-44 | ℹ️ Fact | `TaskStop` on a backgrounded `npx next start` kills the shell but can leave the **node child** listening (EADDRINUSE on restart) | Find the PID (`netstat -ano`, grep the port), check its command line (`Get-CimInstance Win32_Process`), and stop it only if it is the server you started |
+| G-46 | ✅ Solved | Tall dialogs overflowed the viewport: with 14 pasted rules the **Add 14 rules** button was below the fold (user report) | `DialogContent` is capped at `100dvh − 2rem` and scrolls by default. Tall dialogs use `<DialogContent scrollable>` + `<DialogBody>`: header and footer stay pinned, only the body scrolls. Wrap forms as `flex min-h-0 flex-1 flex-col` so the height passes down |
+| G-47 | ℹ️ Rule | **Sample data = test inputs.** `scripts/test-inputs/build-phase-4.ts` writes `test-inputs/seed/manifest.json`; `src/server/seed` ingests the files it lists from `SEED_DIR` (default `./test-inputs`). The seed reuses standards/vendors with the same name or code (the user's CITS-2026 is linked, never changed) and replaces only `is_sample` projects | Regenerate PDFs → rerun the builder → the manifest stays in sync. Docker (P9.7) must copy `test-inputs/` or set `SEED_DIR` |
+| G-48 | ℹ️ Fact | New route folders → `RouteContext<"/api/…">` / `PageProps<…>` fail typecheck until the route types are regenerated | Run `npx next typegen` (also part of `npm run typecheck`) after adding routes |
+| G-49 | ℹ️ Fact | E2E specs reset the workspace with `POST /api/dev/reset {confirm:"RESET"}` (deletes projects, standards, vendors, files; keeps settings) | Use it in `beforeEach` instead of deleting entities one by one |
 | G-45 | ℹ️ Rule | Under `/projects/[projectId]` the **layout** awaits `params` inside `<Suspense>` and renders `ProjectShell` (client), which loads the project once and passes it to the tab pages through `useProjectContext()`. Tab pages are plain server components that render a client component, with no params | Phase 4/6: build the Proposals / Evaluation tab content as client components that read `useProjectContext()` |
 
 ## 5. Open issues & carry-overs
@@ -111,14 +116,17 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | I-03 | ✅ Solved | Stock shadcn Button | Restyled with variants default/secondary/outline/ghost/soft/destructive/destructive-soft/link, sizes xs–xl and icon-*, plus a `loading` prop |
 | I-04 | 🔴 Open | Dockerfile not written. Copy `.next/standalone` + `.next/static` + `public`; `drizzle/` is traced; **never** include `.env`; mount `/app/data` | P9.7 |
 | I-05 | ✅ Solved | SQLite UNIQUE → HTTP 409 | `toErrorResponse()` in `src/server/api.ts` (unit-tested) |
-| I-06 | ℹ️ Note | Sample vendor names must not match real companies | Check in P4.1 |
-| I-07 | 🟡 Partly solved | Scoring + AI settings done in P2.1. **Demo tools** section still a placeholder | P4.3 (demo tools) |
+| I-06 | ✅ Solved | Sample vendor names must not match real companies | Web-checked 2026-10-21: no real company named Harborline Systems, Meridian Scan Technologies, Nile Gate Solutions or Atlas Port Technologies |
+| I-07 | ✅ Solved | Settings sections | Demo tools built in P4.3 (simulator link, load/reload/remove sample data, reset with typed RESET) |
 | I-08 | ✅ Solved | Projects hero stats / New project / search & filter were placeholders | Real data in P3.3 (active = draft + open + evaluating; proposals = sum; evaluated = count) |
 | I-09 | ✅ Solved | Dynamic breadcrumbs | `BreadcrumbProvider` + `<SetBreadcrumbs crumbs={[...]}/>` in detail pages (used by standards; reuse for projects) |
 | I-10 | 🔴 Open | `#run-pill-slot` in the Topbar is an empty placeholder | P7.3 |
 | I-12 | ✅ Solved | Text extraction for DOCX/XLSX/TXT | `src/server/documents/extract-text.ts` (mammoth → HTML → markdown-like text; exceljs → `## Sheet:` + pipe rows with formula results; text formats as UTF-8; 2 M char cap). Called by `ingestDocument()` for AI-readable non-PDF files. PDFs/images go to Claude natively (null) |
 | I-13 | ✅ Obsolete | Settings scroll-spy | Settings became fading tabs (user feedback) |
-| I-14 | ℹ️ Note | `DocumentPreviewDialog` shows PDFs in the browser's viewer (iframe) and offers download for DOCX/XLSX. The custom paginated "Sheet Stack" viewer replaces it | P5 |
+| I-14 | ℹ️ Note | `DocumentPreviewDialog` and the proposal page (`proposal-workspace.tsx` → `DocumentPane`) show PDFs in the browser's viewer (iframe) and offer download for DOCX/XLSX. The custom paginated "Sheet Stack" viewer replaces both | P5.4–P5.6 |
+| I-16 | ℹ️ Minor | The Proposals table scrolls horizontally on phones (390 px) | P9.4 responsive pass (card list on mobile) |
+| I-17 | ℹ️ Note | The analysis tabs on the proposal page (Compliance, Comparison, Risk) are locked placeholders; `?tab=` only accepts commercial/technical for now | P6/P8 |
+| I-18 | ℹ️ Minor | On proposal pages the full project header (description, status, actions) pushes the document below the fold | P5.3: compact project header on `/proposals/[id]` |
 | I-15 | ℹ️ Note | Project lifecycle rules live in `assertTransition()`: publish needs ≥1 RFP; open→draft only with 0 proposals; no archive/delete while evaluating. RFP delete is blocked for archived/evaluating/evaluated and for the last RFP of an open tender (`assertRfpRemovable`, called by `DELETE /api/documents/:id`); uploads are blocked while archived/evaluating | P4/P6 must respect them (e.g. only the analysis runner sets `evaluating`) |
 | I-11 | ℹ️ Note | Settings `theme` and `sidebarCollapsed` are saved to the DB, but the source of truth for display is localStorage + `<html>` attributes (per browser) | Fine for a single-user prototype |
 
@@ -139,6 +147,9 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 - **Projects:** codes `PRJ-YYYY-NNN` (UTC year, sequential, retried once on a UNIQUE clash). New projects start as `draft` with **all active standards pre-selected**. Wizard state lives in the URL (`/projects/new?id=&step=`), so a refresh resumes the draft; the draft is created when leaving step 1. Deadline `YYYY-MM-DD`, not in the past (an unchanged past deadline may be kept on edit). `deadlineLabel()` → "Closes in N days" / "Closes today" / "Closed N days ago".
 - **Settings tabs:** the selected tab is the URL hash (`#settings-ai` etc.) read with `useSyncExternalStore`; `selectTab` uses `history.replaceState` + a synthetic `hashchange`. Only the active section renders; `AnimatePresence mode="wait"` fades it (0.2 s).
 - **Shared documents UI:** `src/components/documents/document-row.tsx` (omit `onDelete` → read-only) and `document-preview-dialog.tsx`, used by standards and projects.
+- **Vendors & proposals:** vendor names are unique ignoring case (409). One proposal per vendor per project; `POST /api/projects/:id/proposals {vendorId}` returns 201 (new) or 200 + `replaced:true` (resubmission: old files deleted, `submittedAt` = now). Files follow one per request on `POST /api/proposals/:id/documents` (multipart `file` + `kind` = commercial|technical). Only **open** tenders accept proposals or files (409 otherwise). `useSubmitProposal` orchestrates create + uploads with per-file progress and returns failed files instead of throwing.
+- **Proposal source** (`seed` · `simulator` · `ai`) is shown as a pill ("Sample" · "Simulator" · "AI-generated").
+- **Vendor simulator** (`/vendor-portal`, not in the sidebar; reached from the Proposals tab and Demo tools): `?project=` preselects the tender; the vendor picker opens on "New vendor" while no vendors exist.
 - **Test-input generators** live in `scripts/test-inputs/` (HTML→PDF/PNG via Playwright Chromium in `lib/pdf.ts`; DOCX via `docx`; XLSX via `exceljs`).
 
 ## 7. Before you start a task, consider…
@@ -181,3 +192,6 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 - Problems hit (all solved): G-41 (`"use client"` below an import), **G-42 (zod `.partial()` keeps defaults: publishing wiped the deadline; Phase 2 standards/rules had the same latent bug; the user's CITS-2026 was checked read-only and is intact)**, G-43 (toasts covering footer buttons, also reported by the user for the paste dialog → top-center), G-44 (TaskStop left a node server running).
 - Test inputs: `test-inputs/phase-3/README.md` (reuses the Phase 1 RFP PDF + CITS-2026; exact copy-paste values; expected results).
 - Checks: 86 unit ✔, 15 E2E ✔, build ✔. Screenshots reviewed (desktop + 390 px).
+- **Phase 4 (same session, after the user tested Phase 3):** fixed the user's report (paste dialog too tall → G-46 scrollable dialogs). Built vendors/proposals service + API, Proposals table, proposal page (Commercial/Technical, locked analysis tabs, ‹ › vendor nav), vendor simulator, seed module + Demo tools + `npm run seed`/`reset`, 4 vendor bids (commercial + technical PDFs, RFP form structure, consistent with the Phase 1 Arabic summary and scanned letter), a short PCS RFP for the second sample project, `SCENARIO.md` grading notes, README with click-by-click steps. Vendor names web-checked (I-06).
+- User rule added: **don't push until the user has tested the phase** (§0 rule 5). Phase 4 committed locally only.
+- Checks: 95 unit ✔, 17 E2E ✔, build ✔. Screenshots reviewed (desktop + 390 px).

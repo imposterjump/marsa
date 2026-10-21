@@ -7,6 +7,8 @@ import type {
   Priority,
   ProjectCategory,
   ProjectStatus,
+  ProposalSource,
+  ProposalStatus,
   ReportLanguage,
   StandardCategory,
   Theme,
@@ -118,4 +120,40 @@ export interface ProjectDetailDto extends ProjectDto {
   rfpDocuments: DocumentDto[];
   standards: ProjectStandardRef[];
   proposalCount: number;
+}
+
+export interface VendorDto {
+  id: string;
+  name: string;
+  country: string;
+  contactName: string;
+  contactEmail: string;
+  color: string;
+  isSample: boolean;
+  createdAt: string;
+}
+
+export interface VendorSummaryDto extends VendorDto {
+  proposalCount: number;
+}
+
+export interface ProposalDto {
+  id: string;
+  projectId: string;
+  vendorId: string;
+  submittedAt: string;
+  status: ProposalStatus;
+  source: ProposalSource;
+}
+
+export interface ProposalSummaryDto extends ProposalDto {
+  vendor: VendorDto;
+  documentCounts: { commercial: number; technical: number; pages: number };
+}
+
+export interface ProposalDetailDto extends ProposalDto {
+  vendor: VendorDto;
+  project: { id: string; code: string; name: string; status: ProjectStatus };
+  commercialDocuments: DocumentDto[];
+  technicalDocuments: DocumentDto[];
 }

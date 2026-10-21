@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarClock, FileStack, FileText, ShieldCheck } from "lucide-react";
 import { cn } from "cn";
-import { ProjectStatusPill } from "@/components/ui/status-pill";
+import { Pill, ProjectStatusPill } from "@/components/ui/status-pill";
 import type { ProjectSummaryDto } from "@/lib/api-types";
 import { daysUntil, deadlineLabel, formatDate } from "@/lib/format";
 import { PROJECT_CATEGORY_LABEL } from "@/lib/labels";
@@ -66,7 +66,14 @@ export function ProjectCard({ project: p }: { project: ProjectSummaryDto }) {
     >
       <div className="flex items-center justify-between gap-3">
         <span className="truncate font-mono text-xs font-medium text-ink-muted">{p.code}</span>
-        <ProjectStatusPill status={p.status} size="sm" />
+        <span className="flex shrink-0 items-center gap-1.5">
+          {p.isSample && (
+            <Pill tone="info" size="sm">
+              Sample
+            </Pill>
+          )}
+          <ProjectStatusPill status={p.status} size="sm" />
+        </span>
       </div>
       <h3 className="font-heading text-base leading-snug font-semibold tracking-tight text-balance text-ink">
         <Link href={`/projects/${p.id}`} className={stretched} dir="auto">

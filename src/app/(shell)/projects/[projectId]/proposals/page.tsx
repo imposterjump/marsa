@@ -1,5 +1,5 @@
-import { ProjectProposals } from "@/components/projects/project-placeholders";
+import { ProposalsTab } from "@/components/proposals/proposals-tab";
 
 export default function ProjectProposalsPage() {
-  return <ProjectProposals />;
+  return <ProposalsTab />;
 }

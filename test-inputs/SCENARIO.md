@@ -51,14 +51,48 @@ These are facts *in the documents*, kept here to grade the AI later. They are no
 - *Arabic summary* (Nile Gate Solutions, bilingual, faithful translation): 290 mm penetration, 1920×1080 monitors, 0–45 °C, warranty from shipment, X-ray source excluded as a consumable, 3 engineers.
 - *Scanned letter* (Atlas Port Technologies, image only): 90-day validity, assumes a duty exemption, liability capped at 15 %, 5-day maintenance training.
 
-## Vendor proposals (Phase 4), planned profiles
-Four plausible bidders, each a coherent proposal with a commercial file (PDF, price schedule in the F-5 structure) and a technical file (DOCX or PDF, with an F-2 compliance matrix):
+## Vendor proposals (Phase 4), as built
+Files: `phase-4/proposals/N-Vendor-Commercial.pdf` (Envelope 2, 5 pages: F-1, F-5 price schedule, terms, F-6) and `N-Vendor-Technical.pdf` (Envelope 1, 8–11 pages: F-1, sections following the RFP, F-2 matrix for TB-01…TB-45, F-6). Generator: `scripts/test-inputs/content/proposals/*.ts`. All four bids acknowledge Addendum No. 1. None of them contains evaluator hints; each states its own offer the way that company would.
 
-| Vendor (fictional) | Profile | Natural characteristics |
-|---|---|---|
-| Harborline Systems | Established OEM, premium | Strong technical compliance, highest CAPEX, full local support |
-| Meridian Scan Technologies | Cost-competitive OEM | Lowest CAPEX, higher CMC, cloud-centric software heritage |
-| Nile Gate Solutions | Regional integrator (OEM partner) | Good delivery time and local presence, some lower specs (see the Arabic summary) |
-| Atlas Port Technologies | Smaller OEM | Incomplete in places, commercial qualifications (see the scanned letter) |
+| Vendor | CAPEX (USD) | CMC 1–5 (USD) | Offer total (USD) |
+|---|---|---|---|
+| 1 Atlas Port Technologies | 19,366,400 | 2,843,628 (years 4–5 not priced) | 22,210,028 |
+| 2 Nile Gate Solutions | 20,492,000 | 4,565,856 | 25,057,856 |
+| 3 Harborline Systems | 24,794,000 | 4,194,217 | 28,988,217 |
+| 4 Meridian Scan Technologies | 18,217,000 | 6,264,780 | 24,481,780 |
 
-The final proposal texts will be written in Phase 4 as real bids: what each company would actually offer, without planted traps.
+### Reviewer reference: what a careful evaluator should notice (never put in the documents)
+**Harborline Systems (premium OEM).** Complies with every mandatory item, including the addendum (20 workstations, 60-min UPS, Radiation Licensing Support Plan). Storage 340 TB ≥ 316 TB. T2 fits (68 × 27 m, 238 kVA ≤ 250). Highest price. Claims 32 % local value added → 5 % preference. Dual-view is not offered on the relocatable unit (allowed: "Optional").
+**Meridian Scan Technologies (cheapest CAPEX, highest CMC).**
+- §6 says licences sync with **Meridian's cloud every 90 days**, with a 30-day grace period. Updates also come through the cloud gateway, and hourly health telemetry goes to an **EU-hosted** service. This conflicts with RFP §4.6.1 / TB-24 ("licensing servers, telemetry, monitoring and update services … on-premise"; Addendum Q3 allows only a *one-time offline* activation) and with CITS-2026 SEC-02. Meridian still marks TB-24 "Comply".
+- Security patches come only twice a year (RFP §4.8.5 asks for quarterly; CITS SEC-08 asks for critical fixes within 14 days, while Meridian commits to 30).
+- Not compliant on TB-06 dual-view (D) or TB-39 Hijri (D).
+- Commercial deviation on payment terms: 20/50/20/10 vs SC 5.1, which accepts no other terms.
+- Relocatable penetration 290 mm ≥ 280 mm is OK.
+
+**Nile Gate Solutions (integrator, honest about gaps).** These match the Phase 1 Arabic summary, and Nile Gate declares them itself in F-2/F-6:
+- 290 mm penetration (fails 310 at T1 and 300 at T2; OK for the relocatable unit).
+- 160 trucks/h (fails 180 at T1 Gate A).
+- 0–45 °C (fails 0–50).
+- 1920 × 1080 monitors (fails 2560 × 1440).
+- Warranty from **shipment**, not PAC.
+- **X-ray source excluded** as a consumable (fails §6.1.2, GC 9.1, SC 18.4; an optional USD 410k per source is not in the totals).
+- 3 engineers instead of 4.
+
+Strengths: PAC at 8 months, Arabic training, 41 % local value added.
+
+**Atlas Port Technologies (smaller OEM, incomplete).**
+- Penetration is strong at 320 mm, but throughput is "up to 165 trucks/h", which **fails 180 at T1 Gate A**. Its F-2 says "Comply" because it copied the Rev 0 wording.
+- **UPS 30 min** for servers misses Addendum A3 (60 min).
+- 24 workstations (pre-addendum; over-supply, not a failure).
+- **No Radiation Licensing Support Plan** (Addendum A4, mandatory).
+- **No warranty/support section** in the technical proposal; F-2 rows TB-39 to TB-45 are blank.
+- T1 Gate A trial operation is in **month 7**, which misses the month-6 milestone (§5.1.2, SC 7.2).
+- Maintenance training is 5 days at a regional centre instead of 15 days at the OEM factory.
+- Commercial issues:
+  - 90-day validity (fails the 120 days required; the bid security is also short).
+  - Prices exclude import duties on an assumed exemption (RFP §2.8.2: no exemption → the duties are added for evaluation, §7.3.3).
+  - Liability capped at 15 % (GC 10.1: 100 %).
+  - CMC years 4–5 not priced: omitted lines are priced at the highest other bid (§7.3.2).
+
+These qualifications match the Phase 1 scanned letter.

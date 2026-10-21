@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -34,7 +35,7 @@ export function ProjectEditDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent scrollable className="sm:max-w-2xl">
         {open && <EditForm project={project} onDone={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
@@ -83,7 +84,7 @@ function EditForm({ project, onDone }: { project: ProjectDetailDto; onDone: () =
   };
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-6">
+    <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
       <DialogHeader>
         <DialogTitle>Edit project</DialogTitle>
         <DialogDescription>
@@ -92,7 +93,9 @@ function EditForm({ project, onDone }: { project: ProjectDetailDto; onDone: () =
             : "Vendors already see this tender. Changes apply to everyone right away."}
         </DialogDescription>
       </DialogHeader>
-      <ProjectDetailsForm value={value} onChange={setValue} errors={errors} />
+      <DialogBody>
+        <ProjectDetailsForm value={value} onChange={setValue} errors={errors} />
+      </DialogBody>
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={onDone}>
           Cancel
@@ -117,7 +120,7 @@ export function ProjectStandardsDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent scrollable className="sm:max-w-2xl">
         {open && <StandardsForm project={project} onDone={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
@@ -128,7 +131,7 @@ function StandardsForm({ project, onDone }: { project: ProjectDetailDto; onDone:
   const save = useSetProjectStandards(project.id);
   const [selected, setSelected] = useState(project.standards.map((s) => s.id));
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-h-0 flex-1 flex-col">
       <DialogHeader>
         <DialogTitle>Applied standards</DialogTitle>
         <DialogDescription>
@@ -136,7 +139,9 @@ function StandardsForm({ project, onDone }: { project: ProjectDetailDto; onDone:
           evaluation checklist.
         </DialogDescription>
       </DialogHeader>
-      <StandardsPicker value={selected} onChange={setSelected} />
+      <DialogBody>
+        <StandardsPicker value={selected} onChange={setSelected} />
+      </DialogBody>
       <DialogFooter>
         <Button variant="ghost" onClick={onDone}>
           Cancel

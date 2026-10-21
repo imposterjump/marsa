@@ -36,7 +36,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ProjectStatusPill } from "@/components/ui/status-pill";
+import { Pill, ProjectStatusPill } from "@/components/ui/status-pill";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDeleteProject, useProject, useUpdateProject } from "@/hooks/use-projects";
 import { ApiClientError } from "@/lib/api-client";
@@ -115,6 +115,11 @@ export function ProjectShell({
               )}
               <span className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
                 <ProjectStatusPill status={p.status} />
+                {p.isSample && (
+                  <Pill tone="info" size="md">
+                    Sample data
+                  </Pill>
+                )}
                 <span className="inline-flex items-center gap-1.5 text-ink-2">
                   <CalendarClock className="size-4 text-ink-faint" aria-hidden />
                   {p.deadline ? deadlineLabel(p.deadline) : "No submission deadline"}

@@ -66,7 +66,9 @@ export async function ingestDocument(
   }
 
   // Text for non-PDF formats (DOCX/XLSX/TXT…), used by the AI pipeline (RDD §5.2). Never fatal.
-  const textContent = aiReadable ? await extractText(originalName, input.bytes).catch(() => null) : null;
+  const textContent = aiReadable
+    ? await extractText(originalName, input.bytes).catch(() => null)
+    : null;
 
   const id = newId("document");
   const dir =

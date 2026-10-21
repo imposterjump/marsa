@@ -69,7 +69,10 @@ export function deadlineLabel(dateYmd: string, today = new Date()): string {
 /** Format a YYYY-MM-DD date without timezone shifts: "30 Nov 2026". */
 export function formatYmd(dateYmd: string): string {
   const [y, m, d] = dateYmd.split("-").map(Number);
-  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(
-    new Date(Date.UTC(y, m - 1, d)),
-  );
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(y, m - 1, d)));
 }

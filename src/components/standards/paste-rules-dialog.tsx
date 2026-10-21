@@ -6,6 +6,7 @@ import { CircleAlert, ClipboardPaste } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -34,7 +35,7 @@ export function PasteRulesDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent scrollable className="sm:max-w-3xl">
         {open && <PasteBody standard={standard} onDone={() => onOpenChange(false)} />}
       </DialogContent>
     </Dialog>
@@ -88,69 +89,71 @@ function PasteBody({ standard, onDone }: { standard: StandardDetailDto; onDone: 
           empty. Rows copied from Excel or Word tables (tab-separated) work too.
         </DialogDescription>
       </DialogHeader>
-      <Textarea
-        aria-label="Rules to paste"
-        value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          setServerError(null);
-        }}
-        placeholder={EXAMPLE}
-        rows={8}
-        autoFocus
-        className="font-mono text-[13px] leading-relaxed"
-      />
+      <DialogBody>
+        <Textarea
+          aria-label="Rules to paste"
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setServerError(null);
+          }}
+          placeholder={EXAMPLE}
+          rows={8}
+          autoFocus
+          className="font-mono text-[13px] leading-relaxed"
+        />
 
-      {(rules.length > 0 || errors.length > 0) && (
-        <div className="flex max-h-72 flex-col gap-3 overflow-y-auto rounded-lg border border-border">
-          {errors.length > 0 && (
-            <ul
-              className="flex flex-col gap-1.5 border-b border-border bg-fail-soft/40 px-4 py-3"
-              aria-label="Lines with problems"
-            >
-              {errors.map((e) => (
-                <li
-                  key={`${e.line}-${e.message}`}
-                  className="flex items-start gap-2 text-xs text-fail"
-                >
-                  <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
-                  <span>
-                    <strong>Line {e.line}:</strong> {e.message}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {rules.length > 0 && (
-            <table className="w-full text-[13px]">
-              <caption className="sr-only">Preview of rules to add</caption>
-              <thead>
-                <tr className="text-start text-xs text-ink-muted">
-                  <th className="px-4 py-2 text-start font-medium">Code</th>
-                  <th className="px-2 py-2 text-start font-medium">Rule</th>
-                  <th className="px-4 py-2 text-end font-medium">Priority</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rules.map((r) => (
-                  <tr key={r.line} className="border-t border-border/70 align-top">
-                    <td className="px-4 py-2 font-mono text-xs text-ink-2">
-                      {r.code ?? <span className="text-ink-faint">auto</span>}
-                    </td>
-                    <td className="px-2 py-2 text-ink" dir="auto">
-                      {r.text}
-                    </td>
-                    <td className="px-4 py-2 text-end">
-                      <PriorityPill priority={r.priority} size="sm" />
-                    </td>
-                  </tr>
+        {(rules.length > 0 || errors.length > 0) && (
+          <div className="flex flex-col rounded-lg border border-border">
+            {errors.length > 0 && (
+              <ul
+                className="flex flex-col gap-1.5 border-b border-border bg-fail-soft/40 px-4 py-3"
+                aria-label="Lines with problems"
+              >
+                {errors.map((e) => (
+                  <li
+                    key={`${e.line}-${e.message}`}
+                    className="flex items-start gap-2 text-xs text-fail"
+                  >
+                    <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+                    <span>
+                      <strong>Line {e.line}:</strong> {e.message}
+                    </span>
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-      {serverError && <p className="text-xs text-fail">{serverError}</p>}
+              </ul>
+            )}
+            {rules.length > 0 && (
+              <table className="w-full text-[13px]">
+                <caption className="sr-only">Preview of rules to add</caption>
+                <thead>
+                  <tr className="text-start text-xs text-ink-muted">
+                    <th className="px-4 py-2 text-start font-medium">Code</th>
+                    <th className="px-2 py-2 text-start font-medium">Rule</th>
+                    <th className="px-4 py-2 text-end font-medium">Priority</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rules.map((r) => (
+                    <tr key={r.line} className="border-t border-border/70 align-top">
+                      <td className="px-4 py-2 font-mono text-xs whitespace-nowrap text-ink-2">
+                        {r.code ?? <span className="text-ink-faint">auto</span>}
+                      </td>
+                      <td className="px-2 py-2 text-ink" dir="auto">
+                        {r.text}
+                      </td>
+                      <td className="px-4 py-2 text-end">
+                        <PriorityPill priority={r.priority} size="sm" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+        {serverError && <p className="text-xs text-fail">{serverError}</p>}
+      </DialogBody>
 
       <DialogFooter>
         <span className="me-auto self-center text-xs text-ink-muted">

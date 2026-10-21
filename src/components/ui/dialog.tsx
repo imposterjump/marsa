@@ -39,13 +39,20 @@ function DialogOverlay({
   );
 }
 
+/**
+ * Every dialog is capped to the viewport (HANDOFF G-46). Tall dialogs pass `scrollable`:
+ * header and footer stay put and only <DialogBody> scrolls, so the primary button is
+ * always visible (user report: "Add 14 rules" was below the fold).
+ */
 function DialogContent({
   className,
   children,
   showCloseButton = true,
+  scrollable = false,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
+  scrollable?: boolean;
 }) {
   return (
     <DialogPortal>
@@ -53,7 +60,9 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed start-1/2 top-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-5 rounded-2xl border border-border bg-popover p-6 text-sm text-popover-foreground shadow-lg duration-200 ease-out-quint outline-none sm:max-w-md rtl:translate-x-1/2 data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-bottom-2 data-open:zoom-in-[0.97] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.97]",
+          "fixed start-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto rounded-2xl border border-border bg-popover p-6 text-sm text-popover-foreground shadow-lg duration-200 ease-out-quint outline-none sm:max-w-md rtl:translate-x-1/2 data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-bottom-2 data-open:zoom-in-[0.97] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.97]",
+          scrollable &&
+            "flex flex-col gap-0 overflow-hidden p-0 [&_[data-slot=dialog-footer]]:m-0 [&_[data-slot=dialog-footer]]:shrink-0 [&_[data-slot=dialog-header]]:shrink-0 [&_[data-slot=dialog-header]]:px-6 [&_[data-slot=dialog-header]]:pe-14 [&_[data-slot=dialog-header]]:pt-6 [&_[data-slot=dialog-header]]:pb-5",
           className,
         )}
         {...props}
@@ -79,6 +88,17 @@ function DialogContent({
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div data-slot="dialog-header" className={cn("flex flex-col gap-2", className)} {...props} />
+  );
+}
+
+/** Scrolling middle section of a `scrollable` dialog. */
+function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-body"
+      className={cn("flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-6 pb-6", className)}
+      {...props}
+    />
   );
 }
 
@@ -140,6 +160,7 @@ function DialogDescription({
 
 export {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
