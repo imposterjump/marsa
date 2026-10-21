@@ -83,7 +83,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           Skip to content
         </a>
-        <div className="flex min-h-dvh bg-frame lg:h-dvh lg:overflow-hidden">
+        <div className="relative flex min-h-dvh bg-frame lg:h-dvh lg:overflow-hidden">
           <Sidebar collapsed={collapsed} onToggle={toggle} />
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -96,9 +96,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Sheet>
 
           <div className="flex min-w-0 flex-1 flex-col lg:min-h-0 lg:py-2 lg:pe-2">
+            {/* relative: the panel is the containing block of absolutely positioned descendants
+                (e.g. the hidden inputs Radix radio groups render inside forms). Otherwise they are
+                placed against the page and make it taller than the window (HANDOFF G-70). */}
             <div
               id="app-scroll"
-              className="flex min-h-dvh flex-1 flex-col bg-background lg:min-h-0 lg:overflow-y-auto lg:overscroll-none lg:rounded-2xl lg:border lg:border-border lg:shadow-xs"
+              className="relative flex min-h-dvh flex-1 flex-col bg-background lg:min-h-0 lg:overflow-y-auto lg:overscroll-none lg:rounded-2xl lg:border lg:border-border lg:shadow-xs"
             >
               <Topbar onOpenMenu={() => setMobileOpen(true)} />
               <main

@@ -86,7 +86,10 @@ export function useStartRun(projectId: string) {
   const invalidate = useInvalidateRun(projectId);
   return useMutation({
     mutationFn: () => api<RunDto>(`/api/projects/${projectId}/runs`, { method: "POST" }),
-    onSettled: (run) => invalidate(run?.id),
+    // Not awaited: the caller navigates to the run right away; data refreshes in the background.
+    onSettled: (run) => {
+      void invalidate(run?.id);
+    },
   });
 }
 
@@ -108,6 +111,8 @@ export function useRunAction(projectId: string) {
           : `/api/runs/${runId}/${action}`,
         { method: "POST" },
       ),
-    onSettled: (_r, _e, v) => invalidate(v.runId),
+    onSettled: (_r, _e, v) => {
+      void invalidate(v.runId);
+    },
   });
 }

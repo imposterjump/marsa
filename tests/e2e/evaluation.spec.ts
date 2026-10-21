@@ -28,7 +28,10 @@ test.describe("analysis pipeline and live progress (P6, P7)", () => {
     const panel = page.getByRole("region", { name: /Analyse & process/ });
     await expect(panel).toContainText("14 (3 × 4 + 2)");
     await panel.getByRole("button", { name: "Analyse & process" }).click();
-    await expect(page).toHaveURL(new RegExp(`/projects/${xray.id}/evaluation`));
+    // A fresh test server parses the sample PDFs as the run starts; the first route load can lag.
+    await expect(page).toHaveURL(new RegExp(`/projects/${xray.id}/evaluation`), {
+      timeout: 30_000,
+    });
     const mission = page.getByRole("region", { name: "Evaluating 4 proposals" });
     await expect(mission).toBeVisible();
     await expect(mission.getByText(/Step \d+ of 14/)).toBeVisible();
