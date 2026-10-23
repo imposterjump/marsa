@@ -407,3 +407,8 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
   - Vendors: Qalamra (strong, local), Veridane (EU cloud, PQ left to the lab, Dutch bank), Corvantis (cheap ERP add-on, many mandatory breaks).
   - Content in `scripts/test-inputs/content/poc-lims.ts`.
   - Checked in demo mode: guided form → standard from XLSX → 3 vendors → run. Haiku estimate ≈ $0.08.
+- **Pushed to GitHub (user request, 2026-10-23):** `main` and the tags `before-rta-redesign` and `before-vendor-first-layout`.
+- **Screenshots of every page and feature:** `screenshots/2026-10-23/` (34 PNGs plus `index.json`), `screenshots/Mizan-screens-2026-10-23.pdf` (captioned) and a zip; the user got the PDF and zip through SendUserFile. The folder is gitignored.
+  - **How they were made:** a demo-mode server on 3400 from `.next-design`, with `DATA_DIR=./data/screens`, a copy of `data/haiku-check`. The AI results are the real Haiku run `run_32j4afy4xb4mhn`; pick it by `mode === "live"`, because later demo runs also record the Haiku model.
+  - **Script:** `$CLAUDE_JOB_DIR/tmp/screens.cjs` (job-local). To re-create it, follow the same steps.
+  - **Found and fixed while capturing:** at phone width the breadcrumb ran under the run pill (the trail is now clipped), and the project code above the results title wrapped onto two lines.

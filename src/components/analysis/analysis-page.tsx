@@ -119,7 +119,7 @@ export function AnalysisPage() {
             className="inline-flex w-fit items-center gap-1.5 rounded-sm text-[13px] text-ink-muted transition-colors outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <ArrowLeft className="size-3.5 rtl:rotate-180" aria-hidden />
-            <span className="font-mono">{p.code}</span>
+            <span className="shrink-0 font-mono whitespace-nowrap">{p.code}</span>
             <span className="truncate" dir="auto">
               {p.name}
             </span>

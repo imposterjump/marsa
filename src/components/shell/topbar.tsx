@@ -76,7 +76,8 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
         <Menu className="size-5" />
       </Button>
 
-      <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
+      {/* Clipped: on a phone the trail ran under the run pill. */}
+      <nav aria-label="Breadcrumb" className="min-w-0 flex-1 overflow-hidden">
         <Suspense fallback={<Trail trail={[]} />}>
           <LiveTrail />
         </Suspense>

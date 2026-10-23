@@ -76,6 +76,8 @@ export function RunPill() {
       {run && (
         <motion.div
           key="pill"
+          // Never squeezed by the breadcrumb: on a phone it overlapped the trail.
+          className="shrink-0"
           initial={reduce ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, scale: 0.96 }}

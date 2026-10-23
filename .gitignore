@@ -47,3 +47,6 @@ yarn-error.log*
 
 # generated large test file (regenerate: npx tsx scripts/test-inputs/build-phase-1.ts)
 /test-inputs/**/oversized-*.pdf
+
+# Screenshot sets for sharing (large; sent to the user, not versioned)
+/screenshots/
