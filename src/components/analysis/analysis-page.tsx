@@ -56,7 +56,7 @@ import { ComparisonTab } from "./comparison-tab";
 import { ComplianceTab } from "./compliance-tab";
 import { OverviewTab } from "./overview-tab";
 import { RisksTab } from "./risks-tab";
-import { vendorColors } from "./shared";
+import { type OpenEvidence, vendorColors } from "./shared";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
 
@@ -86,7 +86,8 @@ const modelText = (r: RunDto) =>
  * AI analysis results (P8, user's design): its own full-width page outside the project tabs, so
  * it can have tabs of its own. The sidebar collapses while it is open. A running analysis shows
  * mission control; a finished one Overview · Compliance · Risks · Comparison · AI quality.
- * URL: /analysis/<projectId>?run=<id>&tab=… · &reader=<docId>&page=N&q=<quote> (evidence).
+ * URL: /analysis/<projectId>?run=<id>&tab=… · &reader=<docId>&page=N&q=<quote> (evidence)
+ * · &v=<proposalId> (whose finding opened the RFP, so the reader keeps that vendor's envelopes).
  */
 export function AnalysisPage() {
   const p = useProjectContext();
@@ -368,7 +369,9 @@ function Results({ d }: { d: AnalysisResultsDto }) {
   // Evidence and clause links open the reader: the vendor's two envelopes plus the RFP.
   const readerId = params.get("reader");
   const owner = readerId
-    ? d.vendors.find((v) => [...v.commercialDocuments, ...v.technicalDocuments].some((x) => x.id === readerId))
+    ? (d.vendors.find((v) =>
+        [...v.commercialDocuments, ...v.technicalDocuments].some((x) => x.id === readerId),
+      ) ?? d.vendors.find((v) => v.proposalId === params.get("v")))
     : undefined;
   const groups = [
     ...(owner
@@ -380,8 +383,13 @@ function Results({ d }: { d: AnalysisResultsDto }) {
     { id: "rfp", label: "RFP", docs: p.rfpDocuments },
   ];
   const readerOpen = !!readerId && groups.some((g) => g.docs.some((x) => x.id === readerId));
-  const onEvidence = (docId: string, page: number | null, quote: string) =>
-    setQuery({ reader: docId, page: page && page > 1 ? String(page) : null, q: quote || null });
+  const onEvidence: OpenEvidence = (docId, page, quote, vendorId) =>
+    setQuery({
+      reader: docId,
+      page: page && page > 1 ? String(page) : null,
+      q: quote || null,
+      v: vendorId ?? null,
+    });
 
   return (
     <>
@@ -413,7 +421,7 @@ function Results({ d }: { d: AnalysisResultsDto }) {
 
       <DocumentReader
         open={readerOpen}
-        onOpenChange={(o) => !o && setQuery({ reader: null, page: null, q: null })}
+        onOpenChange={(o) => !o && setQuery({ reader: null, page: null, q: null, v: null })}
         title={owner ? owner.vendor.name : `${p.code} · RFP`}
         subtitle={owner ? `${p.code} · proposal` : p.name}
         groups={groups}

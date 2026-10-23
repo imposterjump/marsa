@@ -2,6 +2,18 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 const RFP_PDF = path.join(process.cwd(), "test-inputs/phase-1/rfp-pack/01-RFP-NGPA-T-2026-014.pdf");
+const COMMERCIAL = path.join(
+  process.cwd(),
+  "test-inputs/phase-4/proposals/3-Harborline-Systems-Commercial.pdf",
+);
+const TECHNICAL = path.join(
+  process.cwd(),
+  "test-inputs/phase-4/proposals/3-Harborline-Systems-Technical.pdf",
+);
+const RULES_CSV = path.join(
+  process.cwd(),
+  "test-inputs/poc-inputs/2-meeting-e-seals/Standard-CTS-2026-rules.csv",
+);
 const NAME = "High-Energy Cargo X-Ray Inspection Systems — Port of Al-Noor";
 
 /** A deadline ~6 weeks out, as YYYY-MM-DD (the date input's value format). */
@@ -36,33 +48,30 @@ async function reset(page: Page) {
   });
 }
 
-test.describe("projects (P3.3–P3.6)", () => {
+test.describe("projects (P3.3–P3.6, P8 guided form)", () => {
   test.beforeEach(async ({ page }) => reset(page));
 
-  test("wizard: details → RFP upload → standards → publish → workspace tabs", async ({ page }) => {
+  test("guided form: project + RFP → standards (pick, or new from a file) → vendors → project", async ({
+    page,
+  }) => {
     await page.goto("/projects");
     await expect(page.getByText("No projects yet")).toBeVisible();
     await page.getByRole("link", { name: "New project" }).first().click();
     await expect(page).toHaveURL(/\/projects\/new/);
 
-    // Step 1 — validation, then a valid draft
-    await page.getByRole("button", { name: "Continue" }).click();
-    await expect(page.getByText(/at least 3 characters/)).toBeVisible();
+    // Step 1 · Project — Continue waits for an RFP; the first upload saves the draft
+    await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
     await page.getByLabel("Project name").fill(NAME);
     await page
       .getByLabel("Description")
       .fill("Four drive-through cargo scanners. Tender NGPA/T/2026/014.");
     await page.getByLabel("Submission deadline").fill(deadline);
-    await page.getByRole("button", { name: "Continue" }).click();
-    await expect(page).toHaveURL(/\/projects\/new\?id=prj_[^&]+&step=2/);
-    await expect(page.getByText(/PRJ-\d{4}-001 · Draft saved/)).toBeVisible();
-
-    // Step 2 — Continue is blocked until a document is uploaded
-    await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
     await page.locator("input[type=file]").setInputFiles(RFP_PDF);
     const docs = page.getByRole("list", { name: "Uploaded RFP documents" });
     await expect(docs.getByText("01-RFP-NGPA-T-2026-014.pdf")).toBeVisible({ timeout: 20_000 });
     await expect(docs.getByText("AI-readable")).toBeVisible();
+    await expect(page).toHaveURL(/\/projects\/new\?id=prj_[^&]+&step=1/);
+    await expect(page.getByText(/PRJ-\d{4}-001 · Draft saved/)).toBeVisible();
 
     // A reload resumes the same draft on the same step
     await page.reload();
@@ -71,7 +80,8 @@ test.describe("projects (P3.3–P3.6)", () => {
     );
     await page.getByRole("button", { name: "Continue" }).click();
 
-    // Step 3 — active standard pre-selected, inactive one hidden and unselected
+    // Step 2 · Standards — active standard pre-selected, inactive one hidden and unselected
+    await expect(page).toHaveURL(/step=2/);
     await expect(page.getByRole("checkbox", { name: /CITS-2026/ })).toHaveAttribute(
       "aria-checked",
       "true",
@@ -82,19 +92,43 @@ test.describe("projects (P3.3–P3.6)", () => {
       "aria-checked",
       "false",
     );
+    // A new standard on the spot, its rules dropped as a CSV file
+    await page.getByRole("button", { name: "New standard" }).click();
+    const std = page.getByRole("dialog", { name: "New standard" });
+    await std.getByLabel("Code").fill("CTS-2026");
+    await std.getByLabel("Title").fill("Customs Transit Security Standard");
+    await std.locator("input[type=file]").setInputFiles(RULES_CSV);
+    await expect(std.getByRole("region", { name: "Rules found" })).toContainText("TR-12", {
+      timeout: 20_000,
+    });
+    await std.getByRole("button", { name: "Create standard" }).click();
+    await expect(std).toBeHidden({ timeout: 20_000 });
+    await expect(page.getByRole("checkbox", { name: /CTS-2026/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
     await page.getByRole("button", { name: "Continue" }).click();
 
-    // Step 4 — review and publish
-    await expect(page).toHaveURL(/step=4/);
-    await expect(page.getByText("1 RFP document uploaded")).toBeVisible();
-    await expect(page.getByText("1 standard applied")).toBeVisible();
-    await page.getByRole("button", { name: "Publish to vendors" }).click();
+    // Step 3 · Vendors — one vendor with its two envelopes, then create the project
+    await expect(page).toHaveURL(/step=3/);
+    const form = page.getByRole("region", { name: "Add a vendor" });
+    await form.getByRole("button", { name: "Save vendor" }).click();
+    await expect(form.getByText("Enter the vendor's company name.")).toBeVisible();
+    await form.getByLabel("Company name").fill("Harborline Systems");
+    const inputs = form.locator("input[type=file]");
+    await inputs.nth(0).setInputFiles(COMMERCIAL);
+    await inputs.nth(1).setInputFiles(TECHNICAL);
+    await form.getByRole("button", { name: "Save vendor" }).click();
+    await expect(page.getByRole("list", { name: "Vendors added" })).toContainText(
+      "Harborline Systems",
+      { timeout: 30_000 },
+    );
+    await page.getByRole("button", { name: "Create project" }).click();
 
-    // Workspace
+    // The project: open, fields kept, standards applied, the vendor in, AI analysis ready
     await expect(page).toHaveURL(/\/projects\/prj_[^/?]+$/);
     await expect(page.getByRole("heading", { level: 1, name: NAME })).toBeVisible();
     await expect(page.getByText("Open for proposals", { exact: true }).first()).toBeVisible();
-    // Publishing must not reset the fields (G-42)
     await expect(page.getByText(/Closes in \d+ days/).first()).toBeVisible();
     await expect(page.getByText("Four drive-through cargo scanners").first()).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Breadcrumb" })).toContainText(
@@ -106,12 +140,16 @@ test.describe("projects (P3.3–P3.6)", () => {
     // The only RFP of an open tender can't be deleted
     await expect(page.getByRole("button", { name: /^Delete 01-RFP/ })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /CITS-2026/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /CTS-2026/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Run AI analysis" })).toBeEnabled();
+    // Only Overview and Proposals: the AI analysis has its own page
+    await expect(page.getByRole("link", { name: "Evaluation" })).toHaveCount(0);
 
-    await page.getByRole("link", { name: "Proposals" }).click();
+    await page.getByRole("link", { name: /Proposals/ }).first().click();
     await expect(page).toHaveURL(/\/proposals$/);
-    await expect(page.getByText("Waiting for proposals")).toBeVisible();
-    await page.getByRole("link", { name: "Evaluation" }).click();
-    await expect(page.getByText("Evaluation is locked")).toBeVisible();
+    await expect(page.getByRole("table", { name: /Proposals received/ })).toContainText(
+      "Harborline Systems",
+    );
 
     // Home lists it with real counts; search filters it out and back
     await page.getByRole("link", { name: "Projects", exact: true }).first().click();
@@ -132,8 +170,10 @@ test.describe("projects (P3.3–P3.6)", () => {
       })
     ).json();
     await page.goto(`/projects/${created.id}`);
-    await expect(page.getByText(/This tender is a draft/)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Publish to vendors" })).toBeDisabled();
+    await expect(page.getByText(/still being set up/)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Continue setup" })).toBeVisible();
+    // No AI analysis for a project that is not created yet
+    await expect(page.getByRole("button", { name: "Run AI analysis" })).toHaveCount(0);
 
     // Edit details
     await page.getByRole("button", { name: "Edit", exact: true }).click();
@@ -171,7 +211,7 @@ test.describe("projects (P3.3–P3.6)", () => {
     await expect(page.getByText(/archived.*read-only/)).toBeVisible();
     await expect(page.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Restore" }).click();
-    await expect(page.getByText(/This tender is a draft/)).toBeVisible();
+    await expect(page.getByText(/still being set up/)).toBeVisible();
 
     // Delete
     await page.getByRole("button", { name: "More actions" }).click();

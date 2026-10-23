@@ -54,6 +54,15 @@ export function SectionTitle({ section, as: Tag = "h3" }: { section: ProposalSec
 
 export type Scope = "standard" | "rfp";
 
+/** Opens the reader at a document page and quote; `vendorId` keeps that vendor's envelopes in it
+ * when the document is the RFP (a clause opened from the vendor's finding). */
+export type OpenEvidence = (
+  docId: string,
+  page: number | null,
+  quote: string,
+  vendorId?: string,
+) => void;
+
 export interface ScopeStats {
   pct: number | null;
   counts: ReturnType<typeof emptyCounts>;

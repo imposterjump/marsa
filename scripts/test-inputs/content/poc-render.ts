@@ -1,9 +1,12 @@
 /**
  * POC inputs (user request, 2026-10-21): two small, complete tenders that show the whole workflow
- * in a meeting: one to rehearse, one to run live. Each has one standard (pasted as rules), one
- * RFP and two vendors with a technical and a commercial proposal. This file renders them; the
+ * in a meeting: one to rehearse, one to run live. Each has one standard (a rules file), one RFP
+ * and two vendors with a technical and a commercial proposal. This file renders them; the
  * content is in poc-gates.ts and poc-eseals.ts. Nothing in the documents is written for the
  * evaluator (HANDOFF §0 rule 3); expected outcomes for humans are in test-inputs/SCENARIO.md.
+ *
+ * Proposals follow the 7-section proposal template (P8): sections 1–5 in the technical envelope,
+ * 6–7 in the commercial one, so vendors can be compared section by section.
  */
 import { DOC_CSS, clause, doc, tag } from "../lib/pdf";
 
@@ -42,7 +45,8 @@ export interface PocBid {
   signatory: { name: string; title: string };
   date: string;
   ref: string;
-  technical: { title: string; html: string }[];
+  /** Template sections 1–5 (HTML each). */
+  technical: Record<TechSection, string>;
   /** The bidder's answers to Annex 1: clause → [response, offered / reference]. */
   matrix: Record<string, [string, string]>;
   commercial: {
@@ -50,8 +54,20 @@ export interface PocBid {
     recurring: { label: string; amounts: number[] };
     notes: string[];
     terms: [string, string][];
+    /** Section 7: the bidder's own deviations and clarifications; empty = none. */
+    deviations: string[];
   };
 }
+
+/** The proposal template's technical sections, in order (sections 1–5). */
+export const TECH_SECTIONS = [
+  ["company", "Company and references"],
+  ["solution", "Technical solution"],
+  ["security", "Security and data"],
+  ["implementation", "Implementation and timeline"],
+  ["support", "Support, warranty and SLA"],
+] as const;
+export type TechSection = (typeof TECH_SECTIONS)[number][0];
 
 export const usd = (n: number) => `USD ${Math.round(n).toLocaleString("en-US")}`;
 export const p = (s: string) => `<p>${s}</p>`;
@@ -60,9 +76,15 @@ export const ul = (items: string[]) =>
 export const tbl = (head: string[], rows: string[][]) =>
   `<table><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</table>`;
 
-/** The paste block for Standards → Paste rules: `CODE | text | priority`, one rule per line. */
+/** The rules as a text file / paste block: `CODE | text | priority`, one rule per line. */
 export function rulesText(s: PocStandard): string {
   return s.rules.map(([code, text, priority]) => `${code} | ${text} | ${priority}`).join("\n");
+}
+
+/** The rules as CSV with a header row (Excel opens it; Marsa reads it on drop). */
+export function rulesCsv(s: PocStandard): string {
+  const q = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  return ["Code,Rule,Priority", ...s.rules.map((r) => r.map(q).join(","))].join("\r\n");
 }
 
 export function rfpHtml(t: PocTender): string {
@@ -140,9 +162,9 @@ export function technicalHtml(t: PocTender, b: PocBid): string {
   <p>Having examined the tender documents for ${t.ref}, we, ${b.legalName}, submit our technical proposal. This envelope contains no prices; our prices and commercial terms are in Envelope 2.</p>
   ${signature(b)}
 </section>
-${b.technical.map((s, i) => `<section${i === 0 ? ' class="pb"' : ""}><h2>${i + 1}. ${s.title}</h2>${s.html}</section>`).join("\n")}
+${TECH_SECTIONS.map(([key, title], i) => `<section${i === 0 ? ' class="pb"' : ""}><h2>${i + 1}. ${title}</h2>${b.technical[key]}</section>`).join("\n")}
 <section class="pb">
-  <h2>${b.technical.length + 1}. Compliance matrix (Annex 1)</h2>
+  <h2>Annex A. Compliance matrix (Annex 1 of the RFP)</h2>
   ${tbl(["Clause", "Requirement", "Response", "Offered"], rows)}
 </section>`;
   return page(`${b.name} technical proposal`, body);
@@ -180,18 +202,24 @@ export function commercialHtml(t: PocTender, b: PocBid): string {
   ${signature(b)}
 </section>
 <section>
-  <h2>Price schedule</h2>
+  <h2>6. Commercial offer and pricing</h2>
   <p class="small">All prices in United States Dollars (USD), excluding VAT.</p>
   <table><tr><th style="width:7%">Line</th><th>Description</th><th class="num" style="width:8%">Qty</th><th class="num" style="width:16%">Unit price</th><th class="num" style="width:18%">Amount</th></tr>${rows}</table>
   <h3>Notes</h3>
   <ol>${c.notes.map((n) => `<li style="margin-bottom:4pt">${n}</li>`).join("")}</ol>
 </section>
 <section>
-  <h2>Commercial terms</h2>
+  <h2>7. Terms and deviations</h2>
   ${tbl(
     ["Item", "Our terms"],
     c.terms.map(([k, v]) => [`<b>${k}</b>`, v]),
   )}
+  <h3>Deviations and clarifications</h3>
+  ${
+    c.deviations.length
+      ? `<ol>${c.deviations.map((d) => `<li style="margin-bottom:4pt">${d}</li>`).join("")}</ol>`
+      : "<p>None. We accept the conditions of contract in the tender documents without deviation.</p>"
+  }
   ${signature(b)}
 </section>`;
   return page(`${b.name} commercial proposal`, body);

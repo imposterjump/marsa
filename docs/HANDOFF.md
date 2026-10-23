@@ -20,44 +20,45 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
 4. Plan → ask → build. The user approves recommendations before they are built. Report progress briefly when a phase runs long (the user asked "are you stuck?").
 5. **Don't push to GitHub until the user has tested the phase themselves** (user, after Phase 3: "next time dont push unless i test the phase myself"). Commit locally; push when they confirm. Each phase hand-over also includes the **exact click-by-click main working case** (go here → press this → paste this → expect that).
 7. **Never start live (paid) AI runs on your own.** The user starts them from the UI so they can watch the progress (user: "dont run the ai analysis alone i want to see the ui while its running"). Prepare the server, model and estimate, then hand over. Free mock runs and E2E are fine.
-6. **Live AI tests run on Sonnet 5.5 first**, to keep failed runs cheap; switch to Opus 5.5 (the default model) only once things work (user, Phase 6: "make tests using sonnet first so we minimize failure prices then when its ready switch to opus"). Live tests use the throwaway `data/live-test/` (G-60), never the user's `data/`.
+6. **Live AI tests run on Sonnet 5.5 first**, to keep failed runs cheap; switch to Opus 5.5 (the default model) only once things work (user, Phase 6: "make tests using sonnet first so we minimize failure prices then when its ready switch to opus"). Live tests use the throwaway `data/live-test/` (G-60), never the user's `data/`. **Update 2026-10-23:** about **$1 of credit is left**; if a paid call is ever needed, use **Haiku 5.5** (user: "if u will have to use credit again do so with hayiku"), and still ask first.
 
 ## 1. Where we are (update every session)
-- **Last session:** 2026-10-21 (session 5: Phases 3–7).
-- **Done:** Planning · P0–P5 · **P6 AI pipeline** · **P7 live progress + AI-generated proposals**. P5, P6 and P7 are **waiting for the user's test** (the user asked to test P6 + P7 together; P5.8 viewer checkpoint still open).
-- **Git:** everything up to the POC inputs is **pushed** (the user asked to "push and commit" the POC inputs, which also pushed P6 + P7 and the follow-ups; P5–P7 are still untested by the user).
-- **POC inputs for the user's meeting** (`test-inputs/poc-inputs/`, built by `scripts/test-inputs/build-poc.ts`):
-  - **set 1 (rehearsal):** Smart Gates, standard POTS-2026;
-  - **set 2 (meeting):** customs e-Seals, standard CTS-2026;
-  - each set: 12 pasted rules, a 4–5 page RFP, 2 vendors × (technical 4 p. + commercial 2 p.) → 8 steps;
-  - estimated cost per live run: Haiku ≈ $0.04, Sonnet ≈ $0.75, Opus ≈ $1.7;
-  - verified click by click on a throwaway mock server (both sets reach "Analysis complete" with 2 ranked vendors);
-  - in the meeting project's Standards step the user must click **None** and tick only CTS-2026, because the rehearsal standard is pre-ticked too.
-- **Live API verified (Sonnet 5.5, user-approved "test with Sonnet first"):**
-  - smoke call: $0.002;
-  - X-ray sample tender, 4 vendors / 14 steps: **$4.80**, ~17 min, with the cache bug G-58 at the time;
-  - PCS tender + Phase 6 bids, 3 vendors / 11 steps: **$1.17**, ~5 min, cache fixed;
-  - 2 generated bids: **$0.19**.
-  - Spend so far ≈ **$6.2**. Results match `test-inputs/SCENARIO.md`; details in PROGRESS → API spend log.
-- **User's own data (`data/`):** CITS-2026, PRJ-2026-001 (IT & security, open, 2 RFP PDFs, 4 vendor proposals), DB backup in `data/backups/`. Throwaway live-test DB: `data/live-test/` (scripts only).
-- **User's budget:** about **$1.50** of API credit left (after ≈ $6.17 spent). The user asked: no spending cap yet; a realistic estimate before every run; add Haiku 5.5; and **never run live analyses on my own: the user starts them in the UI to watch** (rule 7).
-- **Port 3001 (running at the end of the session):**
-  - command: `next start -p 3001` with `NEXT_DIST_DIR=.next-view DATA_DIR=./data/live-test AI_MODE=live`, model set to **Haiku 5.5**;
-  - it holds the saved real Sonnet results (Cargo X-Ray $4.80, PCS $1.17) and the 2 generated bids;
-  - the user tests Haiku on PCS there (≈ $0.09 for 5 proposals). Cargo X-Ray must be kept (don't re-run or reload it);
-  - rebuild `.next-view` after code changes.
-- **After P7 (user requests, same session):**
-  - no rubber-band overscroll;
-  - **AI review tab** per project: run report, confidence score, human reviews saved in `run_reviews`, JSON export;
-  - **requirement source links** on findings: In the proposal / Required / Why it falls short / Breaks, with chips that open the RFP clause in the reader or the standard rule;
-  - Haiku 5.5;
-  - realistic cost estimate.
-- **Next:** the user tests `test-inputs/phase-6/README.md`:
-  - Part A: free demo AI.
-  - Part B: live Opus 5.5 via `AI_MODE=live` in `.env.local`. B1 ≈ $2–4, B2 ≈ $7–10, B3 ≈ $0.4.
-  - Then push P6 + P7 → **Phase 8: Results UX 🧑** (the Compliance / Comparison / Risk tabs exist as a basic P6 view).
+- **Last session:** 2026-10-22/23 (session 6: client feedback → P8 re-planned and built).
+- **Done:** Planning · P0–P7 · **P8 (new story)**. P8 is **waiting for the user's test** (checkpoint P8.6). P5–P7 were never formally tested by the user, and the client meeting replaced their results UI anyway.
+- **What P8 is** (the user's story after the client meeting; plan in `C:\Users\impos\.claude\plans\zazzy-humming-thunder.md`):
+  - **RTA design system**, the user's company standard (`rta standard/`, untracked, never commit it). UI only: database and backend stay ours.
+  - **Guided New project form**, Project → Standards → Vendors (`new-project-wizard.tsx`):
+    - **Project** is mandatory: title, category, RFP drop zone. The first upload creates the draft.
+    - **Standards** shows the category's standards. **New standard** creates one from a dropped rules file (`new-standard-dialog.tsx`, `server/standards/rules-file.ts`). Skippable.
+    - **Vendors**: each vendor has two drop zones (`vendors-editor.tsx`). Skippable.
+    - **Create** publishes the project and opens it.
+  - **Project page:** Overview + Proposals only. One AI analysis button (`AiAnalysisAction`). **Add vendor** dialog, also after an analysis.
+  - **Pipeline 3N + 2:** checklist → standards per vendor → RFP per vendor → risk per vendor → recommendation.
+    - Every point has a one-line `headline` and a proposal `section`, both stored in the new table `analysis_meta`.
+    - Marsa computes the scores, the 0–100 risk score and the pick; the AI writes only the reason (§6).
+  - **Results page** `/analysis/<projectId>` (`components/analysis/`). The sidebar collapses while it is open. Mission control shows while a run is active. Tabs: Overview · Compliance · Risks · Comparison · AI quality.
+  - The old `/projects/:id/evaluation` and `/ai-review` URLs redirect to it.
+- **Git:**
+  - local commits `af6f4bd` (P8.0), `3ecfb09` (P8.3), `a43b28d` (P8.1–P8.4), plus the P8.5 commit (test inputs, tests, docs);
+  - **not pushed** (§0 rule 5);
+  - rollback point: tag `before-rta-redesign` = `2daa169`.
+- **POC inputs** (`test-inputs/poc-inputs/`, built by `scripts/test-inputs/build-poc.ts`):
+  - proposals follow the 7-section template: technical = sections 1–5, commercial = 6–7 with "Terms and deviations";
+  - rules come as `.xlsx`, `.csv` and `.txt`;
+  - READMEs walk through the guided form;
+  - estimates: Haiku ≈ $0.03, Sonnet ≈ $0.60–0.66, Opus ≈ $1.3–1.45 per run.
+- **User's budget:** about **$1** left (user, 2026-10-23). Use Haiku for anything paid, and ask first (§0 rules 6–7). P8 used no credits.
+- **User's own data (`data/`):**
+  - CITS-2026 and PRJ-2026-001 (IT & security, open, 2 RFP PDFs, 4 vendor proposals);
+  - DB backup in `data/backups/`;
+  - the throwaway live-test DB is `data/live-test/`.
+- **Port 3001 (the user's own server, don't kill it):**
+  - `next start -p 3001` with `NEXT_DIST_DIR=.next-view DATA_DIR=./data/live-test AI_MODE=live`, model Haiku;
+  - it still runs the **pre-P8 build**: rebuild `.next-view` to see P8 there;
+  - it holds the real Sonnet results (Cargo X-Ray $4.80, PCS $1.17). Keep them.
+- **Next:** the user tests P8 (main case: `test-inputs/poc-inputs/2-meeting-e-seals/README.md`). Then push, then P9.
 - **App runs?** `npm run dev` → http://localhost:3000.
-- **All checks green?** `npm run check` ✔ (**163 unit + integration**) · `npm run test:e2e` ✔ (see the session log) · build ✔.
+- **All checks green?** `npm run check` ✔ (**177 unit + integration**) · `npm run test:e2e` ✔ (**20**).
 
 ## 2. Quick start for a new session
 ```bash
@@ -160,6 +161,14 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | G-55 | ℹ️ Rule | **Evidence quotes** (`src/lib/quote.ts`): matching normalises case, all whitespace, typographic quotes/dashes, NFKC (ligatures) and soft hyphens, because PDF text layers split words into spans. Needles: the first 80 normalised chars, then 48, then 28, so a quote that runs over a page break still lands on the page where it starts. `findQuotePage` prefers the current page; `highlightQuote` wraps text nodes in `<mark class="marsa-hit">` | P6 evidence must store the **verbatim** quote (≥ 28 meaningful chars) + doc id + page; the reader verifies and corrects the page |
 | G-56 | ℹ️ Fact | E2E text assertions in the reader must be scoped to the main sheet (`getByRole("img", { name: /…, page N/ })`): the filmstrip thumbnails render the same text (DOCX/XLSX/text pages are real HTML, scaled down) | Also use `exact: true` for short labels like "1 page" (the subtitle contains it) |
 | G-45 | ℹ️ Rule | *(Superseded by G-50.)* Tab content under `/projects/[projectId]` reads the project with `useProjectContext()` | See G-50 for the current structure |
+| G-73 | ✅ Solved | A dev server on a **new dist folder** (`NEXT_DIST_DIR=.next-design`) reloaded every page in a loop ("[Fast Refresh] rebuilding"): the folder had been created **before** it was gitignored / eslint-ignored, so the watcher saw its own output change | Gitignore and eslint-ignore a dist folder **before** the first server uses it. If it loops: stop the server, delete the folder, restart |
+| G-74 | ℹ️ Rule | `next dev` with a new `NEXT_DIST_DIR` **rewrites `tsconfig.json`** (adds `<dir>/dev/types/**/*.ts` and reformats it) | Don't commit that change: `git checkout -- tsconfig.json` after stopping the server |
+| G-75 | ℹ️ Rule | After **deleting a route**, `tsc` fails on stale `validator.ts` files in every dist folder that `tsconfig` includes (`.next`, `.next/dev`, `.next-e2e`, `.next-view`: "Cannot find module …/page.js") | Run `npx next typegen` and `NEXT_DIST_DIR=<dir> npx next typegen` for each existing dist folder. This writes types only, so it is safe even for the user's `.next-view` server |
+| G-76 | ✅ Solved | A custom `overline` utility clashed with Tailwind's built-in `overline` (text-decoration): captions got a line above them | Renamed to `caption-caps`. Check new utility names against Tailwind's |
+| G-77 | ✅ Solved | An SVG `linearGradient` id used twice (the brand mark rendered in a hidden and a visible SVG) made the visible gradient disappear | `useId()` for SVG ids (`brand-mark.tsx`) |
+| G-78 | ✅ Solved | Guided form: the **first** RFP drop creates the draft, but its upload callback held the render from before the draft existed, so it refreshed `projects/""` and the file list stayed empty | Refresh by the id `ensureDraft()` returns (`projectKey(id)`), never by `project?.id` from the closure |
+| G-79 | ℹ️ Fact | `Field` labels don't reach a Radix `Select` trigger, so `getByRole("combobox", { name: "Category" })` finds nothing (the Select root takes the id) | In tests use `getByRole("combobox").first()` or scope by section |
+| G-80 | ℹ️ Rule | **Python on Windows writes CRLF** in text mode; patch scripts then leave CRLF files (git warns "CRLF will be replaced by LF") | `open(p, "w", encoding="utf-8", newline="\n")`. Bash heredocs with quotes in the body still fail (G-25): write the script with the Write tool and run `python -I script.py` |
 | G-50 | ✅ Solved | Dev log: "Route /projects/[projectId]: Could not validate that a segment in your UI has instant navigation … Dropped segment: page.tsx". The layout awaited `params` in a Suspense boundary that **wrapped `{children}`**, so the tab pages were never part of the static shell | The layout renders `<Suspense><ProjectHeader/></Suspense>` and `{children}` **side by side**. Each page wraps its content in `<ProjectRoute params fallback>` (server: own Suspense + await params → client `ProjectGate` providing `useProjectContext()`). The tab fade moved to `[projectId]/template.tsx`. Never pass `{children}` into a component that awaits params |
 
 ## 5. Open issues & carry-overs
@@ -176,10 +185,14 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | I-09 | ✅ Solved | Dynamic breadcrumbs | `BreadcrumbProvider` + `<SetBreadcrumbs crumbs={[...]}/>` in detail pages (used by standards; reuse for projects) |
 | I-10 | 🔴 Open | `#run-pill-slot` in the Topbar is an empty placeholder | P7.3 |
 | I-12 | ✅ Solved | Text extraction for DOCX/XLSX/TXT | `src/server/documents/extract-text.ts` (mammoth → HTML → markdown-like text; exceljs → `## Sheet:` + pipe rows with formula results; text formats as UTF-8; 2 M char cap). Called by `ingestDocument()` for AI-readable non-PDF files. PDFs/images go to Claude natively (null) |
-| I-25 | ℹ️ Note | The Evaluation tab shows only the latest run; earlier runs stay in the DB but have no UI (e.g. comparing a Sonnet and a Haiku run of the same tender) | P8: run history switcher |
-| I-22 | ℹ️ Note | Phase order is compare → risk, so on long runs the risk step's vendor cache (③, 5-min TTL) could expire while comparisons run | Option: run risk before compare, or 1-hour TTL on ③. Measure on Opus runs |
+| I-25 | ✅ Solved | The Evaluation tab showed only the latest run | P8: **Latest analysis ▾** menu on the results page lists every run (`?run=`) |
+| I-22 | ℹ️ Note | *(P8: the compare phase is gone; order is standards → RFP → risk.)* The risk step's vendor cache (③, 5-min TTL) can still expire on long runs | Measure on Opus runs; option: 1-hour TTL on ③ |
+| I-26 | ℹ️ Note | The proposal page still has the P6 per-vendor **Compliance / Comparison / Risk** tabs (latest finished run). They work, but the results page replaces them | Ask the user whether to remove them |
+| I-27 | ℹ️ Note | The vendor simulator (`/vendor-portal`) is no longer linked from the Proposals tab (**Add vendor** replaced it); Settings → Demo tools still links it | Keep as a demo tool, or remove in P9 |
+| I-28 | ℹ️ Note | **PDF standards:** rule extraction by AI (`extract-rules-ai.ts`, Haiku, low effort, asks first) is only tested with the mock engine | First live use costs about a cent; the user starts it |
+| I-29 | ℹ️ Note | The 0–100 risk score and Marsa's pick were calibrated on the P6 Sonnet runs; no live P8 run yet | Check on the first live Haiku run of a POC set |
 | I-23 | ℹ️ Note | Live speed (Sonnet, 91 requirements): analyse steps 3.5–4.7 min, whole 4-vendor run ~17 min (PRD target "3 vendors in 3–6 min" met only for the short PCS tender: ~5 min). Opus is likely slower | Options for P9: effort `medium` for compare/summary (changes the cache group), concurrency 4, shorter finding prose |
-| I-24 | ℹ️ Note | Results tabs (Compliance / Comparison / Risk) are a basic P6 view (numbered lists, evidence links); no overrides, filters, charts or matrix yet | P8 Results UX |
+| I-24 | ✅ Solved | Results tabs were a basic P6 view | P8 results page (`/analysis/<projectId>`) |
 | I-17 | ✅ Solved | Analysis tabs on the proposal page | Unlocked once a run has finished (latest completed run) |
 | I-13 | ✅ Obsolete | Settings scroll-spy | Settings became fading tabs (user feedback) |
 | I-14 | ✅ Solved | Browser PDF iframe in previews and the proposal page | Replaced by `DocumentReader` everywhere (`DocumentPreviewDialog` is now a thin wrapper around it) |
@@ -221,6 +234,31 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 - **Proposal source** (`seed` · `simulator` · `ai`) is shown as a pill ("Sample" · "Simulator" · "AI-generated").
 - **Vendor simulator** (`/vendor-portal`, not in the sidebar; reached from the Proposals tab and Demo tools): `?project=` preselects the tender; the vendor picker opens on "New vendor" while no vendors exist.
 - **Test-input generators** live in `scripts/test-inputs/` (HTML→PDF/PNG via Playwright Chromium in `lib/pdf.ts`; DOCX via `docx`; XLSX via `exceljs`).
+- **P8 (2026-10-22/23); these supersede older bullets where they differ:**
+  - **Proposal template:** `PROPOSAL_SECTIONS` (`lib/domain.ts`) = company · solution · security · implementation · support · commercial · terms; labels in `labels.ts`. "Section N" is the template position (`sectionNumber`).
+  - **Checklist:**
+    - every standard rule becomes its own requirement (`withStandardRules`: sourceType `standard`, sourceRef = rule code, title = `ruleTitle(text)`);
+    - a rule code that two standards share gets the standard as a prefix;
+    - `requirementsFor(checklist, "standards" | "rfp")` splits the two checks.
+  - **New table `analysis_meta`** (`item_id`, `run_id`, `kind`, `section`, `headline`) holds sections and one-line summaries. Existing tables are unchanged (G-52).
+  - **Scores** (`lib/scoring.ts`, `server/runs/scores.ts`):
+    - Standards % and RFP % use `computeScore` with the settings weights.
+    - Risk score = 45 × min(1, mandatory not met / 5) + 30 × gap share + 25 × the average of the top-3 L×I / 25.
+    - Risk bands: < 25 low · < 50 moderate · < 70 high · else critical.
+    - Overall = 0.4 Std + 0.4 RFP + 0.2 (100 − risk); without standards, 0.8 RFP + 0.2 (100 − risk).
+    - Only vendors with RFP findings are ranked. The AI summary step only explains the pick.
+  - **Results page URL:** `/analysis/<projectId>?run=&tab=overview|compliance|risks|comparison|quality&reader=&page=&q=&v=`.
+    - `v` is the vendor whose finding opened an RFP clause, so the reader keeps that vendor's envelopes.
+    - One request (`GET /api/runs/:id/analysis`) feeds every tab; section and comparison numbers are computed in the browser (`components/analysis/shared.tsx`).
+  - **Sidebar:** `setSidebarCollapsed(collapsed, persist = false)` collapses it only while the results page is open, and the previous state comes back on leaving.
+  - **Rules files** (`server/standards/rules-file.ts`):
+    - CSV/TSV are parsed directly; XLSX/DOCX/TXT go through `extractText` and pipe rows; header and separator rows are skipped.
+    - A PDF is first read by rule codes; under 2 rules found → `needsAi`, and the dialog offers AI extraction (paid, asks first).
+  - **Vendors:**
+    - drafts accept vendors, since the guided form adds them before Create; only evaluating and archived projects refuse;
+    - a typed name that matches an existing vendor reuses it (hint under the field);
+    - the same vendor twice on one project is refused;
+    - the source pill for vendors the customer adds reads **Uploaded** (enum value still `simulator`).
 
 ## 7. Before you start a task, consider…
 - **Next APIs** → bundled docs first (G-02). Caching → G-03. Titles → G-20.
@@ -297,3 +335,20 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
   - Generator: `scripts/test-inputs/build-poc.ts` with content in `content/poc-render.ts`, `poc-gates.ts` and `poc-eseals.ts`.
   - Verified with a Playwright script on a throwaway `next start -p 3300` (mock, `data/poc-check`, deleted afterwards). Estimates priced with `estimateRun` from the app's `/estimate` input. No API credits used.
   - Pushed at the user's request, together with the earlier local commits.
+
+### 2026-10-22/23 · Session 6: client feedback → P8 re-planned and built
+- **Asked:**
+  - an evaluation UX redesign with the RTA company design standard;
+  - then: "ignore everything we did because i got new requirements". The new story was approved as a plan. During the build the user changed the wizard order ("make the project step first"), asked for Risks divided by section like Compliance, and said "about 1 dollar left … use Haiku".
+- **Built:**
+  - P8.0 RTA design system;
+  - P8.3 pipeline;
+  - P8.1 guided form, P8.2 project page, P8.4 results page;
+  - P8.5 POC sets on the 7-section template, rules as XLSX/CSV, READMEs, unit tests for the rules files, E2E rewritten (`analysis.spec.ts` replaces `evaluation.spec.ts`; projects and proposals specs follow the guided form and Add vendor).
+- **Problems (solved):**
+  - G-73 to G-80;
+  - a duplicate "Created" row on the project details;
+  - the mock price kept a trailing comma;
+  - an RFP clause opened from a finding lost the vendor's envelopes (`?v=`).
+- **Memory pressure:** Claude Code killed background servers twice. Only kill servers I started (check the command line first), and don't restart killed ones on my own.
+- **Checks:** 177 unit + integration ✔, 20 E2E ✔. Verified click by click on a throwaway mock server (port 3400, `data/design-check`), screenshots reviewed. **No API credits used.**

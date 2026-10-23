@@ -1,0 +1,13 @@
+﻿Code,Rule,Priority
+OT-01,"All data captured by OT systems (images, video, plate and container numbers, logs) shall be stored and processed only in the Authority's own server rooms and data centres; no public cloud service may be used.",mandatory
+OT-02,"OT systems shall run on a network segment separated from the corporate network by the Authority's firewalls, with no direct connection to the internet.",mandatory
+OT-03,User accounts shall be managed through the Authority's Active Directory; administrative accounts shall use multi-factor authentication.,mandatory
+OT-04,Audit logs of user and system events shall be kept for at least 3 years and forwarded in real time to the Authority's SIEM.,important
+OT-05,Field equipment installed outdoors shall be rated IP66 or better and for continuous operation from 0 °C to +55 °C.,mandatory
+OT-06,"Critical OT systems shall reach at least 99.5 % availability per calendar month, with no single point of failure in servers, network or power, and UPS autonomy of at least 30 minutes.",important
+OT-07,"The supplier shall keep a spare-parts stock in the State and respond on site within 4 hours, 24/7, to faults that stop operations.",important
+OT-08,"A warranty of at least 24 months from acceptance shall cover all equipment and software, including parts and labour.",mandatory
+OT-09,"Interfaces shall use open, documented protocols (REST/JSON, UN/EDIFACT or OPC UA); the documentation shall be delivered to the Authority.",important
+OT-10,"Operator and maintenance training, and the user and maintenance manuals, shall be provided in Arabic and English.",desirable
+OT-11,Payments for equipment shall follow delivery and acceptance milestones; any advance payment shall not exceed 20 % and requires an advance-payment guarantee.,important
+OT-12,"Maintenance after the warranty shall be priced per year, and these prices shall be fixed for at least 3 years.",important

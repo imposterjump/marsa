@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ChevronDown, FileText, ShieldCheck } from "lucide-react";
 import { cn } from "cn";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
-import { FindingCard, type OnEvidence } from "@/components/results/finding-card";
+import { FindingCard } from "@/components/results/finding-card";
 import { GapBar } from "@/components/results/gap-bar";
 import type { AnalysisResultsDto, FindingResultDto, VendorResultDto } from "@/lib/api-types";
 import type { FindingStatus, ProposalSection } from "@/lib/domain";
@@ -13,6 +13,7 @@ import {
   COMPLIANCE_FILL,
   CountsLegend,
   MeterBar,
+  type OpenEvidence,
   SECTION_ORDER,
   SectionTitle,
   VendorLabel,
@@ -44,7 +45,7 @@ export function ComplianceTab({
 }: {
   d: AnalysisResultsDto;
   colors: Map<string, string>;
-  onEvidence: OnEvidence;
+  onEvidence: OpenEvidence;
 }) {
   const [shortOnly, setShortOnly] = useState(false);
   const sections = SECTION_ORDER.filter((s) => d.requirements.some((r) => r.section === s));
@@ -114,7 +115,7 @@ function SectionCard({
   vendors: VendorResultDto[];
   colors: Map<string, string>;
   shortOnly: boolean;
-  onEvidence: OnEvidence;
+  onEvidence: OpenEvidence;
 }) {
   const reqs = d.requirements.filter((r) => r.section === section);
   const rules = reqs.filter((r) => r.scope === "standard").length;
@@ -157,7 +158,7 @@ function VendorRow({
   section: ProposalSection | null;
   color?: string;
   shortOnly: boolean;
-  onEvidence: OnEvidence;
+  onEvidence: OpenEvidence;
 }) {
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -264,7 +265,7 @@ function PointCard({
   d: AnalysisResultsDto;
   v: VendorResultDto;
   f: FindingResultDto;
-  onEvidence: OnEvidence;
+  onEvidence: OpenEvidence;
 }) {
   const req = d.requirements.find((r) => r.id === f.requirementId);
   const sources = d.sources[f.requirementId] ?? [];
@@ -279,7 +280,7 @@ function PointCard({
       sources={sources}
       sourceLabel={isRule ? "Breaks rule" : "Breaks clause"}
       vendorDocs={vendorDocRefs(v)}
-      onEvidence={onEvidence}
+      onEvidence={(id, page, quote) => onEvidence(id, page, quote, v.proposalId)}
       note={req ? `${isRule ? "Standard rule" : "RFP"} · ${req.title}` : undefined}
     />
   );

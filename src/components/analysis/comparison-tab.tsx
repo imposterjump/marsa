@@ -5,7 +5,6 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { BookOpen, ChevronDown, Columns3, Pencil } from "lucide-react";
 import { cn } from "cn";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
-import type { OnEvidence } from "@/components/results/finding-card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FindingStatusPill, PriorityPill } from "@/components/ui/status-pill";
@@ -16,7 +15,15 @@ import type {
   VendorResultDto,
 } from "@/lib/api-types";
 import type { FindingStatus, ProposalSection } from "@/lib/domain";
-import { SECTION_ORDER, SectionTitle, VendorLabel, pctText, scopeStats, sectionLabel } from "./shared";
+import {
+  type OpenEvidence,
+  SECTION_ORDER,
+  SectionTitle,
+  VendorLabel,
+  pctText,
+  scopeStats,
+  sectionLabel,
+} from "./shared";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
 const RANK: Record<FindingStatus, number> = {
@@ -38,7 +45,7 @@ export function ComparisonTab({
 }: {
   d: AnalysisResultsDto;
   colors: Map<string, string>;
-  onEvidence: OnEvidence;
+  onEvidence: OpenEvidence;
 }) {
   const analysed = d.vendors.filter((v) => v.scores);
   const [picked, setPicked] = useState<string[]>([]);
@@ -192,7 +199,7 @@ function SectionDiff({
   section: ProposalSection | null;
   vendors: VendorResultDto[];
   colors: Map<string, string>;
-  onEvidence: OnEvidence;
+  onEvidence: OpenEvidence;
 }) {
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(true);
@@ -267,7 +274,7 @@ function DiffRow({
   vendors: VendorResultDto[];
   findings: (FindingResultDto | undefined)[];
   colors: Map<string, string>;
-  onEvidence: OnEvidence;
+  onEvidence: OpenEvidence;
 }) {
   const [open, setOpen] = useState(false);
   const isRule = r.scope === "standard";
@@ -331,7 +338,7 @@ function DiffRow({
                         variant="ghost"
                         size="xs"
                         className="w-fit"
-                        onClick={() => onEvidence(f.evidenceDocId!, f.evidencePage, f.evidenceQuote ?? "")}
+                        onClick={() => onEvidence(f.evidenceDocId!, f.evidencePage, f.evidenceQuote ?? "", v.proposalId)}
                       >
                         <BookOpen /> {f.evidencePage ? `Page ${f.evidencePage}` : "Open"}
                       </Button>

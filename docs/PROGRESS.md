@@ -4,15 +4,20 @@
 > Legend: ⬜ not started · 🟦 in progress · ✅ done · ⏸ blocked / waiting on you · ➖ skipped / rejected
 
 ## Now
-- **Current phase:** **P6 AI pipeline ✅ + P7 Live progress ✅ → waiting for your test** (you asked to test both together). P5 is pushed but not yet tested by you (viewer checkpoint P5.8).
-- **Test it:** http://localhost:3000/projects · guide: [test-inputs/phase-6/README.md](../test-inputs/phase-6/README.md) (Part A free, Part B live Opus)
-- **Meeting demo:** POC inputs ready (rehearsal + meeting sets), guide: [test-inputs/poc-inputs/README.md](../test-inputs/poc-inputs/README.md). Everything is pushed.
+- **Current phase:** **P8 (new story after the client meeting) ✅ built → waiting for your test** (checkpoint P8.6). Committed locally, **not pushed**.
+  - Guided New project form (Project → Standards → Vendors);
+  - project page with one AI analysis button;
+  - new pipeline (standards and RFP checked separately, 7 proposal sections, 0–100 risk score);
+  - the full-width **AI analysis results** page.
+- **Test it:** http://localhost:3000/projects · guide: [test-inputs/poc-inputs/README.md](../test-inputs/poc-inputs/README.md) (the meeting set, step by step).
+- **Rollback point:** tag `before-rta-redesign` (commit `2daa169`) is the app before the RTA design and P8.
 - **Session handoff notes:** [HANDOFF.md](HANDOFF.md) (read first every session).
 
 ## Waiting on you
 | # | Item | Where |
 |---|---|---|
-| M | **Meeting demo:** rehearse with POC set 1 (≈ $0.04 on Haiku), then run set 2 in the meeting (Haiku ≈ $0.04 or Sonnet ≈ $0.73) | [test-inputs/poc-inputs/README.md](../test-inputs/poc-inputs/README.md) |
+| P8 | **Test P8**: guided form, project page, Add vendor, AI analysis results page (Overview · Compliance · Risks · Comparison · AI quality). I push after your OK | [test-inputs/poc-inputs/README.md](../test-inputs/poc-inputs/README.md) |
+| M | **Meeting demo:** rehearse with POC set 1, then run set 2. About $1 of credit is left, so use Haiku (≈ $0.03 per run); Sonnet ≈ $0.60 | [test-inputs/poc-inputs/README.md](../test-inputs/poc-inputs/README.md) |
 | 0 | **Test Phases 6 + 7**: analysis, mission control, results, generate with AI. Part B spends credits on Opus (≈ $2–4 / $7–10 / $0.4 per case). I push P6 + P7 after your OK | [test-inputs/phase-6/README.md](../test-inputs/phase-6/README.md) |
 | 1 | **Test Phase 5 (viewer checkpoint P5.8)**: categories, reader, Analyse panel, evidence links. **UNTESTED** (pushed at your request before testing) | [test-inputs/phase-5/README.md](../test-inputs/phase-5/README.md) |
 | 1b | Phase 1 design checkpoint (P1.9): no feedback received yet, assumed OK | — |
@@ -21,6 +26,13 @@
 ## Decision log
 | Date | Decision | By |
 |---|---|---|
+| 2026-10-23 | About **$1 of API credit left**: any paid call uses **Haiku 5.5** | You |
+| 2026-10-23 | Risks tab divided like Compliance: "Section N · name", then each vendor's risks in that section | You |
+| 2026-10-22 | **New story after the client meeting** (plan approved): guided New project form **Project → Standards (by category) → Vendors**; project page keeps Overview + Proposals + one AI analysis button; results on their own full-width page (sidebar collapsed) with Overview · Compliance · Risks · Comparison; vendors can be added after an analysis, then re-run | You |
+| 2026-10-22 | Analysis checks **standards and RFP separately**, each point with a summary line + details; proposals follow **7 sections**; risk is a **0–100 number** calibrated so a ~90 %-compliant top vendor is not "very high" | You |
+| 2026-10-22 | Overview = big recommended-vendor box + 3 mini boxes; Compliance and Risks = **section cards**; Comparison = **computed, free**; recommendation = **Marsa's formula + a short AI reason** | You |
+| 2026-10-22 | **RTA company design standard** for the UI only (database and backend stay ours); everything else from the first P8 round discarded | You |
+| 2026-10-22 | New standards on the spot from a **dropped rules file** (Excel / CSV / Word / text free; PDF via AI after a cost prompt) | You |
 | 2026-10-21 | **AI review tab** per project (run report + confidence score + human rating saved for later improvement) and **source links** on findings (which RFP clause / standard rule a finding breaks, clickable) | You |
 | 2026-10-21 | **Haiku 5.5 added** as a third model (cheap end-to-end tests); realistic cost estimate before every live run; **no spending cap for now**; live runs are started by you in the UI, never by me alone | You |
 | 2026-10-21 | **Projects use the standard categories**; a project offers its own category + General standards; a General project offers all | You |
@@ -58,7 +70,7 @@
 | P5 Proposals & viewer 🧑 | 🟦 | 2026-10-21 · built, 110 unit + 18 E2E green, pushed · **untested by you** (P5.8 checkpoint open) |
 | P6 AI pipeline 💳 | ✅ | 2026-10-21 · live-verified on Sonnet 5.5 · waiting for your test |
 | P7 Live progress + AI proposals | ✅ | 2026-10-21 · waiting for your test |
-| P8 Results UX 🧑 | ⬜ | |
+| P8 Guided setup + AI analysis results 🧑 | ✅ | 2026-10-23 · built (re-planned after the client meeting) · 177 unit + 20 E2E green · local commits, **waiting for your test** |
 | P9 Polish & deploy | ⬜ | |
 | P10 Optional | ⬜ | All RECs approved, so in scope after P9 |
 
@@ -134,14 +146,14 @@
 - ✅ P7.4 Curtain lift into the results (fade under reduced motion)
 - ✅ P7.5 Generate with AI (dialog, job with progress, DOCX + PDF, live-checked on Sonnet $0.19)
 
-### P8 Results UX
-- ⬜ P8.1 Results hooks + run selector
-- ⬜ P8.2 Compliance tab
-- ⬜ P8.3 Comparison tab
-- ⬜ P8.4 Risk tab
-- ⬜ P8.5 Evaluation tab (leaderboard, matrix, summary)
-- ⬜ P8.6 Scores in proposals table + re-run
-- ⬜ P8.7 🧑 Results checkpoint
+### P8 Guided setup + AI analysis results (re-planned 2026-10-22)
+- ✅ P8.0 RTA design system (UI only)
+- ✅ P8.1 Guided New project form (Project → Standards by category / new from a rules file → Vendors → Create)
+- ✅ P8.2 Project page (Overview + Proposals, AI analysis button, Add vendor also after an analysis)
+- ✅ P8.3 Pipeline 3N + 2 (standards and RFP separately, 7 sections, headlines, 0–100 risk score, formula + AI reason)
+- ✅ P8.4 AI analysis results page (Overview, Compliance, Risks, Comparison, AI quality, run history, evidence reader)
+- ✅ P8.5 Test inputs on the 7-section template + rules files, READMEs, docs
+- ⏸ P8.6 🧑 Checkpoint (waiting for your test)
 
 ### P9 Polish & deploy
 - ⬜ P9.1 States audit
@@ -168,11 +180,13 @@
 | 2026-10-21 | Schema grouping probes | Sonnet 5.5 | < $0.01 | Two shared formats chosen |
 | 2026-10-21 | PCS + Phase 6 bids, 3 vendors, 11 steps | Sonnet 5.5 | $1.17 | Completed; cache reads 262k vs writes 90k |
 | 2026-10-21 | P7.5 generate 2 bids | Sonnet 5.5 | $0.19 | Strong + risky bids, DOCX + PDF |
-| | **Total** | | **≈ $6.17** | |
+| | **Total (my runs)** | | **≈ $6.17** | |
+| 2026-10-23 | Balance check | — | — | You: "about 1 dollar left" (your own runs on :3001 are not logged here). P8 used **no** credits: everything was verified with the free demo AI |
 
 ## Session log
 | Date | Session summary |
 |---|---|
+| 2026-10-22/23 (S6) | Client feedback → new story for P8 (plan approved). Kept the RTA look, rebuilt the rest: guided New project form (project first, standards by category or new from a dropped rules file, vendors with two drop zones), project page with one AI analysis button and Add vendor, a pipeline that checks standards and the RFP separately and files every point under 7 proposal sections, a 0–100 risk score, and the full-width AI analysis results page (Overview, Compliance and Risks by numbered section, Comparison, AI quality). POC sets rebuilt on the 7-section template with Excel/CSV rules. Fixed on the way: first RFP upload did not refresh the draft, a vendor from an earlier tender could not be retyped. 177 unit + 20 E2E green. Local commits only, no API credits used. |
 | 2026-10-21 (S1) | Requirements gathered (7 decisions). Skills reviewed (epic-design, frontend, backend, architect, claude-api). UI research (dashboards, bid-comparison tools, viewers). Wrote PRD, RDD, PHASES, PROGRESS. 22 recommendations awaiting approval. |
 | 2026-10-21 (S2) | Phase 0 complete: Next 16.4 + Tailwind 4 + shadcn (radix-nova, RTL) scaffold, Drizzle/SQLite schema (16 tables), typed env, traversal-safe storage, `/api/health`, Vitest + Playwright. Created HANDOFF.md. 7 environment issues found and solved (HANDOFF §4). |
 | 2026-10-21 (S3) | Phase 1 complete: Harbor design system (tokens, contrast-checked), ~25 components, motion primitives, app shell, welcome/profile, settings API + page, `/dev/ui`. Test inputs generated (`test-inputs/phase-1`, realistic tender pack, no evaluator hints). Fixed during self-review: title override, reload loop, lint rules, layout bugs (HANDOFF §8). |

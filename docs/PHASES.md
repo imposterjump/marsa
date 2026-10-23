@@ -105,16 +105,31 @@ Goal: the Harbor look and feel, reusable components, and the 3-item sidebar shel
 | P7.4 | Curtain-lift transition from mission control into the Evaluation tab | Smooth at 60 fps. Instant with reduced motion |
 | P7.5 | AI-generated proposals (FR-4.3, RDD §7.9): dialog (count, profile mix, cost estimate) → background job with progress → rendered PDF + DOCX → proposals saved | 💳 Generate 2 proposals (≈ $0.5–1, with your OK). They open in the viewer and analyse correctly |
 
-## P8 — Results UX 🧑
+## P8 — Guided setup + AI analysis results 🧑
+*Re-planned on 2026-10-22 after the client meeting (the user's new story; plan approved). The first plan's subtasks are kept below, struck through.*
+
 | ID | Subtask | Done when |
 |---|---|---|
-| P8.1 | Results API wiring + TanStack hooks + run selector (history) | Switching runs swaps every result view |
-| P8.2 | **Compliance tab**: score ring (CountUp), stacked status bar, mandatory gate banner, category bars, commercial snapshot, strengths/weaknesses, findings list (segmented filter, numbered rows, expandable: Requirement · Vendor states · Assessment · Gap · "Open in document ↗" deep link) | Each status list is numbered 1..n with REQ codes. Every evidence link opens the right page |
-| P8.3 | **Comparison tab** (vendor vs field): advantages/disadvantages columns with vendor avatars, unique-offer chips, price position | Matches the run's comparison output |
-| P8.4 | **Risk tab**: overall banner, 5×5 heatmap (click filters), risk cards by severity with "If we choose this proposal…" consequence + mitigation + evidence link | The seeded cloud-only vendor shows a Critical/High infrastructure risk |
-| P8.5 | **Evaluation tab**: executive summary + recommendation, leaderboard cards (stagger), comparison matrix (sticky, grouped, "differences only", "mandatory only"), pros/cons table, commercial comparison, category chart (follow the dataviz skill) | The committee "who's best and why" question is answered above the fold |
-| P8.6 | Proposals table shows score + risk after a run. "Re-run analysis" when proposals changed (FR-5.4) | Adding a proposal after a run surfaces Re-run |
-| P8.7 | 🧑 **Results checkpoint** with you | Approved or feedback logged |
+| P8.0 | **RTA design system** (the user's company standard, UI only): fonts, colours, deep-ink sidebar, gradient buttons, cards, tabs, status pills | Contrast check passes; every page uses the tokens |
+| P8.1 | **Guided New project form**: Project (title, category, RFP drop, mandatory) → Standards of that category, or a new one from a dropped rules file (Excel / CSV / Word / text free; PDF via AI after a cost prompt), skippable → Vendors with two drop zones each, skippable → Create (publishes) → project page | E2E: project + RFP → standard from a CSV → vendor → project |
+| P8.2 | **Project page**: Overview + Proposals only; one AI analysis button (run / open / run a new analysis); **Add vendor** dialog, also after an analysis | E2E: add a vendor; the header offers Run AI analysis |
+| P8.3 | **Pipeline 3N + 2**: checklist (RFP requirements + every rule one-to-one, each filed under one of the 7 proposal sections) → standards check per vendor → RFP check per vendor (summary line + details per point) → risks per vendor → recommendation (Marsa's formula + a short AI reason). Risk score 0–100 | Unit + integration tests with the mock engine; estimate calibrated on real runs |
+| P8.4 | **AI analysis results page** `/analysis/<projectId>` (sidebar collapsed, mission control while running): Overview (recommended vendor + 3 boxes, per-vendor rows), Compliance and Risks as numbered section cards, Comparison (pick ≥ 2, differences only, computed), AI quality; evidence opens the reader; run history | E2E: run → results tabs → evidence → compare → re-run, cancel, resume → AI quality |
+| P8.5 | Test inputs on the 7-section template + rules as Excel/CSV/text; READMEs for the guided form; docs | POC sets rebuilt; rules files parse to 12 rules (unit test) |
+| P8.6 | 🧑 **Checkpoint** with you | Approved or feedback logged |
+
+<details><summary>First P8 plan (superseded)</summary>
+
+| ID | Subtask | Done when |
+|---|---|---|
+| ~~P8.1~~ | Results API wiring + TanStack hooks + run selector (history) | Switching runs swaps every result view |
+| ~~P8.2~~ | **Compliance tab**: score ring (CountUp), stacked status bar, mandatory gate banner, category bars, commercial snapshot, strengths/weaknesses, findings list (segmented filter, numbered rows, expandable: Requirement · Vendor states · Assessment · Gap · "Open in document ↗" deep link) | Each status list is numbered 1..n with REQ codes. Every evidence link opens the right page |
+| ~~P8.3~~ | **Comparison tab** (vendor vs field): advantages/disadvantages columns with vendor avatars, unique-offer chips, price position | Matches the run's comparison output |
+| ~~P8.4~~ | **Risk tab**: overall banner, 5×5 heatmap (click filters), risk cards by severity with "If we choose this proposal…" consequence + mitigation + evidence link | The seeded cloud-only vendor shows a Critical/High infrastructure risk |
+| ~~P8.5~~ | **Evaluation tab**: executive summary + recommendation, leaderboard cards (stagger), comparison matrix (sticky, grouped, "differences only", "mandatory only"), pros/cons table, commercial comparison, category chart (follow the dataviz skill) | The committee "who's best and why" question is answered above the fold |
+| ~~P8.6~~ | Proposals table shows score + risk after a run. "Re-run analysis" when proposals changed (FR-5.4) | Adding a proposal after a run surfaces Re-run |
+| ~~P8.7~~ | 🧑 **Results checkpoint** with you | Approved or feedback logged |
+</details>
 
 ## P9 — Polish, quality, deploy
 | ID | Subtask | Done when |

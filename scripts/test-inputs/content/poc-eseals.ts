@@ -276,79 +276,74 @@ export const ESEALS_BIDS: PocBid[] = [
     signatory: { name: "Nadia Haddad", title: "Chief Executive Officer" },
     date: "20 October 2026",
     ref: "TSS/GCD/047/26",
-    technical: [
-      {
-        title: "Company and references",
-        html:
-          p(
-            "Trakom Security Solutions designs and operates electronic cargo-tracking systems for customs administrations. Founded in 2012, we have 120 staff, and our TrakSeal e-seals and TrakView platform monitor more than 1.1 million transit trips a year in 4 countries.",
-          ) +
-          tbl(
-            ["Reference", "Scope", "Year"],
+    technical: {
+      company:
+        p(
+          "Trakom Security Solutions designs and operates electronic cargo-tracking systems for customs administrations. Founded in 2012, we have 120 staff, and our TrakSeal e-seals and TrakView platform monitor more than 1.1 million transit trips a year in 4 countries.",
+        ) +
+        tbl(
+          ["Reference", "Scope", "Year"],
+          [
             [
-              [
-                "Eastern Province Customs, Al-Waha transit corridors",
-                "2,000 e-seals, 9 corridors, monitoring centre, declaration-system integration",
-                "2021",
-              ],
-              ["Free Zone Authority, bonded transport", "600 e-seals, 4 corridors", "2023"],
-              ["Ras Hadd Port Customs", "900 e-seals, 2 border posts, CDS integration", "2025"],
+              "Eastern Province Customs, Al-Waha transit corridors",
+              "2,000 e-seals, 9 corridors, monitoring centre, declaration-system integration",
+              "2021",
             ],
-          ),
-      },
-      {
-        title: "The TrakSeal G4 e-seal",
-        html:
-          p(
-            "TrakSeal G4 is a reusable cable seal with a 5 mm steel cable and a locking body of glass-fibre reinforced polymer. It is certified to ISO 17712:2013 as a high-security (H) seal by an accredited laboratory (certificate ISO17712-H-23-0418, attached as Appendix B). It is rated IP67 and operates from −20 °C to +70 °C.",
-          ) +
-          ul([
-            "<b>Battery:</b> 45 days with one position report every 5 minutes while moving and every 60 minutes when stationary. Full recharge in 2.5 hours.",
-            "<b>Positioning and communication:</b> GPS, GLONASS and Galileo; 4G LTE with automatic 2G fallback. Up to 25,000 events are stored when out of coverage and sent automatically on reconnection.",
-            "<b>Tamper detection:</b> cable cut, cable removal and opening of the housing. Alerts are sent immediately; in our installations the median time to the monitoring screen is 12 seconds, and 99.9 % of alerts arrive within 45 seconds.",
-            "<b>Arming and disarming:</b> only an officer signed in to the TrakView Officer app can arm or disarm a seal, by NFC contact with the seal. Each action is linked to the transit declaration number. Drivers have no means to arm or disarm a seal.",
-            "<b>Security:</b> AES-256 encryption between seal and platform; every position and event is signed on the seal with its GNSS time stamp.",
-            "<b>Charging:</b> 6 charging racks with 50 slots each, one per customs site.",
-          ]),
-      },
-      {
-        title: "The TrakView monitoring platform",
-        html:
-          p(
-            "TrakView is installed on the Directorate's virtual servers in its data centre (production) and in its disaster-recovery site; it needs 8 virtual machines (sizing in Appendix C). No data leaves the Directorate's infrastructure. Licences are perpetual and activated offline.",
-          ) +
-          ul([
-            "Live map with the 12 corridors as geofences. Alerts for route deviation, stops longer than 30 minutes (configurable), tampering, low battery, loss of signal, and a seal opened away from its destination, with an acknowledgement workflow.",
-            "CDS integration through REST APIs: the trip opens automatically from the transit declaration when the officer arms the seal, and closes when it is disarmed at the office of destination. Discrepancies are reported back to the CDS. We have built this integration with two declaration systems in our references.",
-            "Officer app for Android, in Arabic and English.",
-            "Reports of transit times and alerts per corridor, seal utilisation and officer actions, exported to Excel and PDF.",
-            "Officers and operators sign in with their Active Directory accounts and the Directorate's multi-factor authentication. Users and integrations connect over TLS 1.3.",
-            "All arming, disarming and acknowledgement records are kept for 5 years.",
-          ]) +
-          p(
-            "TrakView runs active–standby across the two sites. We commit to 99.5 % availability per calendar month.",
-          ),
-      },
-      {
-        title: "Implementation, training and service",
-        html:
-          tbl(
-            ["Milestone", "Month"],
-            [
-              ["Platform installed, CDS integration tested", "2"],
-              ["Pilot: 200 seals on 2 corridors, pilot acceptance", "3"],
-              ["Rollout to the 12 corridors", "4–5"],
-              ["Full-rollout acceptance", "6"],
-            ],
-          ) +
-          p(
-            "<b>Training.</b> 60 officers (5 sessions of 12) and 12 monitoring-centre operators, in Arabic and English, with manuals in both languages.",
-          ) +
-          p(
-            "<b>Service for 3 years.</b> 24/7 service desk in Al-Noor with a 1-hour response to platform outages. Faulty seals are replaced within 3 working days from our local stock, and a pool of 45 spare seals is kept at the Directorate's sites. SIM cards from a national operator, with data plans for all 1,500 seals for the 3 years, are included.",
-          ),
-      },
-    ],
+            ["Free Zone Authority, bonded transport", "600 e-seals, 4 corridors", "2023"],
+            ["Ras Hadd Port Customs", "900 e-seals, 2 border posts, CDS integration", "2025"],
+          ],
+        ),
+      solution:
+        p(
+          "<b>The TrakSeal G4 e-seal.</b> A reusable cable seal with a 5 mm steel cable and a locking body of glass-fibre reinforced polymer. It is certified to ISO 17712:2013 as a high-security (H) seal by an accredited laboratory (certificate ISO17712-H-23-0418, attached as Appendix B). It is rated IP67 and operates from −20 °C to +70 °C.",
+        ) +
+        ul([
+          "<b>Battery:</b> 45 days with one position report every 5 minutes while moving and every 60 minutes when stationary. Full recharge in 2.5 hours.",
+          "<b>Positioning and communication:</b> GPS, GLONASS and Galileo; 4G LTE with automatic 2G fallback. Up to 25,000 events are stored when out of coverage and sent automatically on reconnection.",
+          "<b>Tamper detection:</b> cable cut, cable removal and opening of the housing. Alerts are sent immediately; in our installations the median time to the monitoring screen is 12 seconds, and 99.9 % of alerts arrive within 45 seconds.",
+          "<b>Arming and disarming:</b> only an officer signed in to the TrakView Officer app can arm or disarm a seal, by NFC contact with the seal. Each action is linked to the transit declaration number. Drivers have no means to arm or disarm a seal.",
+          "<b>Charging:</b> 6 charging racks with 50 slots each, one per customs site.",
+        ]) +
+        p("<b>The TrakView monitoring platform.</b>") +
+        ul([
+          "Live map with the 12 corridors as geofences. Alerts for route deviation, stops longer than 30 minutes (configurable), tampering, low battery, loss of signal, and a seal opened away from its destination, with an acknowledgement workflow.",
+          "CDS integration through REST APIs: the trip opens automatically from the transit declaration when the officer arms the seal, and closes when it is disarmed at the office of destination. Discrepancies are reported back to the CDS. We have built this integration with two declaration systems in our references.",
+          "Officer app for Android, in Arabic and English.",
+          "Reports of transit times and alerts per corridor, seal utilisation and officer actions, exported to Excel and PDF.",
+        ]),
+      security:
+        p(
+          "<b>Hosting.</b> TrakView is installed on the Directorate's virtual servers in its data centre (production) and in its disaster-recovery site; it needs 8 virtual machines (sizing in Appendix C). No data leaves the Directorate's infrastructure. Licences are perpetual and activated offline.",
+        ) +
+        ul([
+          "AES-256 encryption between seal and platform; every position and event is signed on the seal with its GNSS time stamp.",
+          "Officers and operators sign in with their Active Directory accounts and the Directorate's multi-factor authentication. Users and integrations connect over TLS 1.3.",
+          "All arming, disarming and acknowledgement records are kept for 5 years.",
+        ]),
+      implementation:
+        tbl(
+          ["Milestone", "Month"],
+          [
+            ["Platform installed, CDS integration tested", "2"],
+            ["Pilot: 200 seals on 2 corridors, pilot acceptance", "3"],
+            ["Rollout to the 12 corridors", "4–5"],
+            ["Full-rollout acceptance", "6"],
+          ],
+        ) +
+        p(
+          "<b>Training.</b> 60 officers (5 sessions of 12) and 12 monitoring-centre operators, in Arabic and English, with manuals in both languages.",
+        ),
+      support:
+        p(
+          "<b>Availability.</b> TrakView runs active–standby across the two sites. We commit to 99.5 % availability per calendar month.",
+        ) +
+        p(
+          "<b>Service for 3 years.</b> 24/7 service desk in Al-Noor with a 1-hour response to platform outages. Faulty seals are replaced within 3 working days from our local stock, and a pool of 45 spare seals is kept at the Directorate's sites.",
+        ) +
+        p(
+          "<b>Mobile data.</b> SIM cards from a national operator, with data plans for all 1,500 seals for the 3 years, are included.",
+        ),
+    },
     matrix: {
       "3.1": ["Comply", "ISO 17712:2013 H certificate, IP67 (§2)"],
       "3.2": ["Comply", "45 days; recharge 2.5 h (§2)"],
@@ -356,16 +351,16 @@ export const ESEALS_BIDS: PocBid[] = [
       "3.4": ["Comply", "Median 12 s, 99.9 % within 45 s (§2)"],
       "3.5": ["Comply", "Officer app with NFC (§2)"],
       "3.6": ["Comply", "−20 °C to +70 °C (§2)"],
-      "4.1": ["Comply", "§3"],
-      "4.2": ["Comply", "§3"],
-      "4.3": ["Comply", "§3"],
-      "4.4": ["Comply", "§3"],
+      "4.1": ["Comply", "§2"],
+      "4.2": ["Comply", "§2"],
+      "4.3": ["Comply", "§2"],
+      "4.4": ["Comply", "§2"],
       "4.5": ["Comply", "Directorate data centre and DR site (§3)"],
-      "4.6": ["Partially comply", "99.5 % (§3)"],
+      "4.6": ["Partially comply", "99.5 % (§5)"],
       "5.1": ["Comply", "Pilot month 3, rollout month 6 (§4)"],
       "5.2": ["Comply", "§4"],
-      "5.3": ["Comply", "1 h response, 3-day replacement, 45 spare seals (§4)"],
-      "5.4": ["Comply", "National operator SIMs included (§4)"],
+      "5.3": ["Comply", "1 h response, 3-day replacement, 45 spare seals (§5)"],
+      "5.4": ["Comply", "National operator SIMs included (§5)"],
     },
     commercial: {
       lines: [
@@ -390,6 +385,7 @@ export const ESEALS_BIDS: PocBid[] = [
         ["Bid security", "Bank guarantee of USD 30,000 issued by Al-Noor National Bank."],
         ["Performance security", "10 % of the contract price, issued by Al-Noor National Bank."],
       ],
+      deviations: [],
     },
   },
   {
@@ -402,75 +398,67 @@ export const ESEALS_BIDS: PocBid[] = [
     signatory: { name: "Markus Feld", title: "Managing Director" },
     date: "20 October 2026",
     ref: "OT-GCD-2026-047",
-    technical: [
-      {
-        title: "Company and references",
-        html:
-          p(
-            "Orbis Track provides cloud-based cargo tracking for logistics companies, insurers and customs administrations. Our Orbis eSeal One devices and the Orbis Cloud platform track more than 40,000 shipments a month in Europe and Africa.",
-          ) +
-          tbl(
-            ["Reference", "Scope", "Year"],
-            [
-              ["Northern European cargo insurers' pool", "3,500 devices, cloud tracking", "2022"],
-              ["West Coast customs transit corridor", "800 e-seals, Orbis Cloud", "2024"],
-              ["Baltic rail freight operator", "1,200 devices", "2025"],
-            ],
-          ),
-      },
-      {
-        title: "The Orbis eSeal One",
-        html:
-          p(
-            "Orbis eSeal One is a reusable bolt-and-cable seal certified to ISO 17712 as a high-security (H) seal (certificate attached). It is rated IP67 and operates from −20 °C to +65 °C.",
-          ) +
-          ul([
-            "<b>Battery:</b> 21 days with one position report every 5 minutes, and up to 60 days with one report every 15 minutes. Full recharge in 3 hours.",
-            "<b>Positioning and communication:</b> GPS and Galileo; 4G LTE-M / NB-IoT with 2G fallback. 5,000 events are stored when out of coverage and sent on reconnection.",
-            "<b>Tamper detection:</b> opening and cable cut. Alerts reach the platform typically within 2 minutes, depending on network conditions.",
-            "<b>Arming and disarming:</b> seals are armed with the officer app. At destination, a seal can be disarmed with the officer app, or by the driver with a one-time code sent by SMS from the monitoring centre, which saves officer time at remote destinations.",
-            "<b>Security:</b> AES-128 encryption on the device link; TLS 1.2 or higher for users and integrations.",
-            "<b>Charging:</b> 6 charging stations with 20 slots each.",
-          ]),
-      },
-      {
-        title: "The Orbis Cloud platform",
-        html:
-          p(
-            "Orbis Cloud is a multi-tenant SaaS platform hosted in our data centres in Frankfurt (primary) and Amsterdam (backup), certified to ISO 27001. The Directorate receives a dedicated tenant, and its data is stored in the European Union under the GDPR. A read-only replica of the trip data can be installed on a server in the Directorate's data centre for reporting.",
-          ) +
-          ul([
-            "Live map with corridors as geofences, and alerts for route deviation, stop time, tampering, battery level and loss of signal.",
-            "CDS integration through REST and webhook APIs: trips open from the transit declaration and close when the seal is disarmed. The integration is delivered by our professional-services team.",
-            "Officer app for Android and iOS in English, French and Portuguese; an Arabic interface is planned for Q3 2027.",
-            "Standard dashboards with CSV export.",
-            "Directorate users sign in with SAML single sign-on.",
-            "Arming, disarming and alert records are kept for 24 months.",
-            "Availability: 99.9 % per calendar month (SLA).",
-          ]),
-      },
-      {
-        title: "Implementation, training and service",
-        html:
-          tbl(
-            ["Milestone", "Month"],
-            [
-              ["Tenant ready, corridors configured", "1"],
-              ["Pilot: 200 seals on 2 corridors", "2"],
-              ["Full rollout of 1,500 seals", "5"],
-            ],
-          ) +
-          p(
-            "<b>Training.</b> Our online academy (English) and a 3-day train-the-trainer course on site for the 12 monitoring-centre operators; customs officers are then trained by the Directorate's own trainers.",
-          ) +
-          p(
-            "<b>Service.</b> 24/7 platform support from Hamburg, with a response within 4 hours to platform outages. Faulty seals are replaced within 10 working days from our Hamburg warehouse.",
-          ) +
-          p(
-            "<b>Mobile data.</b> The seals use SIM cards provided by the Directorate, or Orbis global IoT SIMs charged at cost (see our commercial proposal).",
-          ),
-      },
-    ],
+    technical: {
+      company:
+        p(
+          "Orbis Track provides cloud-based cargo tracking for logistics companies, insurers and customs administrations. Our Orbis eSeal One devices and the Orbis Cloud platform track more than 40,000 shipments a month in Europe and Africa.",
+        ) +
+        tbl(
+          ["Reference", "Scope", "Year"],
+          [
+            ["Northern European cargo insurers' pool", "3,500 devices, cloud tracking", "2022"],
+            ["West Coast customs transit corridor", "800 e-seals, Orbis Cloud", "2024"],
+            ["Baltic rail freight operator", "1,200 devices", "2025"],
+          ],
+        ),
+      solution:
+        p(
+          "<b>The Orbis eSeal One.</b> A reusable bolt-and-cable seal certified to ISO 17712 as a high-security (H) seal (certificate attached). It is rated IP67 and operates from −20 °C to +65 °C.",
+        ) +
+        ul([
+          "<b>Battery:</b> 21 days with one position report every 5 minutes, and up to 60 days with one report every 15 minutes. Full recharge in 3 hours.",
+          "<b>Positioning and communication:</b> GPS and Galileo; 4G LTE-M / NB-IoT with 2G fallback. 5,000 events are stored when out of coverage and sent on reconnection.",
+          "<b>Tamper detection:</b> opening and cable cut. Alerts reach the platform typically within 2 minutes, depending on network conditions.",
+          "<b>Arming and disarming:</b> seals are armed with the officer app. At destination, a seal can be disarmed with the officer app, or by the driver with a one-time code sent by SMS from the monitoring centre, which saves officer time at remote destinations.",
+          "<b>Charging:</b> 6 charging stations with 20 slots each.",
+        ]) +
+        p("<b>The Orbis Cloud platform.</b>") +
+        ul([
+          "Live map with corridors as geofences, and alerts for route deviation, stop time, tampering, battery level and loss of signal.",
+          "CDS integration through REST and webhook APIs: trips open from the transit declaration and close when the seal is disarmed. The integration is delivered by our professional-services team.",
+          "Officer app for Android and iOS in English, French and Portuguese; an Arabic interface is planned for Q3 2027.",
+          "Standard dashboards with CSV export.",
+        ]),
+      security:
+        p(
+          "<b>Hosting.</b> Orbis Cloud is a multi-tenant SaaS platform hosted in our data centres in Frankfurt (primary) and Amsterdam (backup), certified to ISO 27001. The Directorate receives a dedicated tenant, and its data is stored in the European Union under the GDPR. A read-only replica of the trip data can be installed on a server in the Directorate's data centre for reporting.",
+        ) +
+        ul([
+          "AES-128 encryption on the device link; TLS 1.2 or higher for users and integrations.",
+          "Directorate users sign in with SAML single sign-on.",
+          "Arming, disarming and alert records are kept for 24 months.",
+        ]),
+      implementation:
+        tbl(
+          ["Milestone", "Month"],
+          [
+            ["Tenant ready, corridors configured", "1"],
+            ["Pilot: 200 seals on 2 corridors", "2"],
+            ["Full rollout of 1,500 seals", "5"],
+          ],
+        ) +
+        p(
+          "<b>Training.</b> Our online academy (English) and a 3-day train-the-trainer course on site for the 12 monitoring-centre operators; customs officers are then trained by the Directorate's own trainers.",
+        ),
+      support:
+        p("<b>Availability.</b> 99.9 % per calendar month (SLA).") +
+        p(
+          "<b>Service.</b> 24/7 platform support from Hamburg, with a response within 4 hours to platform outages. Faulty seals are replaced within 10 working days from our Hamburg warehouse.",
+        ) +
+        p(
+          "<b>Mobile data.</b> The seals use SIM cards provided by the Directorate, or Orbis global IoT SIMs charged at cost (see our commercial proposal).",
+        ),
+    },
     matrix: {
       "3.1": ["Comply", "ISO 17712 H, IP67 (§2)"],
       "3.2": ["Partially comply", "21 days at 5 min, 60 days at 15 min (§2)"],
@@ -478,16 +466,16 @@ export const ESEALS_BIDS: PocBid[] = [
       "3.4": ["Comply", "Typically within 2 minutes (§2)"],
       "3.5": ["Comply", "Officer app; driver code at destination (§2)"],
       "3.6": ["Comply", "−20 °C to +65 °C (§2)"],
-      "4.1": ["Comply", "§3"],
-      "4.2": ["Comply", "§3"],
-      "4.3": ["Partially comply", "Arabic planned Q3 2027 (§3)"],
-      "4.4": ["Comply", "Dashboards, CSV (§3)"],
+      "4.1": ["Comply", "§2"],
+      "4.2": ["Comply", "§2"],
+      "4.3": ["Partially comply", "Arabic planned Q3 2027 (§2)"],
+      "4.4": ["Comply", "Dashboards, CSV (§2)"],
       "4.5": ["Partially comply", "EU cloud; local read-only replica (§3)"],
-      "4.6": ["Comply", "99.9 % (§3)"],
+      "4.6": ["Comply", "99.9 % (§5)"],
       "5.1": ["Comply", "Pilot month 2, rollout month 5 (§4)"],
       "5.2": ["Comply", "Train-the-trainer (§4)"],
-      "5.3": ["Comply", "24/7 support (§4)"],
-      "5.4": ["Partially comply", "Directorate SIMs or Orbis IoT SIMs (§4)"],
+      "5.3": ["Comply", "24/7 support (§5)"],
+      "5.4": ["Partially comply", "Directorate SIMs or Orbis IoT SIMs (§5)"],
     },
     commercial: {
       lines: [
@@ -516,6 +504,11 @@ export const ESEALS_BIDS: PocBid[] = [
           "Performance security",
           "10 % of the contract price, issued by Nordhafen Bank AG, Hamburg.",
         ],
+      ],
+      deviations: [
+        "Mobile data is not included in the subscription (note 2).",
+        "The subscription is indexed yearly to the German consumer price index, capped at 3 % (note 4).",
+        "The Orbis Cloud Terms of Service apply to the subscription (note 5).",
       ],
     },
   },

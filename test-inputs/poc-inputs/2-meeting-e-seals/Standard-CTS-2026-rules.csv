@@ -1,0 +1,13 @@
+﻿Code,Rule,Priority
+TR-01,"Tracking data, alerts and audit records shall be stored and processed only within the State, on infrastructure controlled by the Directorate; foreign or public cloud hosting is not permitted.",mandatory
+TR-02,"Electronic seals shall be certified to ISO 17712 as high-security (H) seals by an accredited laboratory, and the certificate shall be submitted with the bid.",mandatory
+TR-03,"Tampering with, opening or cutting a seal shall be detected and alerted to the monitoring centre within 60 seconds.",mandatory
+TR-04,Seals shall report their position at least every 5 minutes while moving; every position and event shall carry a time stamp that cannot be altered.,important
+TR-05,Seals shall keep events in memory when out of mobile coverage and send them automatically when coverage returns.,mandatory
+TR-06,The link between seals and the platform shall be encrypted with AES-128 or stronger; users and integrations shall connect over TLS 1.2 or higher.,mandatory
+TR-07,Officers and operators shall sign in through the Directorate's Active Directory with multi-factor authentication.,important
+TR-08,"Every arming, disarming and alert acknowledgement shall be recorded with the officer's identity, place and time, and kept for 5 years.",important
+TR-09,Seals shall operate from −10 °C to +60 °C and be rated IP67 or better.,important
+TR-10,User interfaces and training shall be available in Arabic and English.,desirable
+TR-11,Mobile data for the seals shall be included in the supplier's price for the whole service period.,important
+TR-12,Bid and performance securities shall be issued by a bank licensed in the State; the performance security shall be at least 10 % of the contract price.,mandatory

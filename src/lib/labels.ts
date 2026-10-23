@@ -67,7 +67,7 @@ export const PROJECT_CATEGORY_LABEL: Record<ProjectCategory, string> = {
 
 export const PROPOSAL_SOURCE_LABEL: Record<ProposalSource, string> = {
   seed: "Sample",
-  simulator: "Simulator",
+  simulator: "Uploaded",
   ai: "AI-generated",
 };
 

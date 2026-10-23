@@ -1,48 +1,31 @@
 # POC set 2 (meeting): Electronic Seal Tracking System for Transit Cargo
 
-**Format used:** PDF only · **App:** live AI at http://localhost:3001 (or free demo AI at http://localhost:3000).
+**Format used:** PDF proposals, rules as Excel / CSV / text · **App:** free demo AI at http://localhost:3000, or live AI once `AI_MODE=live` (see the [overview](../README.md)).
 
 ## Files (all in this folder)
 | File | What it is |
 |---|---|
-| `Standard-CTS-2026-rules.txt` | The 12 rules to paste (the same block is below) |
+| `Standard-CTS-2026-rules.xlsx` | The standard's 12 rules as an Excel sheet (Code · Rule · Priority), to drop in **New standard** |
+| `Standard-CTS-2026-rules.csv` / `.txt` | The same rules as CSV and as text (either can be dropped instead) |
 | `RFP-GCD-T-2026-047.pdf` | The RFP, 4 pages, 29 numbered clauses + compliance matrix |
 | `Vendor-1-Trakom-Security-Solutions-Technical.pdf` / `-Commercial.pdf` | Vendor 1: technical (4 p.) and commercial (2 p.) |
 | `Vendor-2-Orbis-Track-Technical.pdf` / `-Commercial.pdf` | Vendor 2: technical (4 p.) and commercial (2 p.) |
 
-## 1. Create the standard
-1. **Standards → New standard**, then fill in:
+**The proposals follow Marsa's 7-section template.** The technical proposal has sections 1–5:
+1. Company and references;
+2. Technical solution;
+3. Security and data;
+4. Implementation and timeline;
+5. Support, warranty and SLA.
 
-| Field | Value |
-|---|---|
-| Code | `CTS-2026` |
-| Title | `Customs Transit Security Standard` |
-| Category | **IT & security** (already selected) |
-| Description | `Security, data and service requirements for the electronic tracking of goods under customs transit, including e-seals, tracking platforms and their suppliers. Issued by the General Customs Directorate, Risk & Transit Control Department (v2.0, April 2026).` |
-| Active | On |
+The commercial proposal has sections 6–7:
+6. Commercial offer and pricing;
+7. Terms and deviations.
 
-2. Click **Create standard**.
-3. Click **Paste rules**, paste this whole block and click **Add 12 rules**:
+So the results compare the two vendors section by section.
 
-```text
-TR-01 | Tracking data, alerts and audit records shall be stored and processed only within the State, on infrastructure controlled by the Directorate; foreign or public cloud hosting is not permitted. | mandatory
-TR-02 | Electronic seals shall be certified to ISO 17712 as high-security (H) seals by an accredited laboratory, and the certificate shall be submitted with the bid. | mandatory
-TR-03 | Tampering with, opening or cutting a seal shall be detected and alerted to the monitoring centre within 60 seconds. | mandatory
-TR-04 | Seals shall report their position at least every 5 minutes while moving; every position and event shall carry a time stamp that cannot be altered. | important
-TR-05 | Seals shall keep events in memory when out of mobile coverage and send them automatically when coverage returns. | mandatory
-TR-06 | The link between seals and the platform shall be encrypted with AES-128 or stronger; users and integrations shall connect over TLS 1.2 or higher. | mandatory
-TR-07 | Officers and operators shall sign in through the Directorate's Active Directory with multi-factor authentication. | important
-TR-08 | Every arming, disarming and alert acknowledgement shall be recorded with the officer's identity, place and time, and kept for 5 years. | important
-TR-09 | Seals shall operate from −10 °C to +60 °C and be rated IP67 or better. | important
-TR-10 | User interfaces and training shall be available in Arabic and English. | desirable
-TR-11 | Mobile data for the seals shall be included in the supplier's price for the whole service period. | important
-TR-12 | Bid and performance securities shall be issued by a bank licensed in the State; the performance security shall be at least 10 % of the contract price. | mandatory
-```
-
-   **Expected:** the header reads **12 rules · 6 mandatory · 5 important · 1 desirable**.
-
-## 2. Create and publish the project
-1. **Projects → New project**. **Step 1 · Details:**
+## 1. New project · Step 1 · Project
+**Projects → New project**, then fill in:
 
 | Field | Value |
 |---|---|
@@ -52,17 +35,38 @@ TR-12 | Bid and performance securities shall be issued by a bank licensed in the
 | Submission deadline | **15 December 2026** (type `15/12/2026` or `12/15/2026`, in the order your date field shows) |
 | Key requirements / notes | *leave empty* |
 
-   Click **Continue**.
-2. **Step 2 · RFP documents:** drop `RFP-GCD-T-2026-047.pdf`. **Expected:** "4 pages · AI-readable". Click **Continue**.
-3. **Step 3 · Standards:** click **None**, then tick only **CTS-2026**. **Expected:** "1 of N selected". This matters if you rehearsed on the same server: POTS-2026 is pre-ticked too. Click **Continue**.
-4. **Step 4 · Review & publish:** click **Publish to vendors**.
+Then drop `RFP-GCD-T-2026-047.pdf` on **RFP documents**.
 
-## 3. Submit the two vendors
-**Proposals** tab → **Simulate a vendor submission**. Fill in the form, then click **Submit proposal**. Do it once per vendor.
+**Expected:**
+- "Draft saved" appears under the title;
+- the file shows "4 pages · AI-readable".
+
+Click **Continue**.
+
+## 2. Step 2 · Standards
+Only standards of the project's category (**IT & security**) and **General** are listed.
+
+1. Click **New standard** and fill in:
+
+| Field | Value |
+|---|---|
+| Code | `CTS-2026` |
+| Title | `Customs Transit Security Standard` |
+| Category | **IT & security** (already selected) |
+| Rules file | drop `Standard-CTS-2026-rules.xlsx` |
+
+   **Expected:** "12 rules found", with TR-01 … TR-12. Their priorities are 6 mandatory, 5 important and 1 desirable (M / I / D).
+2. Click **Create standard**. **CTS-2026** is now ticked in the list.
+3. Untick every other standard, so only **CTS-2026** stays ticked. This matters if you rehearsed on the same server: **POTS-2026** is ticked too.
+4. Click **Continue**.
+
+**If CTS-2026 already exists** (a second run on the same server), skip **New standard** and just tick it.
+
+## 3. Step 3 · Vendors
+Fill in the vendor form, drop the two files, and click **Save vendor**. Then click **Add another vendor** for the second one.
 
 | Field | Vendor 1 | Vendor 2 |
 |---|---|---|
-| Vendor | **New vendor** | **New vendor** |
 | Company name | `Trakom Security Solutions` | `Orbis Track` |
 | Country | `Northern Gulf State` | `Germany` |
 | Contact name | `Rashid Al-Balushi` | `Lena Brandt` |
@@ -70,28 +74,45 @@ TR-12 | Bid and performance securities shall be issued by a bank licensed in the
 | Commercial proposal | `Vendor-1-Trakom-Security-Solutions-Commercial.pdf` | `Vendor-2-Orbis-Track-Commercial.pdf` |
 | Technical proposal | `Vendor-1-Trakom-Security-Solutions-Technical.pdf` | `Vendor-2-Orbis-Track-Technical.pdf` |
 
-If you have already run this set once on the same server, choose **Existing vendor** and pick the company instead.
+If the company already exists from an earlier run, typing its name reuses it, and a note says so.
 
-## 4. Analyse & process
-1. Back on **Proposals**, the **Analyse & process** panel shows **2 proposals · CTS-2026 · Steps 8 (3 × 2 + 2)**, plus the time and cost. Live mode estimates ≈ $0.04 on Haiku and ≈ $0.73 on Sonnet.
-2. Click **Analyse & process**, then **Start analysis** in the confirmation. Mission control shows the 8 steps live. About 2.5 minutes on Haiku, 3.5 on Sonnet.
+Click **Create project**. The project page opens with the project ready to analyse.
+
+## 4. Run the AI analysis
+1. Click **Run AI analysis** in the project header. In live mode a dialog first shows the estimate:
+
+   | Model | Cost | Time |
+   |---|---|---|
+   | Haiku | ≈ $0.03 | ≈ 2 min |
+   | Sonnet | ≈ $0.59 | ≈ 3 min |
+
+2. The **AI analysis results** page opens, and the sidebar folds away. Mission control shows the 8 steps live:
+   - **Checklist:** the RFP requirements and the 12 rules, each filed under a proposal section.
+   - **Standards:** each vendor against CTS-2026.
+   - **RFP:** each vendor against the RFP.
+   - **Risk:** each vendor's risk register.
+   - **Recommendation.**
    - While it runs, open another page: the top-bar pill follows the run, and a toast says when it ends.
    - **Cancel** stops the run; finished steps stay saved, and **Resume** continues.
+3. **Later vendors:** you can add a vendor afterwards (**Proposals → Add vendor**) and click **Run a new analysis**. Earlier analyses stay available under **Latest analysis ▾**.
 
 ## 5. What a good result looks like
-Use this to judge the live run. Nothing here is uploaded.
-- **Ranking:** Trakom Security Solutions first and recommended.
-  - Orbis is much cheaper: USD 1,400,400 against USD 2,397,000, before Orbis's mobile-data charges. Orbis also promises a faster rollout (month 5 instead of 6) and 99.9 % availability.
+Use this to judge a live run. Nothing here is uploaded.
+- **Overview:** Trakom Security Solutions is recommended, with:
+  - a high Standards % and RFP %;
+  - a low risk score (under 50, "low" or "moderate").
+
+  Orbis Track has a much lower Standards % and a high or critical risk score. Orbis is much cheaper, though: USD 1,400,400 against USD 2,397,000, before Orbis's mobile-data charges. It also promises a faster rollout (month 5 instead of 6) and 99.9 % availability.
 - **Trakom: small gaps.**
-  - 99.5 % availability instead of 99.7 % (RFP 4.6).
-  - A spare pool of 45 seals (3 %) instead of at least 5 % (RFP 5.3).
+  - 99.5 % availability instead of 99.7 % (RFP 4.6, section 5).
+  - A spare pool of 45 seals (3 %) instead of at least 5 % (RFP 5.3, section 5).
 - **Orbis: several mandatory breaks.**
-  - **Cloud:** a SaaS platform in Frankfurt and Amsterdam, with only a read-only copy in the State (RFP 4.5, CTS-2026 TR-01).
+  - **Cloud:** a SaaS platform in Frankfurt and Amsterdam, with only a read-only copy in the State (RFP 4.5, CTS-2026 TR-01, section 3).
   - **Battery:** 21 days at 5-minute reporting instead of 30 (3.2).
   - **Tamper alerts:** "typically within 2 minutes" instead of 60 s (3.4, TR-03).
   - **Disarming:** drivers can disarm with an SMS code (3.5).
   - **Mobile data:** not included (5.4, TR-11).
-  - **Guarantees:** bid and performance securities from a Hamburg bank (6.3, 6.4, TR-12).
+  - **Guarantees:** bid and performance securities from a Hamburg bank (6.3, 6.4, TR-12, section 7).
   - **Service:** 4-hour response, 10-day seal replacement and no spare pool mentioned (5.3).
   - **Partial findings:**
     - 5,000 offline events instead of 10,000 (3.3);
@@ -102,5 +123,9 @@ Use this to judge the live run. Nothing here is uploaded.
     - officers trained by the Directorate's own trainers (5.2);
     - CPI-indexed subscription (6.1);
     - 40 % at contract signature (6.2).
-- **Evidence:** on any finding, click **Page N**: the vendor's sentence opens highlighted. Click an **RFP §…** or **CTS-2026 TR-…** chip under **Breaks**: it opens that clause or rule.
-- **Risk:** Orbis's register should include data sovereignty, undetected tampering and the cost of unpriced mobile data.
+- **Compliance tab:**
+  - **Section 3 · Security and data** should show the widest gap between the two vendors.
+  - Open a vendor's row to see its points, shortfalls first.
+  - Click **Technical … p. N** to open the vendor's sentence highlighted. Click the RFP chip to open the clause. Click a **TR-…** rule to open it in the standard.
+- **Risks tab:** Orbis's register should include data sovereignty, undetected tampering and the cost of unpriced mobile data, mostly under sections 2, 3 and 5.
+- **Comparison tab:** tick both vendors, click **Compare 2 vendors**. Sections 2, 3 and 5 should list the most differences.

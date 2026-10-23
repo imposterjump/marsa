@@ -297,112 +297,103 @@ export const GATES_BIDS: PocBid[] = [
     signatory: { name: "Mariam Al-Kuwari", title: "General Manager" },
     date: "19 October 2026",
     ref: "SGT-T2G-2026-11",
-    technical: [
-      {
-        title: "Company and references",
-        html:
-          p(
-            "Sahel Gate Technologies is a systems integrator founded in 2009 in Al-Noor, with 85 staff. We specialise in terminal gates, access control and CCTV for ports and free zones. We are the certified partner in the State for the ClearLane OCR product line, and we run a service centre and spare-parts store in the Al-Noor Logistics Park, 6 km from Terminal 2.",
-          ) +
-          tbl(
-            ["Reference", "Scope", "Year"],
+    technical: {
+      company:
+        p(
+          "Sahel Gate Technologies is a systems integrator founded in 2009 in Al-Noor, with 85 staff. We specialise in terminal gates, access control and CCTV for ports and free zones. We are the certified partner in the State for the ClearLane OCR product line, and we run a service centre and spare-parts store in the Al-Noor Logistics Park, 6 km from Terminal 2.",
+        ) +
+        tbl(
+          ["Reference", "Scope", "Year"],
+          [
             [
-              [
-                "Port of Ras Hadd, Container Terminal",
-                "8 lanes: OCR, RFID, Gate Operating System, TOS integration",
-                "2022",
-              ],
-              [
-                "Free Zone Logistics Gate",
-                "4 lanes with kiosks, Vehicle Booking System integration",
-                "2024",
-              ],
-              ["Al-Waha Inland Container Depot", "3 lanes: OCR and damage imaging", "2025"],
+              "Port of Ras Hadd, Container Terminal",
+              "8 lanes: OCR, RFID, Gate Operating System, TOS integration",
+              "2022",
             ],
-          ),
-      },
-      {
-        title: "Lane equipment",
-        html:
-          p(
-            "Each lane gets a ClearLane OCR portal: a galvanised steel gantry with 2 plate cameras (front and rear), 4 container-number cameras and 5 damage-inspection cameras of 12 megapixels covering the four sides and the roof, with infrared illumination for night operation. Cameras are rated IP67 and the lane cabinets IP66, for operation from 0 °C to +55 °C, with marine-grade coating for the coastal atmosphere.",
-          ) +
-          p(
-            "<b>Measured OCR performance.</b> Over 12 months at the Port of Ras Hadd (1.9 million transactions), container numbers were read correctly in 99.1 % of transactions, with ISO 6346 check-digit validation, and truck plates with Arabic and Latin characters in 98.2 %. Readings are valid at speeds up to 20 km/h, by day and night.",
-          ) +
-          p(
-            "<b>Damage images.</b> Images are stored on the gate storage array and kept online for 60 days. Older images are moved to the Authority's backup system and can be restored on request.",
-          ) +
-          p(
-            "<b>RFID.</b> Two UHF readers per lane (ISO/IEC 18000-63) and 3,000 tamper-evident windscreen tags that break when removed.",
-          ) +
-          p(
-            "<b>Kiosks.</b> Stainless-steel kiosk rated IP66, with a 15-inch sunlight-readable touchscreen, Arabic and English interface, an intercom to the gate control room and a thermal printer for the gate pass with the assigned yard position.",
-          ) +
-          p(
-            "<b>Transaction time.</b> At Ras Hadd, the average in-gate time of a pre-booked truck without exceptions is 38 seconds from arrival at the portal to the barrier opening.",
-          ),
-      },
-      {
-        title: "Gate Operating System and integrations",
-        html:
-          p(
-            "The ClearLane Gate Operating System controls the lanes, barriers, traffic lights and kiosks. Exceptions (no appointment, unreadable number, damage, no customs release) go to the exception workstation, which shows all images and readings of the transaction. Dashboards show transactions per hour, average transaction time per lane and exceptions by type.",
-          ) +
-          p(
-            "The GOS checks every visit against the appointment in the PCS Vehicle Booking System (REST API) and against the customs release status received through the PCS. The TOS integration uses REST web services and UN/EDIFACT CODECO. The barrier opens only when the appointment, the TOS work order and, for exits, the customs release are valid.",
-          ),
-      },
-      {
-        title: "Architecture and security",
-        html:
-          p(
-            "Two GOS application servers in a cluster and a storage array in the Terminal 2 server room, and a standby server in the Authority's main data centre with database replication. Two UPS units with 60 minutes of autonomy and redundant network switches per lane group. We commit to 99.7 % availability per calendar month. If the GOS is unavailable, the kiosks switch to manual mode and the control room opens the barriers, with the OCR readings still displayed.",
-          ) +
-          ul([
-            "All equipment sits on a dedicated OT network segment behind the Authority's firewalls, with no internet access. All data stays in the Authority's server rooms; no cloud service is used.",
-            "Users sign in with their Active Directory accounts; administrator accounts use multi-factor authentication.",
-            "Audit logs of all user and system events are kept for 3 years and forwarded in real time to the Authority's SIEM in syslog format.",
-            "Interfaces use REST/JSON and UN/EDIFACT. The API documentation and the GOS database schema are delivered to the Authority.",
-          ]),
-      },
-      {
-        title: "Implementation, training and maintenance",
-        html:
-          tbl(
-            ["Milestone", "Month"],
             [
-              ["Design approval", "1"],
-              ["Civil works and portal foundations", "2–3"],
-              ["Lanes 1 and 2 in operation", "4"],
-              ["Lanes 3 and 4 in operation", "5"],
-              ["Lanes 5 and 6 in operation, Site Acceptance Test", "6"],
-              ["30-day performance test and acceptance", "7"],
+              "Free Zone Logistics Gate",
+              "4 lanes with kiosks, Vehicle Booking System integration",
+              "2024",
             ],
-          ) +
-          p("At least 4 lanes stay open throughout the works.") +
-          p(
-            "<b>Training.</b> 20 gate clerks and control-room operators (3 courses) and 6 maintenance technicians (2 weeks, including on-the-job training). Courses are given in Arabic and English. The operator manual is provided in Arabic and English; the maintenance and technical manuals are in English.",
-          ) +
-          p(
-            "<b>Warranty and maintenance.</b> 24-month warranty from acceptance, parts and labour. Three years of maintenance after the warranty: quarterly preventive maintenance, software updates, a 24/7 hotline, and on-site response within 4 hours from our Al-Noor service centre, which holds a stock of critical spare parts (cameras, readers, barrier controllers, kiosk printers).",
-          ),
-      },
-    ],
+            ["Al-Waha Inland Container Depot", "3 lanes: OCR and damage imaging", "2025"],
+          ],
+        ),
+      solution:
+        p(
+          "<b>Lane equipment.</b> Each lane gets a ClearLane OCR portal: a galvanised steel gantry with 2 plate cameras (front and rear), 4 container-number cameras and 5 damage-inspection cameras of 12 megapixels covering the four sides and the roof, with infrared illumination for night operation. Cameras are rated IP67 and the lane cabinets IP66, for operation from 0 °C to +55 °C, with marine-grade coating for the coastal atmosphere.",
+        ) +
+        p(
+          "<b>Measured OCR performance.</b> Over 12 months at the Port of Ras Hadd (1.9 million transactions), container numbers were read correctly in 99.1 % of transactions, with ISO 6346 check-digit validation, and truck plates with Arabic and Latin characters in 98.2 %. Readings are valid at speeds up to 20 km/h, by day and night.",
+        ) +
+        p(
+          "<b>Damage images.</b> Images are stored on the gate storage array and kept online for 60 days. Older images are moved to the Authority's backup system and can be restored on request.",
+        ) +
+        p(
+          "<b>RFID.</b> Two UHF readers per lane (ISO/IEC 18000-63) and 3,000 tamper-evident windscreen tags that break when removed.",
+        ) +
+        p(
+          "<b>Kiosks.</b> Stainless-steel kiosk rated IP66, with a 15-inch sunlight-readable touchscreen, Arabic and English interface, an intercom to the gate control room and a thermal printer for the gate pass with the assigned yard position.",
+        ) +
+        p(
+          "<b>Transaction time.</b> At Ras Hadd, the average in-gate time of a pre-booked truck without exceptions is 38 seconds from arrival at the portal to the barrier opening.",
+        ) +
+        p(
+          "<b>Gate Operating System.</b> The ClearLane GOS controls the lanes, barriers, traffic lights and kiosks. Exceptions (no appointment, unreadable number, damage, no customs release) go to the exception workstation, which shows all images and readings of the transaction. Dashboards show transactions per hour, average transaction time per lane and exceptions by type.",
+        ) +
+        p(
+          "<b>Integrations.</b> The GOS checks every visit against the appointment in the PCS Vehicle Booking System (REST API) and against the customs release status received through the PCS. The TOS integration uses REST web services and UN/EDIFACT CODECO. The barrier opens only when the appointment, the TOS work order and, for exits, the customs release are valid. The API documentation and the GOS database schema are delivered to the Authority.",
+        ),
+      security:
+        p(
+          "<b>Hosting.</b> Two GOS application servers in a cluster and a storage array in the Terminal 2 server room, and a standby server in the Authority's main data centre with database replication. Two UPS units with 60 minutes of autonomy and redundant network switches per lane group.",
+        ) +
+        ul([
+          "All equipment sits on a dedicated OT network segment behind the Authority's firewalls, with no internet access. All data stays in the Authority's server rooms; no cloud service is used.",
+          "Users sign in with their Active Directory accounts; administrator accounts use multi-factor authentication.",
+          "Audit logs of all user and system events are kept for 3 years and forwarded in real time to the Authority's SIEM in syslog format.",
+          "Interfaces use REST/JSON and UN/EDIFACT.",
+        ]),
+      implementation:
+        tbl(
+          ["Milestone", "Month"],
+          [
+            ["Design approval", "1"],
+            ["Civil works and portal foundations", "2–3"],
+            ["Lanes 1 and 2 in operation", "4"],
+            ["Lanes 3 and 4 in operation", "5"],
+            ["Lanes 5 and 6 in operation, Site Acceptance Test", "6"],
+            ["30-day performance test and acceptance", "7"],
+          ],
+        ) +
+        p("At least 4 lanes stay open throughout the works.") +
+        p(
+          "<b>Training.</b> 20 gate clerks and control-room operators (3 courses) and 6 maintenance technicians (2 weeks, including on-the-job training). Courses are given in Arabic and English. The operator manual is provided in Arabic and English; the maintenance and technical manuals are in English.",
+        ),
+      support:
+        p(
+          "<b>Availability.</b> We commit to 99.7 % availability per calendar month. If the GOS is unavailable, the kiosks switch to manual mode and the control room opens the barriers, with the OCR readings still displayed.",
+        ) +
+        p(
+          "<b>Warranty.</b> 24-month warranty from acceptance, parts and labour.",
+        ) +
+        p(
+          "<b>Maintenance.</b> Three years of maintenance after the warranty: quarterly preventive maintenance, software updates, a 24/7 hotline, and on-site response within 4 hours from our Al-Noor service centre, which holds a stock of critical spare parts (cameras, readers, barrier controllers, kiosk printers).",
+        ),
+    },
     matrix: {
       "3.1": ["Comply", "99.1 % containers, 98.2 % plates, up to 20 km/h (§2)"],
       "3.2": ["Comply", "5 cameras of 12 MP; online storage and archive (§2)"],
       "3.3": ["Comply", "2 readers per lane, 3,000 tags (§2)"],
       "3.4": ["Comply", "38 s average at Ras Hadd (§2)"],
       "3.5": ["Comply", "§2"],
-      "3.6": ["Comply", "§3"],
-      "3.7": ["Comply", "TOS, VBS and customs release (§3)"],
-      "3.8": ["Comply", "T2 server room + main data centre (§4)"],
-      "3.9": ["Comply", "99.7 %, manual mode (§4)"],
+      "3.6": ["Comply", "§2"],
+      "3.7": ["Comply", "TOS, VBS and customs release (§2)"],
+      "3.8": ["Comply", "T2 server room + main data centre (§3)"],
+      "3.9": ["Comply", "99.7 %, manual mode (§5)"],
       "3.10": ["Comply", "IP66/IP67, 0 to +55 °C (§2)"],
-      "4.1": ["Comply", "Month 7 (§5)"],
-      "4.2": ["Comply", "§5"],
-      "4.3": ["Comply", "§5"],
+      "4.1": ["Comply", "Month 7 (§4)"],
+      "4.2": ["Comply", "§4"],
+      "4.3": ["Comply", "§4"],
       "5.1": ["Comply", "24 months (§5)"],
       "5.2": ["Comply", "§5"],
       "5.3": ["Comply", "Al-Noor service centre (§5)"],
@@ -440,6 +431,7 @@ export const GATES_BIDS: PocBid[] = [
           "10 % of the contract price, issued by Al-Noor National Bank, valid until 28 days after the end of the warranty.",
         ],
       ],
+      deviations: [],
     },
   },
   {
@@ -453,106 +445,90 @@ export const GATES_BIDS: PocBid[] = [
     signatory: { name: "Sanne Verhoeven", title: "Sales Director, Middle East" },
     date: "20 October 2026",
     ref: "VOS-2026-NGPA-031",
-    technical: [
-      {
-        title: "Company and references",
-        html:
-          p(
-            "Vector OCR Systems develops AI-based OCR for terminal gates and cranes. VectorVision is installed at 14 container terminals in Europe and Asia and processes more than 30 million gate transactions a year. In the Gulf, our products are delivered and serviced through our local agent, Gulf Harbour Trading (Al-Noor).",
-          ) +
-          tbl(
-            ["Reference", "Scope", "Year"],
-            [
-              ["Delta Container Terminal, Rotterdam", "22 lanes: OCR and damage detection", "2021"],
-              ["Baltic Gateway Terminal, Gdansk", "10 lanes with kiosks", "2023"],
-              ["Eastern Seaboard Terminal C", "12 lanes: OCR and RFID", "2024"],
-            ],
-          ),
-      },
-      {
-        title: "Lane equipment",
-        html:
-          p(
-            "Each lane gets a VectorVision portal with 6 cameras (2 plate cameras, 4 cameras for container numbers and damage), infrared LED lighting and an edge computer in the lane cabinet.",
-          ) +
-          p(
-            "<b>Recognition.</b> Container recognition runs on the edge computer. Licence-plate recognition uses the VectorVision Cloud service, where our deep-learning plate models are retrained continuously on the latest plate formats. Only the cropped plate image is sent, and the result returns within 1 second.",
-          ) +
-          p(
-            "<b>Accuracy.</b> Container numbers 98.6 % (check-digit validated). Latin plates 97.5 %; Arabic plates 94 %, and the Arabic plate model will be extended with data from this project. Readings are valid at speeds up to 10 km/h.",
-          ) +
-          p(
-            "<b>Damage images.</b> 4 cameras of 5 megapixels cover the sides and the rear of the container; a roof camera is offered as an option. Images are kept for 90 days on the on-premise storage.",
-          ) +
-          p("<b>RFID.</b> One UHF reader per lane (ISO/IEC 18000-63) and 3,000 windscreen tags.") +
-          p(
-            "<b>Kiosks.</b> Kiosk VK-200 rated IP65, operating range 0 °C to +50 °C, with a 19-inch touchscreen, English interface with an Arabic language pack, an intercom and a gate-pass printer.",
-          ) +
-          p(
-            "<b>Transaction time.</b> The average in-gate transaction takes 70 seconds, including the driver's interaction at the kiosk (signature and gate-pass printing).",
-          ),
-      },
-      {
-        title: "Gate Operating System and integrations",
-        html:
-          p(
-            "VectorGate GOS provides lane control, an exception workstation and KPI dashboards (transactions per hour, transaction times, exceptions).",
-          ) +
-          p(
-            "The TOS is integrated through UN/EDIFACT CODECO and COARRI messages, and the Vehicle Booking System through the PCS REST API. A customs release check can be added after go-live as a change request, once the PCS customs interface is specified.",
-          ),
-      },
-      {
-        title: "Architecture and security",
-        html:
-          p(
-            "Two virtualised GOS servers in the Terminal 2 server room. The lane edge computers use an outbound HTTPS connection to VectorVision Cloud (EU region, Frankfurt) for plate recognition and for licence and model updates.",
-          ) +
-          p(
-            "Availability 99.5 % per calendar month. Each lane cabinet has a UPS with 15 minutes of autonomy. In manual mode, clerks enter the data at the exception workstation.",
-          ) +
-          ul([
-            "Active Directory integration through LDAP; administrators use multi-factor authentication with the Vector Authenticator app.",
-            "Interfaces are documented (REST/JSON and UN/EDIFACT).",
-          ]),
-      },
-      {
-        title: "Implementation, training and support",
-        html:
-          tbl(
-            ["Milestone", "Month"],
-            [
-              ["Factory acceptance test in Rotterdam", "3"],
-              ["Lanes 1 to 4 in operation", "6"],
-              ["Lanes 5 and 6 in operation, Site Acceptance Test", "9"],
-              ["Performance test and acceptance", "10"],
-            ],
-          ) +
-          p(
-            "<b>Training.</b> Access to our online training academy (English) and 3 days of on-site training for operators and technicians.",
-          ) +
-          p(
-            "<b>Warranty.</b> 12 months from acceptance. An extended warranty for a second year is offered as an option in our commercial proposal.",
-          ) +
-          p(
-            "<b>Support.</b> Remote support from our Rotterdam service desk, Monday to Friday, 08:00–18:00 CET. On-site intervention by Gulf Harbour Trading engineers on the next business day. Spare parts are shipped from Rotterdam within 3 working days.",
-          ),
-      },
-    ],
+    technical: {
+      company:
+        p(
+          "Vector OCR Systems develops AI-based OCR for terminal gates and cranes. VectorVision is installed at 14 container terminals in Europe and Asia and processes more than 30 million gate transactions a year. In the Gulf, our products are delivered and serviced through our local agent, Gulf Harbour Trading (Al-Noor).",
+        ) +
+        tbl(
+          ["Reference", "Scope", "Year"],
+          [
+            ["Delta Container Terminal, Rotterdam", "22 lanes: OCR and damage detection", "2021"],
+            ["Baltic Gateway Terminal, Gdansk", "10 lanes with kiosks", "2023"],
+            ["Eastern Seaboard Terminal C", "12 lanes: OCR and RFID", "2024"],
+          ],
+        ),
+      solution:
+        p(
+          "<b>Lane equipment.</b> Each lane gets a VectorVision portal with 6 cameras (2 plate cameras, 4 cameras for container numbers and damage), infrared LED lighting and an edge computer in the lane cabinet.",
+        ) +
+        p(
+          "<b>Recognition.</b> Container recognition runs on the edge computer. Licence-plate recognition uses the VectorVision Cloud service, where our deep-learning plate models are retrained continuously on the latest plate formats. Only the cropped plate image is sent, and the result returns within 1 second.",
+        ) +
+        p(
+          "<b>Accuracy.</b> Container numbers 98.6 % (check-digit validated). Latin plates 97.5 %; Arabic plates 94 %, and the Arabic plate model will be extended with data from this project. Readings are valid at speeds up to 10 km/h.",
+        ) +
+        p(
+          "<b>Damage images.</b> 4 cameras of 5 megapixels cover the sides and the rear of the container; a roof camera is offered as an option. Images are kept for 90 days on the on-premise storage.",
+        ) +
+        p("<b>RFID.</b> One UHF reader per lane (ISO/IEC 18000-63) and 3,000 windscreen tags.") +
+        p(
+          "<b>Kiosks.</b> Kiosk VK-200 rated IP65, operating range 0 °C to +50 °C, with a 19-inch touchscreen, English interface with an Arabic language pack, an intercom and a gate-pass printer.",
+        ) +
+        p(
+          "<b>Transaction time.</b> The average in-gate transaction takes 70 seconds, including the driver's interaction at the kiosk (signature and gate-pass printing).",
+        ) +
+        p(
+          "<b>Gate Operating System.</b> VectorGate GOS provides lane control, an exception workstation and KPI dashboards (transactions per hour, transaction times, exceptions).",
+        ) +
+        p(
+          "<b>Integrations.</b> The TOS is integrated through UN/EDIFACT CODECO and COARRI messages, and the Vehicle Booking System through the PCS REST API. A customs release check can be added after go-live as a change request, once the PCS customs interface is specified. Interfaces are documented (REST/JSON and UN/EDIFACT).",
+        ),
+      security:
+        p(
+          "<b>Hosting.</b> Two virtualised GOS servers in the Terminal 2 server room. The lane edge computers use an outbound HTTPS connection to VectorVision Cloud (EU region, Frankfurt) for plate recognition and for licence and model updates.",
+        ) +
+        ul([
+          "Active Directory integration through LDAP; administrators use multi-factor authentication with the Vector Authenticator app.",
+        ]),
+      implementation:
+        tbl(
+          ["Milestone", "Month"],
+          [
+            ["Factory acceptance test in Rotterdam", "3"],
+            ["Lanes 1 to 4 in operation", "6"],
+            ["Lanes 5 and 6 in operation, Site Acceptance Test", "9"],
+            ["Performance test and acceptance", "10"],
+          ],
+        ) +
+        p(
+          "<b>Training.</b> Access to our online training academy (English) and 3 days of on-site training for operators and technicians.",
+        ),
+      support:
+        p(
+          "<b>Availability.</b> 99.5 % per calendar month. Each lane cabinet has a UPS with 15 minutes of autonomy. In manual mode, clerks enter the data at the exception workstation.",
+        ) +
+        p(
+          "<b>Warranty.</b> 12 months from acceptance. An extended warranty for a second year is offered as an option in our commercial proposal.",
+        ) +
+        p(
+          "<b>Support.</b> Remote support from our Rotterdam service desk, Monday to Friday, 08:00–18:00 CET. On-site intervention by Gulf Harbour Trading engineers on the next business day. Spare parts are shipped from Rotterdam within 3 working days.",
+        ),
+    },
     matrix: {
       "3.1": ["Comply", "98.6 % containers, 97.5 % Latin plates (§2)"],
       "3.2": ["Comply", "4 cameras of 5 MP, roof camera optional (§2)"],
       "3.3": ["Comply", "§2"],
       "3.4": ["Comply", "70 s including kiosk interaction (§2)"],
       "3.5": ["Comply", "Arabic language pack (§2)"],
-      "3.6": ["Comply", "§3"],
-      "3.7": ["Partially comply", "Customs release as change request (§3)"],
-      "3.8": ["Comply", "GOS servers in T2 server room (§4)"],
-      "3.9": ["Comply", "99.5 % (§4)"],
+      "3.6": ["Comply", "§2"],
+      "3.7": ["Partially comply", "Customs release as change request (§2)"],
+      "3.8": ["Comply", "GOS servers in T2 server room (§3)"],
+      "3.9": ["Comply", "99.5 % (§5)"],
       "3.10": ["Comply", "§2"],
-      "4.1": ["Partially comply", "Lanes 1–4 month 6, lanes 5–6 month 9 (§5)"],
-      "4.2": ["Comply", "§5"],
-      "4.3": ["Comply", "Online academy and on-site training (§5)"],
+      "4.1": ["Partially comply", "Lanes 1–4 month 6, lanes 5–6 month 9 (§4)"],
+      "4.2": ["Comply", "§4"],
+      "4.3": ["Comply", "Online academy and on-site training (§4)"],
       "5.1": ["Comply (option)", "12 months + optional second year (§5)"],
       "5.2": ["Comply", "See commercial proposal"],
       "5.3": ["Partially comply", "Next business day through local agent (§5)"],
@@ -585,6 +561,10 @@ export const GATES_BIDS: PocBid[] = [
         ["Bid validity", "90 days from the bid closing date."],
         ["Bid security", "Bank guarantee of USD 40,000 issued by Maasstad Bank N.V., Rotterdam."],
         ["Performance security", "10 % of the contract price."],
+      ],
+      deviations: [
+        "Customs release integration: offered as a change request after go-live, priced once the PCS customs interface is specified (note 4).",
+        "Second warranty year: offered as an option (note 3).",
       ],
     },
   },

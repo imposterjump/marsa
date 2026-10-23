@@ -29,35 +29,35 @@ async function openTender(page: Page) {
   return project as { id: string; code: string };
 }
 
-test.describe("vendor proposals (P4.4–P4.5, P5.1 first cut)", () => {
-  test("simulate a vendor submission → proposals table → proposal workspace", async ({ page }) => {
+test.describe("vendor proposals (P4.4–P4.5, P5.1, P8 Add vendor)", () => {
+  test("add a vendor → proposals table → proposal workspace", async ({ page }) => {
     const project = await openTender(page);
     await page.goto(`/projects/${project.id}/proposals`);
-    await expect(page.getByText("Waiting for proposals")).toBeVisible();
-    await page.getByRole("link", { name: "Simulate a vendor submission" }).first().click();
+    await expect(page.getByText("No vendors yet")).toBeVisible();
+    await page.getByRole("button", { name: "Add vendor" }).first().click();
+    const dlg = page.getByRole("dialog", { name: "Add vendor" });
 
-    await expect(page).toHaveURL(/\/vendor-portal\?project=/);
-    await expect(page.getByText("Demo tool.")).toBeVisible();
-    await expect(page.getByRole("combobox").first()).toContainText(project.code);
+    // Save with nothing to see validation
+    await dlg.getByRole("button", { name: "Save vendor" }).click();
+    await expect(dlg.getByText("Enter the vendor's company name.")).toBeVisible();
+    await expect(dlg.getByText("Add the commercial and the technical proposal.")).toBeVisible();
 
-    // No vendors yet → the new-vendor form shows directly. Submit with nothing to see validation.
-    await page.getByRole("button", { name: "Submit proposal" }).click();
-    await expect(page.getByText("Enter the vendor's company name.")).toBeVisible();
-    await expect(page.getByText("Add the commercial proposal (at least one file).")).toBeVisible();
-
-    await page.getByLabel("Company name").fill("Harborline Systems");
-    await page.getByLabel("Country").fill("Netherlands");
-    const inputs = page.locator("input[type=file]");
+    await dlg.getByLabel("Company name").fill("Harborline Systems");
+    await dlg.getByLabel("Country").fill("Netherlands");
+    const inputs = dlg.locator("input[type=file]");
     await inputs.nth(0).setInputFiles(COMMERCIAL);
     await inputs.nth(1).setInputFiles(TECHNICAL);
-    await expect(page.getByText("2 files ready")).toBeVisible();
-    await page.getByRole("button", { name: "Submit proposal" }).click();
-
-    await expect(page.getByRole("heading", { name: "Proposal submitted" })).toBeVisible({
+    await dlg.getByRole("button", { name: "Save vendor" }).click();
+    await expect(page.getByText("Harborline Systems added · 2 files")).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByText(`Harborline Systems → ${project.code}`)).toBeVisible();
-    await page.getByRole("link", { name: "View proposals" }).click();
+    await expect(dlg).toBeHidden();
+    // The same vendor can't be added twice to one project
+    await page.getByRole("button", { name: "Add vendor" }).first().click();
+    await dlg.getByLabel("Company name").fill("harborline systems");
+    await dlg.getByRole("button", { name: "Save vendor" }).click();
+    await expect(dlg.getByText("Harborline Systems is already on this project.")).toBeVisible();
+    await page.keyboard.press("Escape");
 
     // Proposals table
     await expect(page).toHaveURL(new RegExp(`/projects/${project.id}/proposals$`));
@@ -122,15 +122,12 @@ test.describe("vendor proposals (P4.4–P4.5, P5.1 first cut)", () => {
     await page.keyboard.press("Escape");
     await expect(page).not.toHaveURL(/[?&]q=/);
 
-    // Analyse & process panel under the table (P5.2): one proposal → 5 steps, comparison skipped
+    // AI analysis panel under the table (P8): steps = checklist + per vendor + recommendation
     await page.goto(`/projects/${project.id}/proposals`);
-    const panel = page.getByRole("region", { name: /Analyse & process/ });
-    await expect(panel).toContainText("5 (3 × 1 + 2)");
-    await expect(panel).toContainText(
-      "Only one proposal: the vendor comparison step will be skipped.",
-    );
+    const panel = page.getByRole("region", { name: "AI analysis" });
+    await expect(panel).toContainText(/\d+ \([23] × 1 \+ 2\)/);
     await expect(panel).toContainText("Free (demo AI)");
-    await expect(panel.getByRole("button", { name: "Analyse & process" })).toBeEnabled();
+    await expect(panel.getByRole("button", { name: "Run AI analysis" })).toBeEnabled();
 
     // A published tender with proposals can no longer go back to draft
     await page.getByRole("button", { name: "More actions", exact: true }).click();
