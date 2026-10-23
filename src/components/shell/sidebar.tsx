@@ -8,9 +8,10 @@ import { FlaskConical, KeyRound, PanelLeftClose, PanelLeftOpen, Sparkles } from 
 import { cn } from "cn";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSettings } from "@/hooks/use-settings";
-import { RtaLogo, TriangleMark, Wordmark } from "./brand-mark";
+import { Emblem, Wordmark } from "./brand-mark";
 import { isActive, NAV_ITEMS } from "./nav";
 import { AI_MODEL_LABEL } from "@/lib/labels";
+import { APP_NAME } from "@/lib/brand";
 
 /**
  * Desktop sidebar (≥ lg): the deep-ink rail of the RTA shell, the single standing dark element.
@@ -53,20 +54,19 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
 /** Shared by the desktop rail and the mobile drawer. */
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { data: settings } = useSettings();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-8 px-3 pt-6">
       <Link
         href="/projects"
         onClick={onNavigate}
-        aria-label={`${settings?.appName ?? "Marsa"}: projects`}
+        aria-label={`${APP_NAME}: projects`}
         className="flex flex-col gap-4 rounded-lg px-2 py-1 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none collapsed:items-center collapsed:px-0"
       >
-        <RtaLogo tone="white" height={40} className="-ms-1 collapsed:hidden" />
-        <TriangleMark size={30} className="hidden collapsed:block" />
+        <Emblem size={56} className="collapsed:hidden" />
+        <Emblem size={34} className="hidden collapsed:block" decorative />
         <span className="collapsed:hidden">
-          <Wordmark appName={settings?.appName ?? "Marsa"} onDark />
+          <Wordmark appName={APP_NAME} onDark />
         </span>
       </Link>
 

@@ -5,6 +5,7 @@
 
 ## Now
 - **Current phase:** **P8 (new story after the client meeting) ✅ built → waiting for your test** (checkpoint P8.6). Committed locally, **not pushed**.
+- **Name:** users see **Mizan**; "Marsa" is the codename in code and docs (see CLAUDE.md, HANDOFF G-85).
   - Guided New project form (Project → Standards → Vendors);
   - project page with one AI analysis button;
   - new pipeline (standards and RFP checked separately, 7 proposal sections, 0–100 risk score);
@@ -27,6 +28,9 @@
 ## Decision log
 | Date | Decision | By |
 |---|---|---|
+| 2026-10-23 | **Product name shown to users: Mizan** (procurement name; "Marsa" meant harbour). Only the UI changes: code, database and docs keep the codename Marsa | You |
+| 2026-10-23 | **Logo: the Sharjah emblem** replaces the RTA logo (the RTA colours and fonts stay) | You |
+| 2026-10-23 | POC set 4 with three vendors (customs laboratory LIMS, category Quality) | You |
 | 2026-10-23 | **Open stepper:** all steps can be opened without filling anything; Create checks the required items and goes back to the exact missing one | You |
 | 2026-10-23 | RFP, Standards and Risks tabs **vendor first**: a card per vendor with its score per section (previous layout tagged `before-vendor-first-layout`) | You |
 | 2026-10-23 | In the RFP / Standards dropdowns, **status pills** (non-compliant · partial · not addressed · compliant) show one group of points at a time | You |

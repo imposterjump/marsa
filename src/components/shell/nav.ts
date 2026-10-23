@@ -1,4 +1,5 @@
 import { FolderKanban, Settings, ShieldCheck, type LucideIcon } from "lucide-react";
+import { APP_NAME } from "@/lib/brand";
 
 export interface NavItem {
   href: string;
@@ -29,7 +30,7 @@ export const PAGE_TITLES: { prefix: string; title: string }[] = [
 export function pageTitleFor(pathname: string): string {
   return (
     PAGE_TITLES.find((p) => pathname === p.prefix || pathname.startsWith(`${p.prefix}/`))?.title ??
-    "Marsa"
+    APP_NAME
   );
 }
 

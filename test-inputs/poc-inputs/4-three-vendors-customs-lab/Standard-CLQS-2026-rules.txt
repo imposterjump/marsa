@@ -1,0 +1,12 @@
+LQ-01 | The system shall keep a complete audit trail of every creation, change and deletion of a record, with the user, date, time and reason; audit records cannot be edited and shall be kept for 10 years. | mandatory
+LQ-02 | Results shall be approved with an electronic signature that asks for the user's password at the moment of signing and stays permanently linked to the signed record. | mandatory
+LQ-03 | Every sample shall have a chain of custody from receipt to disposal, with each transfer between people or locations recorded. | mandatory
+LQ-04 | The system shall support the laboratory's ISO/IEC 17025 accreditation with records of method validation, measurement uncertainty, equipment calibration and staff competence. | important
+LQ-05 | Instruments with a digital output shall send their results to the system directly, through a file or an interface; manual transcription of such results is not acceptable. | important
+LQ-06 | Laboratory data shall be stored and processed only on servers in the State controlled by the Directorate. | mandatory
+LQ-07 | The supplier shall validate the system (installation, operational and performance qualification) and deliver the validation documents before go-live. | mandatory
+LQ-08 | Users shall sign in through the Directorate's Active Directory, and roles shall separate analysts, reviewers and approvers. | important
+LQ-09 | Data shall be backed up every day, and a restore shall be tested at least every 6 months. | important
+LQ-10 | Certificates of analysis and the user interface shall be available in Arabic and English. | desirable
+LQ-11 | Critical faults shall get a response within 4 hours on working days. | important
+LQ-12 | A warranty of at least 12 months after go-live shall cover the software and its configuration. | mandatory

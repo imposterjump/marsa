@@ -3,14 +3,21 @@ import { bootScript } from "@/lib/theme";
 import { fontVariables } from "./fonts";
 import { Providers } from "./providers";
 import "./globals.css";
+import { APP_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
-  title: "Marsa",
+  title: APP_NAME,
   description: "Procurement Intelligence for Ports & Customs",
-  applicationName: "Marsa",
+  applicationName: APP_NAME,
   // Static file, not src/app/icon.svg: a metadata icon route made the dev server rebuild and reload
   // the page on every request.
-  icons: { icon: "/brand/icon.svg" },
+  icons: {
+    icon: [
+      { url: "/brand/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/icon-64.png", sizes: "64x64", type: "image/png" },
+    ],
+    apple: "/brand/icon-180.png",
+  },
 };
 
 export const viewport: Viewport = {

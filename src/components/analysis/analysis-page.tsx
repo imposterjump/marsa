@@ -58,6 +58,7 @@ import { type ComplianceFocus, ComplianceTab } from "./compliance-tab";
 import { OverviewTab } from "./overview-tab";
 import { RisksTab } from "./risks-tab";
 import { type OpenEvidence, type Scope, vendorColors } from "./shared";
+import { APP_NAME } from "@/lib/brand";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
 
@@ -171,7 +172,7 @@ function NoRunYet() {
         title={p.proposalCount ? "Not analysed yet" : "No vendors yet"}
         description={
           p.proposalCount
-            ? `Marsa checks each of the ${p.proposalCount} vendor${p.proposalCount === 1 ? "" : "s"} against the standards and, separately, the RFP, section by section, then builds a risk register and recommends one.`
+            ? `${APP_NAME} checks each of the ${p.proposalCount} vendor${p.proposalCount === 1 ? "" : "s"} against the standards and, separately, the RFP, section by section, then builds a risk register and recommends one.`
             : "Add at least one vendor with its proposal in the Proposals tab, then run the analysis."
         }
         actions={

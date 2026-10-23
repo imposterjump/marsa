@@ -32,6 +32,7 @@ import { useSettings } from "@/hooks/use-settings";
 import { ApiClientError } from "@/lib/api-client";
 import type { ProposalSummaryDto, VendorDto } from "@/lib/api-types";
 import { PROPOSAL_SECTION_LABEL } from "@/lib/labels";
+import { APP_NAME } from "@/lib/brand";
 import { PROPOSAL_SECTIONS } from "@/lib/domain";
 
 const EMPTY: VendorInput = { name: "", country: "", contactName: "", contactEmail: "" };
@@ -300,7 +301,7 @@ function VendorForm({
               <Field
                 label="Company name"
                 error={show(errors.vendor)}
-                hint={match && !taken.includes(match.id) ? `${match.name} is already in Marsa: its details are reused.` : undefined}
+                hint={match && !taken.includes(match.id) ? `${match.name} is already in ${APP_NAME}: its details are reused.` : undefined}
                 className="sm:col-span-2"
               >
                 <Input

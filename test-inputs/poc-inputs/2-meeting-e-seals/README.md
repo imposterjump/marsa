@@ -11,7 +11,7 @@
 | `Vendor-1-Trakom-Security-Solutions-Technical.pdf` / `-Commercial.pdf` | Vendor 1: technical (4 p.) and commercial (2 p.) |
 | `Vendor-2-Orbis-Track-Technical.pdf` / `-Commercial.pdf` | Vendor 2: technical (4 p.) and commercial (2 p.) |
 
-**The proposals follow Marsa's 7-section template.** The technical proposal has sections 1–5:
+**The proposals follow Mizan's 7-section template.** The technical proposal has sections 1–5:
 1. Company and references;
 2. Technical solution;
 3. Security and data;

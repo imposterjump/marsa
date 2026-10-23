@@ -36,6 +36,7 @@ import { useDeleteStandard, useStandards, useUpdateStandard } from "@/hooks/use-
 import type { StandardSummaryDto } from "@/lib/api-types";
 import { formatDate } from "@/lib/format";
 import { StandardFormDialog } from "./standard-form-dialog";
+import { APP_NAME } from "@/lib/brand";
 
 type Filter = "all" | "active" | "inactive";
 
@@ -63,7 +64,7 @@ export function StandardsList() {
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Standards"
-        description="Your organization's rules that every proposal must respect, such as IT security, safety and commercial terms. Marsa checks each vendor against the active standards of a project, alongside its RFP."
+        description={`Your organization's rules that every proposal must respect, such as IT security, safety and commercial terms. ${APP_NAME} checks each vendor against the active standards of a project, alongside its RFP.`}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus /> New standard

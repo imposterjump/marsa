@@ -1,74 +1,42 @@
-/* eslint-disable @next/next/no-img-element -- static brand assets from public/brand */
-import { useId } from "react";
+/* eslint-disable @next/next/no-img-element -- static brand asset from public/brand */
 import { cn } from "cn";
+import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 
 /**
- * Brand marks (RTA PoC Design System §01): the RTA lockup, never distorted or recoloured, and the
- * red triangle as the compact mark (collapsed sidebar, small dialogs). Decorative where the
- * product name is written next to it.
+ * The brand mark (user, 2026-10-23: the Sharjah emblem replaces the RTA logo): the emblem as a
+ * round badge, never distorted or recoloured. Large in the sidebar, small on the collapsed rail
+ * and in dialogs. Decorative where the product name is written next to it.
  */
-export function TriangleMark({ size = 28, className }: { size?: number; className?: string }) {
-  // Unique per instance: a gradient defined in a hidden copy (collapsed-rail mark) renders nothing.
-  const id = useId();
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 32 32"
-      aria-hidden
-      className={cn("shrink-0", className)}
-    >
-      <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#ec1c24" />
-          <stop offset="1" stopColor="#ff5a47" />
-        </linearGradient>
-      </defs>
-      <path d="M29 4 3 16.5 29 28Z" fill={`url(#${id})`} />
-    </svg>
-  );
-}
-
-/** Kept for the profile / welcome dialog: the triangle mark on a light tile. */
-export function BrandMark({ size = 32, className }: { size?: number; className?: string }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-[10px] bg-rail",
-        className,
-      )}
-      style={{ width: size, height: size }}
-    >
-      <TriangleMark size={Math.round(size * 0.62)} />
-    </span>
-  );
-}
-
-/** Full RTA lockup: white on the deep-ink sidebar and dark bands, colour on light surfaces. */
-export function RtaLogo({
-  tone = "white",
-  height = 40,
+export function Emblem({
+  size = 40,
   className,
+  decorative = false,
 }: {
-  tone?: "white" | "color";
-  height?: number;
+  size?: number;
   className?: string;
+  decorative?: boolean;
 }) {
   return (
     <img
-      src={tone === "white" ? "/brand/rta-logo-white.png" : "/brand/rta-logo-color.png"}
-      alt="RTA — Roads & Transport Authority"
-      height={height}
-      style={{ height, width: "auto" }}
-      className={cn("block shrink-0 select-none", className)}
+      src="/brand/sharjah-emblem.png"
+      alt={decorative ? "" : "Emblem of Sharjah"}
+      aria-hidden={decorative || undefined}
+      width={size}
+      height={size}
+      style={{ width: size, height: size }}
+      className={cn("block shrink-0 rounded-full select-none", className)}
       draggable={false}
     />
   );
 }
 
+/** The emblem for the profile / welcome dialog. */
+export function BrandMark({ size = 32, className }: { size?: number; className?: string }) {
+  return <Emblem size={size} className={className} decorative />;
+}
+
 export function Wordmark({
-  appName = "Marsa",
+  appName = APP_NAME,
   tagline = true,
   onDark = false,
 }: {
@@ -93,7 +61,7 @@ export function Wordmark({
             onDark ? "text-rail-muted" : "text-ink-muted",
           )}
         >
-          Procurement Intelligence
+          {APP_TAGLINE}
         </span>
       )}
     </span>

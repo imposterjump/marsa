@@ -24,6 +24,7 @@ import {
   standardsTask,
   summaryTask,
 } from "./prompts";
+import { APP_NAME } from "../../lib/brand";
 
 export type Block = Anthropic.Beta.BetaContentBlockParam;
 
@@ -216,7 +217,7 @@ function stepBlocks(input: StepInput): Block[] {
     case "summary":
       return [
         ...checklistSection(input.checklist),
-        ...analysesSection("Marsa's scores and the vendors' analyses", {
+        ...analysesSection(`${APP_NAME}'s scores and the vendors' analyses`, {
           ranking: input.scores.map((s) => ({
             rank: s.rank,
             vendor: s.vendor,

@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useHydrationSafe } from "@/hooks/hydration-safe";
 import { api } from "@/lib/api-client";
 import { Section } from "./settings-section";
+import { APP_NAME } from "@/lib/brand";
 
 interface SeedStatus {
   available: boolean;
@@ -56,7 +57,7 @@ export function DemoSection() {
     <Section
       id="demo"
       title="Demo tools"
-      description="Tools for trying Marsa without real vendors. They change data, so each one asks first."
+      description={`Tools for trying ${APP_NAME} without real vendors. They change data, so each one asks first.`}
     >
       <div className="flex flex-col divide-y divide-border/70">
         <Tool

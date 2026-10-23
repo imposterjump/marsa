@@ -19,6 +19,7 @@ import {
 import { PRIORITY_LABEL } from "@/lib/labels";
 import { computeScore, creditFor } from "@/lib/scoring";
 import { SaveStatus, Section } from "./settings-section";
+import { APP_NAME } from "@/lib/brand";
 
 const PRIORITY_HINT: Record<Priority, string> = {
   mandatory: "Must be met. Failing one also flags the vendor at the mandatory gate.",
@@ -48,7 +49,7 @@ export function ScoringSection() {
     <Section
       id="scoring"
       title="Scoring"
-      description="How a vendor's compliance % is calculated from its findings. Marsa computes it; the AI never picks the number."
+      description={`How a vendor's compliance % is calculated from its findings. ${APP_NAME} computes it; the AI never picks the number.`}
     >
       {/* Mounted once when settings load; later saves don't remount (keeps focus while editing). */}
       {data ? <ScoringEditor initial={data} /> : <Skeleton className="h-96 w-full" />}

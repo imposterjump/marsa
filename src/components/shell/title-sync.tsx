@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useSettings } from "@/hooks/use-settings";
 import { pageTitleFor } from "./nav";
+import { APP_NAME } from "@/lib/brand";
 
 /**
  * PRD FR-1.3 tab title: "{Page} · {App} — {Customer}".
@@ -16,7 +17,7 @@ export function TitleSync() {
   const { data } = useSettings();
 
   useEffect(() => {
-    const app = data?.appName || "Marsa";
+    const app = APP_NAME;
     const page = pageTitleFor(pathname);
     const customer = data?.customerName?.trim();
     const desired = `${page === app ? page : `${page} · ${app}`}${customer ? ` — ${customer}` : ""}`;
@@ -28,7 +29,7 @@ export function TitleSync() {
     const observer = new MutationObserver(apply);
     observer.observe(document.head, { subtree: true, childList: true, characterData: true });
     return () => observer.disconnect();
-  }, [pathname, data?.appName, data?.customerName]);
+  }, [pathname, data?.customerName]);
 
   return null;
 }

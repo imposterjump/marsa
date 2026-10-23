@@ -19,6 +19,7 @@ import {
   RISK_SEVERITIES,
   type ReportLanguage,
 } from "../../lib/domain";
+import { APP_NAME } from "../../lib/brand";
 
 const LANGUAGE: Record<ReportLanguage, string> = {
   en: "English",
@@ -129,7 +130,7 @@ export function summaryTask(recommended: string | null, missing: string[]): stri
     ? `\n- These vendors could not be analysed: ${missing.join(", ")}. Say so in the executive summary.`
     : "";
   const pick = recommended
-    ? `Marsa recommends ${recommended}: the best mix of standards compliance, RFP compliance and low risk in Section E.`
+    ? `${APP_NAME} recommends ${recommended}: the best mix of standards compliance, RFP compliance and low risk in Section E.`
     : "No vendor could be recommended from the scores in Section E.";
   return `Task: explain the recommendation to the evaluation committee. ${pick}
 

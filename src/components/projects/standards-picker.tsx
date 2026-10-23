@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useStandards } from "@/hooks/use-standards";
 import type { StandardSummaryDto } from "@/lib/api-types";
 import { standardFitsProject, type ProjectCategory } from "@/lib/domain";
+import { APP_NAME } from "@/lib/brand";
 
 /**
  * Choose which standards apply to a project (PRD FR-3.3). Only standards that fit the project's
@@ -42,7 +43,7 @@ export function StandardsPicker({
         <EmptyState
           art={<ShieldCheck className="size-10 text-brand" strokeWidth={1.5} />}
           title="No standards in your library"
-          description="That's fine: Marsa will evaluate proposals against the RFP only. You can add standards later."
+          description={`That's fine: ${APP_NAME} will evaluate proposals against the RFP only. You can add standards later.`}
           actions={
             <Button asChild variant="secondary" size="sm">
               <Link href="/standards" target="_blank">

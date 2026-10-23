@@ -41,6 +41,7 @@ import {
   type ProjectErrors,
 } from "./project-details-form";
 import { StandardsPicker } from "./standards-picker";
+import { APP_NAME } from "@/lib/brand";
 
 const STEPS = [
   { n: 1, title: "Project", hint: "Title, category and the RFP", optional: false },
@@ -514,7 +515,7 @@ function StandardsStep({
       <div className="flex flex-col gap-6 px-6 py-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <p className="max-w-2xl leading-relaxed text-ink-2">
-            Pick the standards this project must comply with. Marsa checks every proposal against each of their rules,
+            Pick the standards this project must comply with. {APP_NAME} checks every proposal against each of their rules,
             separately from the RFP.{" "}
             {category === "General"
               ? "This is a General project, so every standard can apply."

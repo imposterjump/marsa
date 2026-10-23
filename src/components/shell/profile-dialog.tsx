@@ -22,6 +22,7 @@ import { ApiClientError } from "@/lib/api-client";
 import type { SettingsDto } from "@/lib/api-types";
 import { firstName } from "@/lib/format";
 import { BrandMark } from "./brand-mark";
+import { APP_NAME } from "@/lib/brand";
 
 const NAME_MAX = 80;
 const ORG_MAX = 120;
@@ -118,7 +119,7 @@ function ProfileForm({
             <BrandMark size={40} />
             <MaskedText
               as="p"
-              text={["Welcome to Marsa"]}
+              text={[`Welcome to ${APP_NAME}`]}
               className="font-heading text-[26px] leading-tight font-semibold tracking-tight text-ink"
             />
             <p className="max-w-sm leading-relaxed text-ink-2">
@@ -158,7 +159,7 @@ function ProfileForm({
           error={orgError}
           hint={
             trimmed
-              ? `${greet}, ${firstName(trimmed)}: that's how Marsa will greet you.`
+              ? `${greet}, ${firstName(trimmed)}: that's how ${APP_NAME} will greet you.`
               : undefined
           }
         >

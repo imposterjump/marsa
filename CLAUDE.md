@@ -1,5 +1,7 @@
 # Marsa — project guide for Claude
 
+> **Naming (2026-10-23):** users see the product as **Mizan** (ميزان, "the scale"). **Marsa** is only the internal codename: the repo, package, database, folders, docs and code comments keep it. Never rename code, tables or files to Mizan. The displayed name comes from `APP_NAME` in `src/lib/brand.ts`; the settings row still stores "Marsa" and is ignored (HANDOFF G-85). Logo: the Sharjah emblem (`public/brand/sharjah-emblem.png`), not the RTA logo.
+
 Marsa is a ports & customs procurement-evaluation prototype: customers publish RFPs, vendors submit commercial and technical proposals, and Claude scores compliance, compares vendors, and builds risk registers.
 
 @AGENTS.md

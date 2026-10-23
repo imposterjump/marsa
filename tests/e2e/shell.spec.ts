@@ -21,7 +21,7 @@ test.describe("first run (FR-1.4)", () => {
 
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("Welcome to Marsa")).toBeVisible();
+    await expect(dialog.getByText("Welcome to Mizan")).toBeVisible();
 
     // Not dismissable with Esc in welcome mode.
     await page.keyboard.press("Escape");
@@ -39,7 +39,7 @@ test.describe("first run (FR-1.4)", () => {
 
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Layla");
     await expect(page.getByRole("button", { name: /^Account: Layla Mansour/ })).toBeVisible();
-    await expect(page).toHaveTitle("Projects · Marsa — Layla Mansour");
+    await expect(page).toHaveTitle("Projects · Mizan — Layla Mansour");
   });
 
   test("skip for now stores Guest", async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe("shell (FR-1.2, FR-1.3, FR-1.5)", () => {
       "aria-current",
       "page",
     );
-    await expect(page).toHaveTitle("Standards · Marsa — Layla Mansour");
+    await expect(page).toHaveTitle("Standards · Mizan — Layla Mansour");
 
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();

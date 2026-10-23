@@ -75,6 +75,7 @@ import {
 } from "@/lib/domain";
 import { RUN_PHASE_LABEL } from "@/lib/labels";
 import { useSettings } from "@/hooks/use-settings";
+import { APP_NAME } from "@/lib/brand";
 
 const SECTIONS = [
   ["colors", "Colours"],
@@ -97,7 +98,7 @@ export function UiKit() {
       <PageHeader
         eyebrow="Design system · Harbor"
         title="UI kit"
-        description="Every Marsa building block in all its states, in light and dark. Use the theme switch in the header to compare."
+        description={`Every ${APP_NAME} building block in all its states, in light and dark. Use the theme switch in the header to compare.`}
       />
       <nav aria-label="UI kit sections" className="flex flex-wrap gap-2">
         {SECTIONS.map(([id, label]) => (

@@ -1,19 +1,20 @@
 # POC inputs: small tenders for the meeting demo
 
-Three complete, mid-size tenders that show the whole Marsa workflow in a few minutes.
+Four complete, mid-size tenders that show the whole Mizan workflow in a few minutes.
 
 **Each set contains:**
 - one standard: 12 rules as an Excel file to drop, plus the same rules as CSV and text;
 - one RFP (PDF);
-- two vendors (three in set 3), each with a **technical** and a **commercial** (financial) proposal (PDF). All follow Marsa's 7-section proposal template.
+- two vendors (three in sets 3 and 4), each with a **technical** and a **commercial** (financial) proposal (PDF). All follow Mizan's 7-section proposal template.
 
 | Set | Use it | Tender | Standard | Vendors |
 |---|---|---|---|---|
 | [`1-rehearsal-smart-gates/`](1-rehearsal-smart-gates/README.md) | **Before the meeting**, to practise | NGPA/T/2026/031 · Smart Gate Automation for the Terminal 2 truck gates (Port of Al-Noor) | POTS-2026 · Port Operational Technology Standard | Sahel Gate Technologies, Vector OCR Systems |
 | [`2-meeting-e-seals/`](2-meeting-e-seals/README.md) | **In the meeting** | GCD/T/2026/047 · Electronic Seal Tracking System for Transit Cargo (General Customs Directorate) | CTS-2026 · Customs Transit Security Standard | Trakom Security Solutions, Orbis Track |
 | [`3-three-vendors-air-quality/`](3-three-vendors-air-quality/README.md) | **Three vendors**, category Safety & environment | NGPA/T/2026/052 · Air Quality and Noise Monitoring Network (Port of Al-Noor) | PEMS-2026 · Port Environmental Monitoring Standard | Sabkha Environmental Systems, Nimbrel Sensing, Kaltenmoor Messtechnik |
+| [`4-three-vendors-customs-lab/`](4-three-vendors-customs-lab/README.md) | **Three vendors**, category Quality | GCD/T/2026/061 · Laboratory Information Management System (Central Customs Laboratory) | CLQS-2026 · Customs Laboratory Quality Standard | Qalamra Lab Systems, Veridane Informatics, Corvantis Business Software |
 
-**Sets 1 and 2 have the same shape**, so the rehearsal shows exactly what will happen in the meeting. Set 3 has three vendors (11 steps).
+**Sets 1 and 2 have the same shape**, so the rehearsal shows exactly what will happen in the meeting. Sets 3 and 4 have three vendors (11 steps).
 - 1 standard + 1 RFP + 2 vendors → **8 AI steps**:
   - 1 checklist;
   - 2 standards checks;
@@ -25,9 +26,9 @@ Three complete, mid-size tenders that show the whole Marsa workflow in a few min
 
 All organisations, people and documents are fictional. Nothing in the vendor documents points the AI at the answers: each vendor describes its own offer, like a real bid.
 
-## Cost and time of a live run (from Marsa's own estimate)
+## Cost and time of a live run (from Mizan's own estimate)
 
-| Model | Set 1 (rehearsal) | Set 2 (meeting) | Set 3 (3 vendors) |
+| Model | Set 1 (rehearsal) | Set 2 (meeting) | Sets 3 and 4 (3 vendors) |
 |---|---|---|---|
 | Claude Haiku 5.5 | ≈ $0.05 | ≈ $0.05 | ≈ $0.08 (real run: $0.094) |
 | Claude Sonnet 5.5 | ≈ $0.66 | ≈ $0.59 | ≈ $0.92 |

@@ -9,10 +9,12 @@ import {
   type SettingsRow,
 } from "@/server/services/settings";
 import type { SettingsDto } from "@/lib/api-types";
+import { APP_NAME } from "@/lib/brand";
 
 function toDto({ id: _id, ...row }: SettingsRow): SettingsDto {
   return {
     ...row,
+    appName: APP_NAME,
     runtime: {
       aiMode: env.AI_MODE,
       apiKeyConfigured: isApiKeyConfigured(),

@@ -31,6 +31,7 @@ import type { ProjectStatus } from "@/lib/domain";
 import { firstName } from "@/lib/format";
 import { PROJECT_STATUS_LABEL } from "@/lib/labels";
 import { ProjectCard, ProjectRow } from "./project-card";
+import { APP_NAME } from "@/lib/brand";
 
 type Filter = "all" | ProjectStatus;
 type View = "grid" | "list";
@@ -113,7 +114,7 @@ export function ProjectsHome() {
             )}
             <Reveal delay={0.25} immediate>
               <p className="max-w-xl text-base leading-relaxed text-pretty text-ink-2">
-                Publish an RFP, collect vendor proposals, and let Marsa check every requirement:
+                Publish an RFP, collect vendor proposals, and let {APP_NAME} check every requirement:
                 compliance, comparisons and risks, each with evidence you can open.
               </p>
             </Reveal>
@@ -245,7 +246,7 @@ export function ProjectsHome() {
               description={
                 <>
                   A project holds one tender: its RFP documents, the standards that apply, the
-                  vendors&apos; proposals and Marsa&apos;s evaluation. Start by publishing your
+                  vendors&apos; proposals and {APP_NAME}&apos;s evaluation. Start by publishing your
                   first RFP.
                 </>
               }

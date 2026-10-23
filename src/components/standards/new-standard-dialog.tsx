@@ -35,6 +35,7 @@ import { STANDARD_CATEGORIES, type StandardCategory } from "@/lib/domain";
 import { AI_MODEL_LABEL } from "@/lib/labels";
 import { parseRules, type ParsedRule } from "@/lib/rules-parse";
 import { uploadFile } from "@/lib/upload";
+import { APP_NAME } from "@/lib/brand";
 
 interface FileResult {
   rules: ParsedRule[];
@@ -235,7 +236,7 @@ export function NewStandardDialog({
               {result?.needsAi && !reading && file && (
                 <div className="flex flex-col gap-2 rounded-xl border border-info/30 bg-info-soft p-4 text-[13px] text-ink-2">
                   <span>
-                    No rule table was found in this file&apos;s text. Marsa can read the rules with
+                    No rule table was found in this file&apos;s text. {APP_NAME} can read the rules with
                     AI:{" "}
                     {live
                       ? `one small request to ${model ? AI_MODEL_LABEL[model] : "Claude"} (about $0.01 on Haiku, $0.05 on Sonnet).`

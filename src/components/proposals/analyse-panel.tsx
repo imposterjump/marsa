@@ -13,6 +13,7 @@ import type { ProjectDetailDto, ProposalSummaryDto } from "@/lib/api-types";
 import { DEFAULT_AI_MODEL, DEFAULT_CONCURRENCY } from "@/lib/domain";
 import { AI_MODEL_LABEL } from "@/lib/labels";
 import { estimateSeconds, formatDuration, planRun } from "@/lib/plan";
+import { APP_NAME } from "@/lib/brand";
 
 /**
  * PRD FR-5.3: the analysis summary under the proposals table. Shows what the run will cover
@@ -86,8 +87,8 @@ export function AnalysePanel({
             </h3>
             <p className="max-w-2xl text-[13px] leading-relaxed text-ink-muted">
               {n === 0
-                ? "Once vendors are added, Marsa checks every proposal against the standards and, separately, the RFP, assesses its risks and recommends a vendor."
-                : `Marsa will check ${n === 1 ? "the proposal" : `each of the ${n} proposals`} against ${
+                ? `Once vendors are added, ${APP_NAME} checks every proposal against the standards and, separately, the RFP, assesses its risks and recommends a vendor.`
+                : `${APP_NAME} will check ${n === 1 ? "the proposal" : `each of the ${n} proposals`} against ${
                     project.standards.length
                       ? `${project.standards.length} standard${project.standards.length === 1 ? "" : "s"} (${rules} rules) and, separately, the RFP`
                       : "the RFP"
