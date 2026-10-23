@@ -17,7 +17,6 @@ import {
   type OpenEvidence,
   type Scope,
   SECTION_ORDER,
-  SectionTitle,
   VendorLabel,
   pctText,
   scopeStats,
@@ -26,7 +25,7 @@ import {
 } from "./shared";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
-/** The status pills in a vendor's dropdown, worst first. */
+/** The status pills in a section's dropdown, worst first. */
 const STATUS_PILLS: FindingStatus[] = ["non_compliant", "partial", "not_addressed", "compliant"];
 const SHORT_FIRST: Record<FindingStatus, number> = {
   non_compliant: 0,
@@ -35,15 +34,13 @@ const SHORT_FIRST: Record<FindingStatus, number> = {
   compliant: 3,
 };
 
-const SCOPE_TEXT: Record<Scope, { tab: string; unit: [string, string]; none: string; icon: typeof FileText }> = {
+const SCOPE_TEXT: Record<Scope, { unit: [string, string]; none: string; icon: typeof FileText }> = {
   rfp: {
-    tab: "RFP",
     unit: ["RFP requirement", "RFP requirements"],
     none: "No RFP requirement falls in these sections",
     icon: FileText,
   },
   standard: {
-    tab: "Standards",
     unit: ["standard rule", "standard rules"],
     none: "No standard rule falls in these sections",
     icon: ShieldCheck,
@@ -53,14 +50,18 @@ const SCOPE_TEXT: Record<Scope, { tab: string; unit: [string, string]; none: str
 export interface ComplianceFocus {
   section: ProposalSection | null;
   scope: Scope;
+  /** The vendor whose risk asked for it: its card opens on that section. */
+  proposalId?: string;
   at: number;
 }
 
+const rowId = (proposalId: string, section: ProposalSection | null) => `sec-${proposalId}-${section ?? "none"}`;
+
 /**
- * The RFP tab and the Standards tab (user's design, 2026-10-23): the same section cards, one tab
- * per kind of point, so a section never shows an empty half. Sections with points come first in
- * template order; the sections this tab has nothing about are listed once at the end. In a card
- * every vendor has its % for that section and a dropdown of its points, shortfalls first.
+ * The RFP tab and the Standards tab (user's design, 2026-10-23, "vendor first"): one card per
+ * vendor in ranking order, with its result for the whole tab on top and its score in every
+ * proposal section underneath. A section opens its points, one status group at a time. Sections
+ * this tab has nothing about are listed once at the end.
  */
 export function ComplianceTab({
   scope,
@@ -79,19 +80,23 @@ export function ComplianceTab({
   const reduce = useReducedMotion();
   const vendors = d.vendors.filter((v) => v.scores);
   const inScope = d.requirements.filter((r) => r.scope === scope);
-  const withData = SECTION_ORDER.filter((s) => inScope.some((r) => r.section === s));
-  const empty = SECTION_ORDER.filter((s) => s !== null && !withData.includes(s));
+  const sections = SECTION_ORDER.filter((s) => inScope.some((r) => r.section === s));
+  const empty = SECTION_ORDER.filter((s) => s !== null && !sections.includes(s));
   const Icon = SCOPE_TEXT[scope].icon;
   const [one, many] = SCOPE_TEXT[scope].unit;
+  const target =
+    focus && focus.scope === scope
+      ? { proposalId: focus.proposalId ?? vendors[0]?.proposalId, section: focus.section }
+      : null;
 
   useEffect(() => {
-    if (!focus || focus.scope !== scope) return;
-    const el = document.getElementById(`sec-${focus.section ?? "none"}`);
+    if (!target?.proposalId) return;
+    const el = document.getElementById(rowId(target.proposalId, target.section));
     const raf = requestAnimationFrame(() =>
-      el?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }),
+      el?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" }),
     );
     return () => cancelAnimationFrame(raf);
-  }, [focus, reduce, scope]);
+  }, [target?.proposalId, target?.section, reduce]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -99,35 +104,35 @@ export function ComplianceTab({
         <p className="flex items-center gap-2 text-[13px] text-ink-muted">
           <Icon className="size-4" aria-hidden />
           {inScope.length} {inScope.length === 1 ? one : many}
-          {scope === "standard" && d.standards.length > 0 && ` from ${d.standards.map((s) => s.code).join(", ")}`}, by
-          proposal section
+          {scope === "standard" && d.standards.length > 0 && ` from ${d.standards.map((s) => s.code).join(", ")}`} · each
+          vendor&apos;s score per proposal section
         </p>
+        {vendors.length > 1 && (
+          <nav aria-label="Vendors" className="flex flex-wrap gap-2">
+            {vendors.map((v) => (
+              <a
+                key={v.proposalId}
+                href={`#vendor-${v.proposalId}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-ink-2 transition-colors outline-none hover:border-border-strong hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <span aria-hidden className="size-2 rounded-full" style={{ background: colors.get(v.proposalId) }} />
+                <span dir="auto">{v.vendor.name}</span>
+              </a>
+            ))}
+          </nav>
+        )}
       </div>
 
-      {withData.length > 1 && (
-        <nav aria-label="Sections" className="flex flex-wrap gap-2">
-          {withData.map((s) => (
-            <a
-              key={s ?? "none"}
-              href={`#sec-${s ?? "none"}`}
-              className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-ink-2 transition-colors outline-none hover:border-border-strong hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
-            >
-              {sectionLabel(s)}
-            </a>
-          ))}
-        </nav>
-      )}
-
-      {withData.map((s) => (
-        <SectionCard
-          key={`${scope}-${s ?? "none"}`}
+      {vendors.map((v) => (
+        <VendorCard
+          key={v.proposalId}
           d={d}
           scope={scope}
-          section={s}
-          vendors={vendors}
-          colors={colors}
+          v={v}
+          color={colors.get(v.proposalId)}
+          sections={sections}
           onEvidence={onEvidence}
-          pulse={focus?.section === s && focus.scope === scope}
+          focusSection={target?.proposalId === v.proposalId ? target.section : undefined}
         />
       ))}
 
@@ -148,47 +153,60 @@ export function ComplianceTab({
   );
 }
 
-function SectionCard({
+function VendorCard({
   d,
   scope,
-  section,
-  vendors,
-  colors,
+  v,
+  color,
+  sections,
   onEvidence,
-  pulse,
+  focusSection,
 }: {
   d: AnalysisResultsDto;
   scope: Scope;
-  section: ProposalSection | null;
-  vendors: VendorResultDto[];
-  colors: Map<string, string>;
+  v: VendorResultDto;
+  color?: string;
+  sections: (ProposalSection | null)[];
   onEvidence: OpenEvidence;
-  pulse?: boolean;
+  /** undefined: no focus on this vendor; null is the "not assigned" section. */
+  focusSection?: ProposalSection | null;
 }) {
-  const n = d.requirements.filter((r) => r.section === section && r.scope === scope).length;
-  const [one, many] = SCOPE_TEXT[scope].unit;
+  const st = scopeStats(d, v, { scope });
+  const short = st.counts.non_compliant + st.counts.not_addressed + st.counts.partial;
   return (
-    <section
-      id={`sec-${section ?? "none"}`}
-      aria-label={sectionLabel(section)}
-      className={cn(card, "scroll-mt-24", pulse && "marsa-pulse")}
-    >
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border/70 px-5 py-4">
-        <SectionTitle section={section} />
-        <span className="text-xs text-ink-muted">
-          {n} {n === 1 ? one : many}
+    <section id={`vendor-${v.proposalId}`} aria-label={v.vendor.name} className={cn(card, "scroll-mt-24")}>
+      <header className="grid grid-cols-1 items-center gap-x-6 gap-y-3 border-b border-border/70 px-5 py-5 md:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)_1.25rem]">
+        <span className="flex min-w-0 flex-col gap-1">
+          <VendorLabel v={v} color={color} size="md" />
+          <span className="ps-[4.75rem] text-xs text-ink-muted">
+            {short ? `${short} point${short === 1 ? "" : "s"} short` : "Everything met"}
+            {st.mandatoryNotMet > 0 && (
+              <span className="text-fail">
+                {" "}
+                · {st.mandatoryNotMet} mandatory not met
+              </span>
+            )}
+          </span>
         </span>
+        <span className="flex flex-col gap-2">
+          <span className="flex items-center gap-3">
+            <MeterBar value={st.total ? st.pct : null} fill={COMPLIANCE_FILL} label={`${v.vendor.name} compliance`} className="flex-1" />
+            <span className="kpi w-20 text-end text-3xl text-ink">{pctText(st.pct)}</span>
+          </span>
+          <CountsLegend counts={st.counts} label={`${v.vendor.name}: all points`} />
+        </span>
+        <span aria-hidden />
       </header>
-      <ul className="flex flex-col divide-y divide-border/70">
-        {vendors.map((v) => (
-          <VendorRow
-            key={v.proposalId}
+      <ul aria-label={`${v.vendor.name} by section`} className="flex flex-col divide-y divide-border/70">
+        {sections.map((s) => (
+          <SectionRow
+            key={s ?? "none"}
             d={d}
-            v={v}
             scope={scope}
-            section={section}
-            color={colors.get(v.proposalId)}
-              onEvidence={onEvidence}
+            v={v}
+            section={s}
+            onEvidence={onEvidence}
+            focused={focusSection !== undefined && focusSection === s}
           />
         ))}
       </ul>
@@ -196,23 +214,24 @@ function SectionCard({
   );
 }
 
-function VendorRow({
+function SectionRow({
   d,
-  v,
   scope,
+  v,
   section,
-  color,
   onEvidence,
+  focused,
 }: {
   d: AnalysisResultsDto;
-  v: VendorResultDto;
   scope: Scope;
+  v: VendorResultDto;
   section: ProposalSection | null;
-  color?: string;
   onEvidence: OpenEvidence;
+  focused: boolean;
 }) {
   const reduce = useReducedMotion();
-  const [open, setOpen] = useState(false);
+  // A risk's "see its points" lands here open (the tab remounts on every new focus).
+  const [open, setOpen] = useState(focused);
   const st = scopeStats(d, v, { section, scope });
   const short = st.counts.non_compliant + st.counts.not_addressed + st.counts.partial;
   const reqs = new Map(d.requirements.map((r) => [r.id, r]));
@@ -230,31 +249,26 @@ function VendorRow({
   const shown = byStatus(active);
 
   return (
-    <li>
+    <li id={rowId(v.proposalId, section)} className={cn("scroll-mt-24", focused && "marsa-pulse")}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="grid w-full grid-cols-1 items-center gap-x-6 gap-y-3 px-5 py-4 text-start outline-none transition-colors hover:bg-surface-muted/50 focus-visible:bg-surface-muted md:grid-cols-[minmax(200px,1fr)_minmax(0,2fr)_auto]"
+        className="grid w-full grid-cols-1 items-center gap-x-6 gap-y-3 px-5 py-4 text-start outline-none transition-colors hover:bg-surface-muted/50 focus-visible:bg-surface-muted md:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)_1.25rem]"
       >
-        <span className="flex min-w-0 flex-col gap-1">
-          <VendorLabel v={v} color={color} />
-          <span className="ps-[4.25rem] text-xs text-ink-muted">
-            {short ? `${short} point${short === 1 ? "" : "s"} short` : "Everything met"}
-            {st.mandatoryNotMet > 0 && (
-              <span className="text-fail">
-                {" "}
-                · {st.mandatoryNotMet} mandatory not met
-              </span>
-            )}
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-sm font-medium text-ink">{sectionLabel(section)}</span>
+          <span className="text-xs text-ink-muted">
+            {st.total} point{st.total === 1 ? "" : "s"} · {short ? `${short} short` : "everything met"}
+            {st.mandatoryNotMet > 0 && <span className="text-fail"> · {st.mandatoryNotMet} mandatory not met</span>}
           </span>
         </span>
         <span className="flex flex-col gap-2">
           <span className="flex items-center gap-3">
-            <MeterBar value={st.total ? st.pct : null} fill={COMPLIANCE_FILL} label={`${v.vendor.name} compliance`} className="flex-1" />
-            <span className="w-16 text-end text-lg font-semibold text-ink tabular-nums">{pctText(st.pct)}</span>
+            <MeterBar value={st.total ? st.pct : null} fill={COMPLIANCE_FILL} label={`${sectionLabel(section)} compliance`} className="flex-1" />
+            <span className="w-20 text-end text-lg font-semibold text-ink tabular-nums">{pctText(st.pct)}</span>
           </span>
-          <CountsLegend counts={st.counts} label={`${v.vendor.name}: points in this section`} />
+          <CountsLegend counts={st.counts} label={`${sectionLabel(section)}: points`} />
         </span>
         <ChevronDown
           aria-hidden
@@ -271,7 +285,7 @@ function VendorRow({
             className="overflow-hidden"
           >
             <div className="flex flex-col gap-3 bg-surface-muted/40 px-5 pt-1 pb-5">
-              <div role="radiogroup" aria-label={`${v.vendor.name}: show points`} className="flex flex-wrap gap-2">
+              <div role="radiogroup" aria-label={`${sectionLabel(section)}: show points`} className="flex flex-wrap gap-2">
                 {STATUS_PILLS.map((s) => {
                   const n = byStatus(s).length;
                   const on = s === active;

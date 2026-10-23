@@ -386,3 +386,6 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
   - With no standards applied there is no Standards tab.
   - `ComplianceTab` takes a fixed `scope`; a risk's "see its points" opens the tab of its requirement.
 - **Status pills (same day):** each vendor dropdown in the RFP and Standards tabs groups its points by status. The pills, worst first, are Non-compliant · Partially compliant · Not addressed · Compliant, each with a count. One group shows at a time, the dropdown opens on the worst group that has points, and empty groups are disabled. They replace the tab-level "All points / Shortfalls only" switch (user: "if there is 77 rules i dont have to scroll").
+- **Vendor first (same day):** in RFP, Standards and Risks, cards are now **per vendor** (ranking order). The card heads show the vendor's result for the tab: compliance %, or risk score and level. Underneath is one row per proposal section: score, counts and a dropdown with the status pills or the risk cards. Vendor chips at the top jump to a card.
+  - A risk's "see its points" opens that vendor's section row in the RFP or Standards tab, already expanded.
+  - The previous section-first layout is tagged **`before-vendor-first-layout`** (`33d7755`) in case the user wants it back.

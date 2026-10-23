@@ -76,14 +76,14 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await expect(page.getByRole("tab", { name: "Compliance" })).toHaveCount(0);
     await page.getByRole("tab", { name: "RFP" }).click();
     await expect(page).toHaveURL(/tab=rfp/);
-    const sections = page.locator("section[id^=sec-]");
-    await expect(sections.first()).toBeVisible();
-    const meridian = page.locator("section[id^=sec-] li > button", {
-      hasText: "Meridian Scan Technologies",
-    });
+    // Vendor first: one card per vendor, its score per proposal section underneath
+    await expect(page.locator("section[id^=vendor-]")).toHaveCount(4);
+    const meridianCard = page.getByRole("region", { name: "Meridian Scan Technologies" });
+    await expect(meridianCard.getByRole("list", { name: "Meridian Scan Technologies by section" })).toBeVisible();
+    const meridian = meridianCard.locator("li > button[aria-expanded]");
     for (let i = 0; i < (await meridian.count()); i++) await meridian.nth(i).click();
     // Each dropdown groups the points by status: one pill per status, one group shown at a time
-    const pills = page.getByRole("radiogroup", { name: "Meridian Scan Technologies: show points" }).first();
+    const pills = meridianCard.getByRole("radiogroup", { name: /show points/ }).first();
     await expect(pills.getByRole("radio")).toHaveCount(4);
     await expect(pills.getByRole("radio", { checked: true })).toHaveCount(1);
     // An RFP clause opens the reader on the RFP
@@ -140,10 +140,10 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
 
     // Risks: a 0–100 score per vendor, then the same numbered sections
     await page.getByRole("tab", { name: "Risks" }).click();
-    await expect(page.getByRole("region", { name: "Risk scores" })).toContainText("/100");
-    await expect(page.locator("section[id^=risk-]").first()).toBeVisible();
+    await expect(page.getByRole("region", { name: "Meridian Scan Technologies" })).toContainText("/100");
+    await expect(page.locator("section[id^=risks-]")).toHaveCount(4);
     // A risk links to what it is about, and to its section's points in Compliance
-    const riskRow = page.locator("section[id^=risk-] li > button[aria-expanded]").first();
+    const riskRow = page.locator("section[id^=risks-] li > button[aria-expanded]").first();
     await riskRow.click();
     await page.getByRole("button", { name: "View more" }).first().click();
     await page.getByRole("button", { name: /see its points/ }).first().click();

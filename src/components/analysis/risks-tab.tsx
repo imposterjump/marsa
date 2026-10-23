@@ -10,14 +10,12 @@ import { Button } from "@/components/ui/button";
 import { RiskPill } from "@/components/ui/status-pill";
 import type { AnalysisResultsDto, RiskResultDto, VendorResultDto } from "@/lib/api-types";
 import type { ProposalSection, RiskSeverity } from "@/lib/domain";
-import { maxSeverity } from "@/lib/scoring";
 import {
   MeterBar,
   type OpenEvidence,
   type Scope,
   RISK_FILL,
   SEVERITY_ORDER,
-  SectionTitle,
   VendorLabel,
   sectionLabel,
   shownSections,
@@ -33,15 +31,14 @@ const byWeight = (a: RiskResultDto, b: RiskResultDto) =>
 interface RiskLinks {
   d: AnalysisResultsDto;
   onEvidence: OpenEvidence;
-  onSection: (s: ProposalSection | null, scope?: Scope) => void;
+  onSection: (s: ProposalSection | null, scope?: Scope, proposalId?: string) => void;
 }
 
 /**
- * Risks (user's design: divided like Compliance). Top: every vendor's 0–100 risk score. Then one
- * card per proposal section, and in it every vendor's risks for that section: count, highest
- * severity, its top risk, a severity line, and a dropdown with the risk cards. "View more" links
- * the risk to what it is about, as in Compliance: the RFP clause or standard rule, the vendor's
- * evidence and the section's points.
+ * Risks (user's design, 2026-10-23, "vendor first"): one card per vendor in ranking order, with
+ * its 0–100 risk score on top and its risks in every proposal section underneath: count, top
+ * risk, a severity line and a dropdown with the risk cards. "View more" links a risk to what it
+ * is about: the RFP clause or standard rule, the vendor's evidence and the section's points.
  */
 export function RisksTab({
   d,
@@ -53,127 +50,110 @@ export function RisksTab({
   colors: Map<string, string>;
 } & Omit<RiskLinks, "d">) {
   const vendors = d.vendors.filter((v) => v.scores);
-  // Sections with risks first (template order); the rest are listed once at the end.
-  const sections = shownSections(d).filter((s) => vendors.some((v) => v.risks.some((r) => r.section === s)));
-  const empty = shownSections(d).filter((s) => s !== null && !sections.includes(s));
   const links: RiskLinks = { d, onEvidence, onSection };
 
   return (
     <div className="flex flex-col gap-6">
-      <section
-        aria-label="Risk scores"
-        className={cn(card, "grid gap-px overflow-hidden bg-border")}
-        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}
-      >
-        {[...vendors]
-          .sort((a, b) => a.scores!.riskScore - b.scores!.riskScore)
-          .map((v) => (
-            <div key={v.proposalId} className="flex flex-col gap-3 bg-surface p-5">
-              <VendorLabel v={v} color={colors.get(v.proposalId)} />
-              <div className="flex items-baseline gap-2">
-                <span className="kpi text-[34px] text-ink">{v.scores!.riskScore}</span>
-                <span className="text-sm text-ink-muted">/100</span>
-                <span className="ms-auto">
-                  <RiskPill severity={v.scores!.riskLevel} size="sm" />
-                </span>
-              </div>
-              <MeterBar value={v.scores!.riskScore} fill={RISK_FILL[v.scores!.riskLevel]} label={`${v.vendor.name} risk score`} />
-              <span className="text-xs text-ink-muted">
-                {v.risks.length} risks ·{" "}
-                {v.scores!.mandatoryNotMet
-                  ? `${v.scores!.mandatoryNotMet} mandatory requirements not met`
-                  : "all mandatory requirements met"}
-              </span>
-            </div>
-          ))}
-      </section>
-
-      <nav aria-label="Sections" className="flex flex-wrap gap-2">
-        {sections.map((s) => (
-          <a
-            key={s ?? "none"}
-            href={`#risk-${s ?? "none"}`}
-            className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-ink-2 transition-colors outline-none hover:border-border-strong hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
-          >
-            {sectionLabel(s)}
-          </a>
-        ))}
-      </nav>
-
-      {sections.map((s) => (
-        <SectionCard key={s ?? "none"} section={s} vendors={vendors} colors={colors} links={links} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[13px] text-ink-muted">
+          Each vendor&apos;s risk score (0–100, lower is better) and its risks per proposal section
+        </p>
+        {vendors.length > 1 && (
+          <nav aria-label="Vendors" className="flex flex-wrap gap-2">
+            {vendors.map((v) => (
+              <a
+                key={v.proposalId}
+                href={`#risks-${v.proposalId}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-ink-2 transition-colors outline-none hover:border-border-strong hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <span aria-hidden className="size-2 rounded-full" style={{ background: colors.get(v.proposalId) }} />
+                <span dir="auto">{v.vendor.name}</span>
+              </a>
+            ))}
+          </nav>
+        )}
+      </div>
+      {vendors.map((v) => (
+        <VendorRiskCard key={v.proposalId} d={d} v={v} color={colors.get(v.proposalId)} links={links} />
       ))}
-
-      {empty.length > 0 && (
-        <section
-          aria-label="No risks raised in these sections"
-          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-dashed border-border-strong/70 px-5 py-4"
-        >
-          <span className="text-[13px] text-ink-muted">No risks raised in these sections:</span>
-          {empty.map((s) => (
-            <span key={s} className="rounded-full bg-surface-muted px-3 py-1 text-xs font-medium text-ink-muted">
-              {sectionLabel(s)}
-            </span>
-          ))}
-        </section>
-      )}
     </div>
   );
 }
 
-function SectionCard({
-  section,
-  vendors,
-  colors,
+function VendorRiskCard({
+  d,
+  v,
+  color,
   links,
 }: {
-  section: ProposalSection | null;
-  vendors: VendorResultDto[];
-  colors: Map<string, string>;
+  d: AnalysisResultsDto;
+  v: VendorResultDto;
+  color?: string;
   links: RiskLinks;
 }) {
-  const all = vendors.flatMap((v) => v.risks.filter((r) => r.section === section));
-  const top = all.length ? maxSeverity(all.map((r) => r.severity)) : null;
+  const s = v.scores!;
+  const sections = shownSections(d).filter((x) => v.risks.some((r) => r.section === x));
+  const none = shownSections(d).filter((x) => x !== null && !sections.includes(x));
   return (
-    <section id={`risk-${section ?? "none"}`} aria-label={sectionLabel(section)} className={cn(card, "scroll-mt-24")}>
-      <header
-        className={cn(
-          "flex flex-wrap items-center justify-between gap-2 px-5 py-4",
-          all.length > 0 && "border-b border-border/70",
-        )}
-      >
-        <SectionTitle section={section} />
-        <span className="flex items-center gap-2 text-xs text-ink-muted">
-          {all.length
-            ? `${all.length} risk${all.length === 1 ? "" : "s"} across ${vendors.length} vendors`
-            : "No risks raised in this section"}
-          {top && (
-            <>
-              <span aria-hidden>·</span> highest <RiskPill severity={top} size="sm" />
-            </>
-          )}
+    <section id={`risks-${v.proposalId}`} aria-label={v.vendor.name} className={cn(card, "scroll-mt-24")}>
+      <header className="grid grid-cols-1 items-center gap-x-6 gap-y-3 border-b border-border/70 px-5 py-5 md:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)_1.25rem]">
+        <span className="flex min-w-0 flex-col gap-1">
+          <VendorLabel v={v} color={color} size="md" />
+          <span className="ps-[4.75rem] text-xs text-ink-muted">
+            {v.risks.length} risk{v.risks.length === 1 ? "" : "s"} ·{" "}
+            {s.mandatoryNotMet ? (
+              <span className="text-fail">
+                {s.mandatoryNotMet} mandatory requirement{s.mandatoryNotMet === 1 ? "" : "s"} not met
+              </span>
+            ) : (
+              "all mandatory requirements met"
+            )}
+          </span>
         </span>
+        <span className="flex flex-col gap-2">
+          <span className="flex items-center gap-3">
+            <MeterBar value={s.riskScore} fill={RISK_FILL[s.riskLevel]} label={`${v.vendor.name} risk score`} className="flex-1" />
+            <span className="flex w-28 items-baseline justify-end gap-1">
+              <span className="kpi text-3xl text-ink">{s.riskScore}</span>
+              <span className="text-xs text-ink-muted">/100</span>
+            </span>
+          </span>
+          <span>
+            <RiskPill severity={s.riskLevel} size="sm" />
+          </span>
+        </span>
+        <span aria-hidden />
       </header>
-      {all.length > 0 && (
-        <ul className="flex flex-col divide-y divide-border/70">
-          {vendors.map((v) => (
-            <VendorRisks key={v.proposalId} v={v} section={section} color={colors.get(v.proposalId)} links={links} />
+      {sections.length === 0 ? (
+        <p className="px-5 py-4 text-[13px] text-ink-muted">No risks raised for this vendor.</p>
+      ) : (
+        <ul aria-label={`${v.vendor.name} risks by section`} className="flex flex-col divide-y divide-border/70">
+          {sections.map((x) => (
+            <SectionRisks key={x ?? "none"} v={v} section={x} links={links} />
           ))}
         </ul>
+      )}
+      {none.length > 0 && sections.length > 0 && (
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t border-border/70 px-5 py-3 text-xs text-ink-muted">
+          No risks in:
+          {none.map((x) => (
+            <span key={x} className="rounded-full bg-surface-muted px-2.5 py-0.5 font-medium">
+              {sectionLabel(x)}
+            </span>
+          ))}
+        </p>
       )}
     </section>
   );
 }
 
-function VendorRisks({
+function SectionRisks({
   v,
   section,
-  color,
   links,
 }: {
   v: VendorResultDto;
   section: ProposalSection | null;
-  color?: string;
   links: RiskLinks;
 }) {
   const reduce = useReducedMotion();
@@ -186,44 +166,38 @@ function VendorRisks({
     <li>
       <button
         type="button"
-        onClick={() => list.length && setOpen((o) => !o)}
-        aria-expanded={list.length ? open : undefined}
-        disabled={!list.length}
-        className="grid w-full grid-cols-1 items-center gap-3 px-5 py-4 text-start outline-none transition-colors enabled:hover:bg-surface-muted/50 focus-visible:bg-surface-muted md:grid-cols-[minmax(200px,1.2fr)_2fr_auto]"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="grid w-full grid-cols-1 items-center gap-x-6 gap-y-3 px-5 py-4 text-start outline-none transition-colors hover:bg-surface-muted/50 focus-visible:bg-surface-muted md:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)_1.25rem]"
       >
-        <span className="flex min-w-0 flex-col gap-1">
-          <VendorLabel v={v} color={color} />
-          <span className="truncate ps-[4.25rem] text-xs text-ink-muted" dir="auto">
-            {top ? `Top risk: ${top.title}` : "No risk in this section"}
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-sm font-medium text-ink">{sectionLabel(section)}</span>
+          <span className="truncate text-xs text-ink-muted" dir="auto">
+            Top risk: {top.title}
           </span>
         </span>
         <span className="flex flex-col gap-1.5">
           <span className="flex items-center justify-between gap-2 text-xs text-ink-muted">
             <span>
-              {list.length
-                ? counts
-                    .filter(([, n]) => n)
-                    .map(([s, n]) => `${n} ${s}`)
-                    .join(" · ")
-                : "Nothing raised"}
+              {list.length} risk{list.length === 1 ? "" : "s"} ·{" "}
+              {counts
+                .filter(([, n]) => n)
+                .map(([s, n]) => `${n} ${s}`)
+                .join(" · ")}
             </span>
-            {top && <RiskPill severity={top.severity as RiskSeverity} size="sm" />}
+            <RiskPill severity={top.severity as RiskSeverity} size="sm" />
           </span>
           <span className="flex h-2 w-full gap-[2px]" role="img" aria-label={counts.map(([s, n]) => `${n} ${s}`).join(", ")}>
-            {list.length ? (
-              counts
-                .filter(([, n]) => n)
-                .map(([s, n]) => (
-                  <span key={s} className="h-full min-w-1.5 rounded-full" style={{ flexGrow: n, background: RISK_FILL[s] }} />
-                ))
-            ) : (
-              <span className="h-full w-full rounded-full bg-surface-muted" />
-            )}
+            {counts
+              .filter(([, n]) => n)
+              .map(([s, n]) => (
+                <span key={s} className="h-full min-w-1.5 rounded-full" style={{ flexGrow: n, background: RISK_FILL[s] }} />
+              ))}
           </span>
         </span>
         <ChevronDown
           aria-hidden
-          className={cn("size-5 justify-self-end text-ink-muted transition-transform", open && "rotate-180", !list.length && "opacity-0")}
+          className={cn("size-5 justify-self-end text-ink-muted transition-transform", open && "rotate-180")}
         />
       </button>
       <AnimatePresence initial={false}>
@@ -345,7 +319,7 @@ function RiskCard({ r, v, links }: { r: RiskResultDto; v: VendorResultDto; links
           <dd>
             <button
               type="button"
-              onClick={() => onSection(r.section, reqs[0]?.scope)}
+              onClick={() => onSection(r.section, reqs[0]?.scope, v.proposalId)}
               className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink-2 transition-colors outline-none hover:border-brand/50 hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               {sectionLabel(r.section)}: see its points

@@ -27,6 +27,7 @@
 ## Decision log
 | Date | Decision | By |
 |---|---|---|
+| 2026-10-23 | RFP, Standards and Risks tabs **vendor first**: a card per vendor with its score per section (previous layout tagged `before-vendor-first-layout`) | You |
 | 2026-10-23 | In the RFP / Standards dropdowns, **status pills** (non-compliant · partial · not addressed · compliant) show one group of points at a time | You |
 | 2026-10-23 | **No Compliance tab: RFP and Standards are tabs of their own** (Overview · RFP · Standards · Risks · Comparison · AI quality) | You |
 | 2026-10-23 | **Compliance split into RFP and Standards views** (sections with points first, empty ones listed once at the end; same for Risks); **Comparison as a pricing-page table** (one column per vendor, one row per aspect); mission-control vendor boxes the same height | You |

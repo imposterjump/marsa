@@ -392,10 +392,10 @@ function Results({ d }: { d: AnalysisResultsDto }) {
     { id: "rfp", label: "RFP", docs: p.rfpDocuments },
   ];
   const readerOpen = !!readerId && groups.some((g) => g.docs.some((x) => x.id === readerId));
-  const onSection = (section: ProposalSection | null, scope?: Scope) => {
+  const onSection = (section: ProposalSection | null, scope?: Scope, proposalId?: string) => {
     const has = (s: Scope) => d.requirements.some((r) => r.section === section && r.scope === s);
     const view: Scope = scope ?? (has("rfp") || !has("standard") ? "rfp" : "standard");
-    setFocus({ section, scope: view, at: Date.now() });
+    setFocus({ section, scope: view, proposalId, at: Date.now() });
     setQuery({ tab: view === "standard" && d.hasStandards ? "standards" : "rfp" });
   };
   const onEvidence: OpenEvidence = (docId, page, quote, vendorId) =>
