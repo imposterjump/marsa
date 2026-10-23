@@ -1,18 +1,19 @@
-# POC inputs: two small tenders for the meeting demo
+# POC inputs: small tenders for the meeting demo
 
-Two complete, mid-size tenders that show the whole Marsa workflow in a few minutes.
+Three complete, mid-size tenders that show the whole Marsa workflow in a few minutes.
 
 **Each set contains:**
 - one standard: 12 rules as an Excel file to drop, plus the same rules as CSV and text;
 - one RFP (PDF);
-- two vendors, each with a **technical** and a **commercial** (financial) proposal (PDF). Both follow Marsa's 7-section proposal template.
+- two vendors (three in set 3), each with a **technical** and a **commercial** (financial) proposal (PDF). All follow Marsa's 7-section proposal template.
 
 | Set | Use it | Tender | Standard | Vendors |
 |---|---|---|---|---|
 | [`1-rehearsal-smart-gates/`](1-rehearsal-smart-gates/README.md) | **Before the meeting**, to practise | NGPA/T/2026/031 · Smart Gate Automation for the Terminal 2 truck gates (Port of Al-Noor) | POTS-2026 · Port Operational Technology Standard | Sahel Gate Technologies, Vector OCR Systems |
 | [`2-meeting-e-seals/`](2-meeting-e-seals/README.md) | **In the meeting** | GCD/T/2026/047 · Electronic Seal Tracking System for Transit Cargo (General Customs Directorate) | CTS-2026 · Customs Transit Security Standard | Trakom Security Solutions, Orbis Track |
+| [`3-three-vendors-air-quality/`](3-three-vendors-air-quality/README.md) | **Three vendors**, category Safety & environment | NGPA/T/2026/052 · Air Quality and Noise Monitoring Network (Port of Al-Noor) | PEMS-2026 · Port Environmental Monitoring Standard | Sabkha Environmental Systems, Nimbrel Sensing, Kaltenmoor Messtechnik |
 
-**The two sets have the same shape**, so the rehearsal shows exactly what will happen in the meeting:
+**Sets 1 and 2 have the same shape**, so the rehearsal shows exactly what will happen in the meeting. Set 3 has three vendors (11 steps).
 - 1 standard + 1 RFP + 2 vendors → **8 AI steps**:
   - 1 checklist;
   - 2 standards checks;
@@ -26,13 +27,13 @@ All organisations, people and documents are fictional. Nothing in the vendor doc
 
 ## Cost and time of a live run (from Marsa's own estimate)
 
-| Model | Rehearsal set | Meeting set | Time per run |
+| Model | Set 1 (rehearsal) | Set 2 (meeting) | Set 3 (3 vendors) |
 |---|---|---|---|
-| Claude Haiku 5.5 | ≈ $0.03 | ≈ $0.03 | ≈ 2 min |
-| Claude Sonnet 5.5 | ≈ $0.66 ($0.52–0.82) | ≈ $0.59 ($0.47–0.74) | ≈ 3 min |
-| Claude Opus 5.5 | ≈ $1.45 | ≈ $1.31 | ≈ 5 min |
+| Claude Haiku 5.5 | ≈ $0.05 | ≈ $0.05 | ≈ $0.08 (real run: $0.094) |
+| Claude Sonnet 5.5 | ≈ $0.66 | ≈ $0.59 | ≈ $0.92 |
+| Claude Opus 5.5 | ≈ $1.45 | ≈ $1.31 | ≈ $2.05 |
 
-**With about $1 of credit left, run on Haiku.** One Sonnet run would use most of what is left. Before each run, the confirmation dialog shows the estimate again.
+A run takes 3–5 minutes. **With about $6 of credit: test on Haiku, then run Opus once** when everything is ready. Before each run, the confirmation dialog shows the estimate again. The Haiku figures are calibrated on a real run (it writes about twice as much as Sonnet).
 
 The free demo AI (`AI_MODE=mock`, the default on http://localhost:3000) runs the same screens at $0, but its results are templates. Use it to practise the clicks, not to judge the results.
 

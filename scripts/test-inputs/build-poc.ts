@@ -1,15 +1,16 @@
 /**
- * Builds the POC inputs into test-inputs/poc-inputs/ (user request, 2026-10-21): two small,
- * complete tenders to show the workflow in a meeting. Set 1 is for rehearsing, set 2 for the
- * meeting itself. Each set has the standard's rules as a file to drop (Excel, CSV and text), the
- * RFP PDF, and two vendors with a technical and a commercial PDF that follow the 7-section
- * proposal template (P8).
+ * Builds the POC inputs into test-inputs/poc-inputs/ (user request, 2026-10-21): small, complete
+ * tenders to show the workflow in a meeting. Set 1 is for rehearsing, set 2 for the meeting
+ * itself, set 3 (2026-10-23) has three vendors. Each set has the standard's rules as a file to
+ * drop (Excel, CSV and text), the RFP PDF, and vendors with a technical and a commercial PDF
+ * that follow the 7-section proposal template (P8).
  *
  *   npx tsx scripts/test-inputs/build-poc.ts
  */
 import fs from "node:fs";
 import path from "node:path";
 import ExcelJS from "exceljs";
+import { AIRQ_BIDS, AIRQ_STANDARD, AIRQ_TENDER } from "./content/poc-airq";
 import { ESEALS_BIDS, ESEALS_STANDARD, ESEALS_TENDER } from "./content/poc-eseals";
 import { GATES_BIDS, GATES_STANDARD, GATES_TENDER } from "./content/poc-gates";
 import {
@@ -40,6 +41,12 @@ const SETS: { dir: string; standard: PocStandard; tender: PocTender; bids: PocBi
     standard: ESEALS_STANDARD,
     tender: ESEALS_TENDER,
     bids: ESEALS_BIDS,
+  },
+  {
+    dir: "3-three-vendors-air-quality",
+    standard: AIRQ_STANDARD,
+    tender: AIRQ_TENDER,
+    bids: AIRQ_BIDS,
   },
 ];
 

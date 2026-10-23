@@ -6,36 +6,57 @@
 import { PROPOSAL_SECTIONS, type ProposalSection } from "./domain";
 import { PROPOSAL_SECTION_LABEL } from "./labels";
 
-const HINTS: [ProposalSection, RegExp][] = [
-  [
-    "commercial",
-    /\b(price|pricing|cost|payment|invoice|currency|bank guarantee|bid security|performance security|advance|escalat|subscription|fee)\b/i,
-  ],
+/**
+ * Keywords per section, with a weight. Every section is scored and the highest score wins (ties:
+ * list order), so a clause that names a payment and an acceptance lands where its words point.
+ * Money and contract words weigh double: they are rarer and decide the section when present.
+ * "Bid security" and "performance security" are contract terms, not information security.
+ */
+const HINTS: [ProposalSection, number, RegExp][] = [
   [
     "terms",
-    /\b(contract|law|liabilit|terms|deviation|validity|integrity|conflict of interest|subcontract|governing|arbitration|penalt)/i,
+    2,
+    /\b(bid validity|validity of|conditions of contract|general conditions|contract terms|governing law|liabilit|deviations? (from|to) the|bid security|performance security|bank guarantee|guarantee issued|penalt|liquidated damages|arbitration|subcontract|conflict of interest|integrity pact|insurance)/gi,
   ],
   [
-    "security",
-    /\b(security|secur|encrypt|authenticat|mfa|password|audit log|siem|vulnerab|penetration|data residency|national territory|cloud|hosting|hosted|on-?premise|backup|tls|aes|vpn|vetting|sbom)/i,
-  ],
-  [
-    "support",
-    /\b(support|warranty|maintenance|spare|service level|sla|response|restoration|helpdesk|service desk|replacement)/i,
-  ],
-  [
-    "implementation",
-    /\b(implement|schedule|deliver|install|commission|milestone|months?|weeks?|pilot|rollout|roll-out|go-live|training|acceptance test|cut over|migration)/i,
+    "commercial",
+    2,
+    /\b(price[sd]?|pricing|cost|payments?|invoice|currency|advance|escalat|subscription|fee|lump sum|financial)/gi,
   ],
   [
     "company",
-    /\b(company|references?|experience|staff|certified partner|founded|track record|financial standing|local presence)/i,
+    1,
+    /\b(compan(y|ies)|references?(?! (method|principle|station|instrument|material))|experience|\d+ (staff|employees)|founded|track record|financial standing|local presence|office (in|or)|(authorised|certified) (service )?partner|service partner|manufacturer|oem|iso 9001|turnover|similar [a-z -]{0,25}(projects?|contracts?|installations?|networks?|systems?))/gi,
+  ],
+  [
+    "implementation",
+    1,
+    /\b(implement|schedule|deliver(y|ed)?|install(ed|ation)? (and|within|of)|commission|milestone|within \d+ (months?|weeks?)|pilot|rollout|roll-out|go-live|training|trained|acceptance tests?|site acceptance|performance test|trial run|cut ?over|migration|site survey)/gi,
+  ],
+  [
+    "support",
+    1,
+    /\b(support|warranty|maintenance|spare|service level|sla|response time|respond|on-site response|restoration|helpdesk|service desk|replacement|replaced|availability|uptime|operation and maintenance|o&m|calibrat|consumables)/gi,
+  ],
+  [
+    "security",
+    1,
+    /\b(cyber|information security|encrypt|authenticat|multi-factor|mfa|password|audit (log|trail|record)s?|siem|vulnerab|penetration|data residency|within the state|national territory|cloud|hosting|hosted|on-?premise|data cent(re|er)|server rooms?|backup|tls|aes|vpn|active directory|single sign-on|access rights|personal data|kept for (at least )?\d+ years|retention)/gi,
   ],
 ];
 
-/** Best-effort section for a requirement, rule or risk text. */
+/** Best-effort section for a requirement, rule or risk text: the section with the best score. */
 export function guessSection(text: string): ProposalSection {
-  return HINTS.find(([, re]) => re.test(text))?.[0] ?? "solution";
+  let best: ProposalSection = "solution";
+  let bestScore = 0;
+  for (const [section, weight, re] of HINTS) {
+    const score = (text.match(re)?.length ?? 0) * weight;
+    if (score > bestScore) {
+      best = section;
+      bestScore = score;
+    }
+  }
+  return best;
 }
 
 /** The model's section value → a key; falls back to a keyword guess on `context`. */

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ChevronDown, FileText, ShieldCheck } from "lucide-react";
 import { cn } from "cn";
@@ -14,13 +14,12 @@ import {
   CountsLegend,
   MeterBar,
   type OpenEvidence,
-  SECTION_ORDER,
   SectionTitle,
   VendorLabel,
   pctText,
   scopeStats,
-  sectionChip,
   sectionLabel,
+  shownSections,
   vendorDocRefs,
 } from "./shared";
 
@@ -42,13 +41,25 @@ export function ComplianceTab({
   d,
   colors,
   onEvidence,
+  focus,
 }: {
   d: AnalysisResultsDto;
   colors: Map<string, string>;
   onEvidence: OpenEvidence;
+  /** A section to bring into view (from a risk's "see its points in Compliance"). */
+  focus?: { section: ProposalSection | null; at: number } | null;
 }) {
+  const reduce = useReducedMotion();
   const [shortOnly, setShortOnly] = useState(false);
-  const sections = SECTION_ORDER.filter((s) => d.requirements.some((r) => r.section === s));
+  useEffect(() => {
+    if (!focus) return;
+    const el = document.getElementById(`sec-${focus.section ?? "none"}`);
+    const raf = requestAnimationFrame(() =>
+      el?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }),
+    );
+    return () => cancelAnimationFrame(raf);
+  }, [focus, reduce]);
+  const sections = shownSections(d);
   const vendors = d.vendors.filter((v) => v.scores);
 
   return (
@@ -61,7 +72,7 @@ export function ComplianceTab({
               href={`#sec-${s ?? "none"}`}
               className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-ink-2 transition-colors outline-none hover:border-border-strong hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
             >
-              {sectionChip(s)}
+              {sectionLabel(s)}
             </a>
           ))}
         </nav>
@@ -96,6 +107,7 @@ export function ComplianceTab({
           colors={colors}
           shortOnly={shortOnly}
           onEvidence={onEvidence}
+          pulse={focus?.section === s}
         />
       ))}
     </div>
@@ -109,6 +121,7 @@ function SectionCard({
   colors,
   shortOnly,
   onEvidence,
+  pulse,
 }: {
   d: AnalysisResultsDto;
   section: ProposalSection | null;
@@ -116,18 +129,26 @@ function SectionCard({
   colors: Map<string, string>;
   shortOnly: boolean;
   onEvidence: OpenEvidence;
+  pulse?: boolean;
 }) {
   const reqs = d.requirements.filter((r) => r.section === section);
   const rules = reqs.filter((r) => r.scope === "standard").length;
   return (
-    <section id={`sec-${section ?? "none"}`} aria-label={sectionLabel(section)} className={cn(card, "scroll-mt-24")}>
-      <header className="flex flex-wrap items-end justify-between gap-2 border-b border-border/70 px-5 py-4">
+    <section id={`sec-${section ?? "none"}`} aria-label={sectionLabel(section)} className={cn(card, "scroll-mt-24", pulse && "marsa-pulse")}>
+      <header
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-2 px-5 py-4",
+          reqs.length > 0 && "border-b border-border/70",
+        )}
+      >
         <SectionTitle section={section} />
         <span className="text-xs text-ink-muted">
-          {d.hasStandards && `${rules} standard rule${rules === 1 ? "" : "s"} · `}
-          {reqs.length - rules} RFP requirement{reqs.length - rules === 1 ? "" : "s"}
+          {reqs.length === 0
+            ? "No RFP requirement or standard rule falls in this section"
+            : `${d.hasStandards ? `${rules} standard rule${rules === 1 ? "" : "s"} · ` : ""}${reqs.length - rules} RFP requirement${reqs.length - rules === 1 ? "" : "s"}`}
         </span>
       </header>
+      {reqs.length > 0 && (
       <ul className="flex flex-col divide-y divide-border/70">
         {vendors.map((v) => (
           <VendorRow
@@ -141,6 +162,7 @@ function SectionCard({
           />
         ))}
       </ul>
+      )}
     </section>
   );
 }

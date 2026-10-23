@@ -38,6 +38,7 @@ Rules:
 - A vendor's own compliance claim (for example "Comply" in a compliance matrix) is a statement, not proof. Check it against what the rest of the proposal describes; when the details contradict the claim, the details decide the status.
 - Every compliant, partial or non-compliant finding needs evidence: a short verbatim quote copied exactly from the vendor document, the document title as given, and the page (PDF) or nearest section heading (other formats).
 - Be specific and quantitative: numbers, units, standards and versions. Write short, precise sentences an evaluation committee can read quickly.
+- "Section A" to "Section E" only label the parts of this input; the committee never sees them. Never write them in your output: name the document, the vendor, the requirement code or the proposal section instead (for example "Security & data").
 - Write all prose in ${LANGUAGE[language]}. Keep requirement codes, vendor names, document titles and quotes exactly as they appear.`;
 }
 

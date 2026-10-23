@@ -562,6 +562,24 @@ describe("risk score and recommendation (P8)", () => {
     expect(guessSection("24-month warranty from acceptance")).toBe("support");
     expect(guessSection("All lanes in operation within 8 months")).toBe("implementation");
   });
+
+  it("guesses sections by the best score, not the first keyword (user: only 4 sections showed)", () => {
+    // "route deviation" is a platform feature, not a contract deviation
+    expect(guessSection("A live map with alerts for route deviation and stops.")).toBe("solution");
+    // a payment tied to acceptances is still commercial
+    expect(
+      guessSection("Payment: 25 % on acceptance of the pilot and 75 % on acceptance of the rollout."),
+    ).toBe("commercial");
+    // bid and performance securities are contract terms, not information security
+    expect(guessSection("Bid validity of 90 days. Bid security of USD 30,000.")).toBe("terms");
+    expect(guessSection("All servers shall be installed in the Authority's server rooms.")).toBe(
+      "security",
+    );
+    expect(guessSection("At least 3 similar installations in the last 5 years (references).")).toBe(
+      "company",
+    );
+    expect(guessSection("Training of 6 maintenance technicians.")).toBe("implementation");
+  });
 });
 
 describe("store helpers", () => {

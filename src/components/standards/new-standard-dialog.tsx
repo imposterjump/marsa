@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ClipboardPaste, FileSpreadsheet, Loader2, Sparkles, X } from "lucide-react";
 import { cn } from "cn";
@@ -26,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { PriorityPill } from "@/components/ui/status-pill";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateStandard } from "@/hooks/use-standards";
+import { standardKey, standardsKey, useCreateStandard } from "@/hooks/use-standards";
 import { useSettings } from "@/hooks/use-settings";
 import { api, ApiClientError } from "@/lib/api-client";
 import type { StandardDto } from "@/lib/api-types";
@@ -60,6 +61,7 @@ export function NewStandardDialog({
   onCreated: (standard: StandardDto) => void;
 }) {
   const { data: settings } = useSettings();
+  const qc = useQueryClient();
   const create = useCreateStandard();
   const [code, setCode] = useState("");
   const [title, setTitle] = useState("");
@@ -130,6 +132,12 @@ export function NewStandardDialog({
       if (file && /\.(pdf|docx)$/i.test(file.name)) {
         await uploadFile(`/api/standards/${std.id}/documents`, file, () => {}).catch(() => {});
       }
+      // The list was refreshed when the standard was created, still without rules: refresh it
+      // again now, or "0 rules" sticks on the cards and in the picker (user report 2026-10-23).
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: standardsKey, exact: true }),
+        qc.invalidateQueries({ queryKey: standardKey(std.id) }),
+      ]);
       toast.success(`${std.code} created · ${rules.length} rules`);
       onCreated(std);
       reset();

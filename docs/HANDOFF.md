@@ -20,7 +20,7 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
 4. Plan → ask → build. The user approves recommendations before they are built. Report progress briefly when a phase runs long (the user asked "are you stuck?").
 5. **Don't push to GitHub until the user has tested the phase themselves** (user, after Phase 3: "next time dont push unless i test the phase myself"). Commit locally; push when they confirm. Each phase hand-over also includes the **exact click-by-click main working case** (go here → press this → paste this → expect that).
 7. **Never start live (paid) AI runs on your own.** The user starts them from the UI so they can watch the progress (user: "dont run the ai analysis alone i want to see the ui while its running"). Prepare the server, model and estimate, then hand over. Free mock runs and E2E are fine.
-6. **Live AI tests run on Sonnet 5.5 first**, to keep failed runs cheap; switch to Opus 5.5 (the default model) only once things work (user, Phase 6: "make tests using sonnet first so we minimize failure prices then when its ready switch to opus"). Live tests use the throwaway `data/live-test/` (G-60), never the user's `data/`. **Update 2026-10-23:** about **$1 of credit is left**; if a paid call is ever needed, use **Haiku 5.5** (user: "if u will have to use credit again do so with hayiku"), and still ask first.
+6. **Live AI tests run on Sonnet 5.5 first**, to keep failed runs cheap; switch to Opus 5.5 (the default model) only once things work (user, Phase 6: "make tests using sonnet first so we minimize failure prices then when its ready switch to opus"). Live tests use the throwaway `data/live-test/` (G-60), never the user's `data/`. **Update 2026-10-23:** the user added $5, so about **$6** is left. Testing runs on **Haiku 5.5**; **Opus runs once** when everything is ready (user: "we will keep running haiku to test and when everything is ready we can run oppus once"). The user starts the runs and reviews the results with me (user: "let me do the ai run … check the results w me").
 
 ## 1. Where we are (update every session)
 - **Last session:** 2026-10-22/23 (session 6: client feedback → P8 re-planned and built).
@@ -46,8 +46,19 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
   - proposals follow the 7-section template: technical = sections 1–5, commercial = 6–7 with "Terms and deviations";
   - rules come as `.xlsx`, `.csv` and `.txt`;
   - READMEs walk through the guided form;
-  - estimates: Haiku ≈ $0.03, Sonnet ≈ $0.60–0.66, Opus ≈ $1.3–1.45 per run.
-- **User's budget:** about **$1** left (user, 2026-10-23). Use Haiku for anything paid, and ask first (§0 rules 6–7). P8 used no credits.
+  - set 3 `3-three-vendors-air-quality`: PEMS-2026, RFP NGPA/T/2026/052, 3 vendors, 11 steps;
+  - estimates for the 2-vendor sets: Haiku ≈ $0.05, Sonnet ≈ $0.60–0.66, Opus ≈ $1.3–1.45. Set 3: Haiku ≈ $0.08 (real $0.094), Sonnet ≈ $0.92, Opus ≈ $2.05.
+- **User's budget:** about **$6** (user, 2026-10-23). Haiku for tests, Opus once at the end, and the user starts the runs (§0 rules 6–7).
+  - Spent this session: one Haiku check of POC set 3 at **$0.094**, on a throwaway server with its own data folder (`data/haiku-check`).
+  - That run: Sabkha recommended (95 % standards, risk 19), Kaltenmoor 2nd (risk 51), Nimbrel last (risk 84); all 7 sections filled.
+- **Feedback round after the first P8 test (2026-10-23), all fixed:**
+  - only 4 sections showed: every tab now lists all 7, and the section guess scores keywords (G-81);
+  - Comparison columns are headed with the vendor names in every section;
+  - a risk's "View more" links the RFP clause or rule, the vendor's evidence, and its section in Compliance;
+  - section numbers are hidden (names only);
+  - a new standard from a dropped file showed "0 rules" (G-82);
+  - "Section E" appeared in the AI's text (G-83).
+  - **New POC set 3** (three vendors, Safety & environment).
 - **User's own data (`data/`):**
   - CITS-2026 and PRJ-2026-001 (IT & security, open, 2 RFP PDFs, 4 vendor proposals);
   - DB backup in `data/backups/`;
@@ -58,7 +69,7 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
   - it holds the real Sonnet results (Cargo X-Ray $4.80, PCS $1.17). Keep them.
 - **Next:** the user tests P8 (main case: `test-inputs/poc-inputs/2-meeting-e-seals/README.md`). Then push, then P9.
 - **App runs?** `npm run dev` → http://localhost:3000.
-- **All checks green?** `npm run check` ✔ (**177 unit + integration**) · `npm run test:e2e` ✔ (**20**).
+- **All checks green?** `npm run check` ✔ (**178 unit + integration**) · `npm run test:e2e` ✔ (**20**).
 
 ## 2. Quick start for a new session
 ```bash
@@ -169,6 +180,9 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | G-78 | ✅ Solved | Guided form: the **first** RFP drop creates the draft, but its upload callback held the render from before the draft existed, so it refreshed `projects/""` and the file list stayed empty | Refresh by the id `ensureDraft()` returns (`projectKey(id)`), never by `project?.id` from the closure |
 | G-79 | ℹ️ Fact | `Field` labels don't reach a Radix `Select` trigger, so `getByRole("combobox", { name: "Category" })` finds nothing (the Select root takes the id) | In tests use `getByRole("combobox").first()` or scope by section |
 | G-80 | ℹ️ Rule | **Python on Windows writes CRLF** in text mode; patch scripts then leave CRLF files (git warns "CRLF will be replaced by LF") | `open(p, "w", encoding="utf-8", newline="\n")`. Bash heredocs with quotes in the body still fail (G-25): write the script with the Write tool and run `python -I script.py` |
+| G-81 | ✅ Solved | "Only 4 sections were displayed": (1) the tabs only listed sections that had points; (2) `guessSection` took the **first** keyword hit, and `secur` / `reference` / `staff` / `deviation` were far too broad. Demo runs put 20 of 33 points in Security; "reference method" counted as Company; "route deviation" as Terms. (3) The mock checklist stopped at 24 requirements, cutting off the commercial clauses at the end of an RFP | (1) `shownSections()` always lists the 7 template sections; an empty one says so. (2) Every section is scored by weighted keyword hits (money and contract words ×2) and the best wins; unit-tested on real clause texts. (3) Cap 60 |
+| G-82 | ✅ Solved | A new standard made from a dropped rules file showed **"0 rules"** in the picker and on the Standards page, though its page listed the rules: `useCreateStandard` refreshed the list right after the standard was created, **before** the rules were added, and nothing refreshed it afterwards | The dialog invalidates the list and the standard after `rules/bulk` (and the document upload). E2E checks "12 rules · 6 mandatory" in the picker and "12 rules" on the Standards page |
+| G-83 | ✅ Solved | The AI wrote "the highest standards compliance in **Section E**" in the recommendation: the prompt labels its input blocks Section A–E, and the model echoed them | System prompt rule: never write the input's section letters; name the document, vendor, requirement or proposal section. Snapshot updated (the change invalidates the prompt cache once) |
 | G-50 | ✅ Solved | Dev log: "Route /projects/[projectId]: Could not validate that a segment in your UI has instant navigation … Dropped segment: page.tsx". The layout awaited `params` in a Suspense boundary that **wrapped `{children}`**, so the tab pages were never part of the static shell | The layout renders `<Suspense><ProjectHeader/></Suspense>` and `{children}` **side by side**. Each page wraps its content in `<ProjectRoute params fallback>` (server: own Suspense + await params → client `ProjectGate` providing `useProjectContext()`). The tab fade moved to `[projectId]/template.tsx`. Never pass `{children}` into a component that awaits params |
 
 ## 5. Open issues & carry-overs
@@ -190,7 +204,8 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | I-26 | ℹ️ Note | The proposal page still has the P6 per-vendor **Compliance / Comparison / Risk** tabs (latest finished run). They work, but the results page replaces them | Ask the user whether to remove them |
 | I-27 | ℹ️ Note | The vendor simulator (`/vendor-portal`) is no longer linked from the Proposals tab (**Add vendor** replaced it); Settings → Demo tools still links it | Keep as a demo tool, or remove in P9 |
 | I-28 | ℹ️ Note | **PDF standards:** rule extraction by AI (`extract-rules-ai.ts`, Haiku, low effort, asks first) is only tested with the mock engine | First live use costs about a cent; the user starts it |
-| I-29 | ℹ️ Note | The 0–100 risk score and Marsa's pick were calibrated on the P6 Sonnet runs; no live P8 run yet | Check on the first live Haiku run of a POC set |
+| I-29 | ✅ Checked | The 0–100 risk score and Marsa's pick were calibrated on the P6 Sonnet runs | First live P8 run (Haiku, set 3): Sabkha 19 low, Kaltenmoor 51 high, Nimbrel 84 critical, as intended |
+| I-30 | 🟡 Workaround | Haiku's cost estimate was half the real cost ($0.05 vs $0.094): Haiku writes about 1,000 output tokens per RFP finding (thinking included), twice Sonnet's. Dense RFPs also have ~7 requirements a page, against the 3.5 the estimator assumes | `OUTPUT_FACTOR` Haiku = 2 (`lib/plan.ts`). A re-run uses the real requirement count. Recalibrate after the user's runs and the final Opus run |
 | I-23 | ℹ️ Note | Live speed (Sonnet, 91 requirements): analyse steps 3.5–4.7 min, whole 4-vendor run ~17 min (PRD target "3 vendors in 3–6 min" met only for the short PCS tender: ~5 min). Opus is likely slower | Options for P9: effort `medium` for compare/summary (changes the cache group), concurrency 4, shorter finding prose |
 | I-24 | ✅ Solved | Results tabs were a basic P6 view | P8 results page (`/analysis/<projectId>`) |
 | I-17 | ✅ Solved | Analysis tabs on the proposal page | Unlocked once a run has finished (latest completed run) |
@@ -352,3 +367,7 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
   - an RFP clause opened from a finding lost the vendor's envelopes (`?v=`).
 - **Memory pressure:** Claude Code killed background servers twice. Only kill servers I started (check the command line first), and don't restart killed ones on my own.
 - **Checks:** 177 unit + integration ✔, 20 E2E ✔. Verified click by click on a throwaway mock server (port 3400, `data/design-check`), screenshots reviewed. **No API credits used.**
+- **Feedback round, same session (2026-10-23):**
+  - **User reports:** only 4 sections; vendor names missing above the Comparison columns; a risk's "View more" didn't link anywhere; section numbers to hide; "0 rules" after creating a standard from a file. Also asked for a 3-vendor test case. **All fixed** (G-81, G-82, G-83; Comparison column heads; risk links).
+  - **Budget:** the user added $5 (≈ $6 total): Haiku for tests, Opus once at the end. Before the user's "let me do the ai run" message arrived, I ran one Haiku check of set 3 on a throwaway server (`data/haiku-check`, Haiku-only guard in the script): **$0.094**. It found the "Section E" leak (G-83) and the Haiku estimate gap (I-30).
+  - **Checks:** 178 unit ✔, E2E ✔ (analysis, projects and proposals specs re-run; the analysis journey now has a 120 s timeout).

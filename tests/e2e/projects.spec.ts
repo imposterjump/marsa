@@ -107,6 +107,8 @@ test.describe("projects (P3.3–P3.6, P8 guided form)", () => {
       "aria-checked",
       "true",
     );
+    // Its card counts the rules dropped with it, not the 0 it had a moment before (user report)
+    await expect(page.getByText("12 rules · 6 mandatory")).toBeVisible();
     await page.getByRole("button", { name: "Continue" }).click();
 
     // Step 3 · Vendors — one vendor with its two envelopes, then create the project
@@ -149,6 +151,12 @@ test.describe("projects (P3.3–P3.6, P8 guided form)", () => {
     await expect(page).toHaveURL(/\/proposals$/);
     await expect(page.getByRole("table", { name: /Proposals received/ })).toContainText(
       "Harborline Systems",
+    );
+
+    // The standards library shows the new standard with its rules (no stale "0 rules")
+    await page.getByRole("link", { name: "Standards", exact: true }).first().click();
+    await expect(page.getByRole("article").filter({ hasText: "CTS-2026" })).toContainText(
+      "12 rules",
     );
 
     // Home lists it with real counts; search filters it out and back

@@ -23,6 +23,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
   test("run → mission control → pill + toast → results tabs; run again, cancel, resume; AI quality", async ({
     page,
   }) => {
+    test.setTimeout(120_000); // one long journey: two runs, every tab, the reader and a review
     const { xray } = await sampleTenders(page);
 
     // Proposals tab → AI analysis panel → the results page, where mission control shows the run
@@ -74,7 +75,8 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await page.getByRole("tab", { name: "Compliance" }).click();
     await expect(page).toHaveURL(/tab=compliance/);
     const sections = page.locator("section[id^=sec-]");
-    await expect(sections.first()).toContainText(/Section \d/i);
+    await expect(sections).toHaveCount(7); // every section of the template, empty ones too
+    await expect(sections.first()).toContainText("Company & references");
     const meridian = page.locator("section[id^=sec-] li > button", {
       hasText: "Meridian Scan Technologies",
     });
@@ -131,7 +133,14 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     // Risks: a 0–100 score per vendor, then the same numbered sections
     await page.getByRole("tab", { name: "Risks" }).click();
     await expect(page.getByRole("region", { name: "Risk scores" })).toContainText("/100");
-    await expect(page.locator("section[id^=risk-]").first()).toContainText(/Section \d/i);
+    await expect(page.locator("section[id^=risk-]")).toHaveCount(7);
+    // A risk links to what it is about, and to its section's points in Compliance
+    const riskRow = page.locator("section[id^=risk-] li > button[aria-expanded]").first();
+    await riskRow.click();
+    await page.getByRole("button", { name: "View more" }).first().click();
+    await page.getByRole("button", { name: /see its points in Compliance/ }).first().click();
+    await expect(page).toHaveURL(/tab=compliance/);
+    await page.getByRole("tab", { name: "Risks" }).click();
 
     // Comparison: pick two vendors, compare, only their differences remain
     await page.getByRole("tab", { name: "Comparison" }).click();
@@ -142,6 +151,10 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await expect(page.getByRole("list", { name: "Vendors" }).getByRole("listitem")).toHaveCount(2);
     await expect(page.getByRole("region", { name: "Scores" })).toContainText("Risk score");
     await expect(page.getByText(/\d+ differences? · same on \d+/).first()).toBeVisible();
+    // Each section's columns are headed with the vendor names
+    const firstDiff = page.locator("section", { hasText: /differences? · same on/ }).first();
+    await expect(firstDiff.getByText("Point", { exact: true })).toBeVisible();
+    await expect(firstDiff.getByText("Meridian Scan Technologies").first()).toBeVisible();
 
     // Run a new analysis, cancel it, then resume to completion
     await page.getByRole("button", { name: "Run a new analysis" }).click();

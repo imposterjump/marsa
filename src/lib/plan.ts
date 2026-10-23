@@ -127,11 +127,15 @@ const SPEED: Record<AiModel, number> = {
   "claude-sonnet-5-5": 170,
   "claude-haiku-5-5": 260,
 };
-/** Opus writes somewhat more per finding (assumed until measured). */
+/**
+ * Output written per finding relative to Sonnet. Haiku measured on POC set 3 (2026-10-23, 3
+ * vendors, 43 requirements): ~1,000 tokens per RFP finding and ~770 per rule incl. thinking, about
+ * twice Sonnet's ($0.094 real vs $0.05 estimated before). Opus assumed until measured.
+ */
 const OUTPUT_FACTOR: Record<AiModel, number> = {
   "claude-opus-5-5": 1.2,
   "claude-sonnet-5-5": 1,
-  "claude-haiku-5-5": 1,
+  "claude-haiku-5-5": 2,
 };
 /** The prompt cache lives 5 minutes from the request that last used it; keep a margin. */
 const CACHE_TTL_S = 270;

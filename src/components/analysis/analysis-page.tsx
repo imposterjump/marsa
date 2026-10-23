@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -48,7 +48,7 @@ import {
   useRunStatus,
 } from "@/hooks/use-runs";
 import type { AnalysisResultsDto, RunDto, RunStatusDto } from "@/lib/api-types";
-import type { AiModel, RunStatus } from "@/lib/domain";
+import type { AiModel, ProposalSection, RunStatus } from "@/lib/domain";
 import { formatDateTime } from "@/lib/format";
 import { AI_MODEL_LABEL } from "@/lib/labels";
 import { setSidebarCollapsed } from "@/lib/theme";
@@ -354,6 +354,9 @@ function Results({ d }: { d: AnalysisResultsDto }) {
   const colors = useMemo(() => vendorColors(d.vendors), [d.vendors]);
   const { data: status } = useRunStatus(d.run.id);
 
+  // A risk's "see its points in Compliance": switch tab, then scroll to and pulse that section.
+  const [focus, setFocus] = useState<{ section: ProposalSection | null; at: number } | null>(null);
+
   const tabParam = params.get("tab");
   const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : "overview";
   const setQuery = (next: Record<string, string | null>) => {
@@ -383,6 +386,10 @@ function Results({ d }: { d: AnalysisResultsDto }) {
     { id: "rfp", label: "RFP", docs: p.rfpDocuments },
   ];
   const readerOpen = !!readerId && groups.some((g) => g.docs.some((x) => x.id === readerId));
+  const onSection = (section: ProposalSection | null) => {
+    setFocus({ section, at: Date.now() });
+    setQuery({ tab: "compliance" });
+  };
   const onEvidence: OpenEvidence = (docId, page, quote, vendorId) =>
     setQuery({
       reader: docId,
@@ -405,10 +412,10 @@ function Results({ d }: { d: AnalysisResultsDto }) {
           <OverviewTab d={d} colors={colors} />
         </TabsContent>
         <TabsContent value="compliance">
-          <ComplianceTab d={d} colors={colors} onEvidence={onEvidence} />
+          <ComplianceTab d={d} colors={colors} onEvidence={onEvidence} focus={focus} />
         </TabsContent>
         <TabsContent value="risks">
-          <RisksTab d={d} colors={colors} />
+          <RisksTab d={d} colors={colors} onEvidence={onEvidence} onSection={onSection} />
         </TabsContent>
         <TabsContent value="comparison">
           <ComparisonTab d={d} colors={colors} onEvidence={onEvidence} />

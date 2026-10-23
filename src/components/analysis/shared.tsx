@@ -36,20 +36,20 @@ export function vendorColors(vendors: VendorResultDto[]): Map<string, string> {
 export const SECTION_ORDER: (ProposalSection | null)[] = [...PROPOSAL_SECTIONS, null];
 export const sectionLabel = (s: ProposalSection | null) =>
   s ? PROPOSAL_SECTION_LABEL[s] : "Not assigned to a section";
-/** Position in the proposal template (1–7), so every tab says "Section 3" for the same thing. */
-export const sectionNumber = (s: ProposalSection | null) => (s ? PROPOSAL_SECTIONS.indexOf(s) + 1 : null);
-export const sectionChip = (s: ProposalSection | null) =>
-  s ? `${sectionNumber(s)} · ${PROPOSAL_SECTION_LABEL[s]}` : "Not assigned";
+/**
+ * The sections a results tab shows: always all 7 of the template (an empty one says so), plus
+ * "Not assigned" only when an older run has points without a section.
+ */
+export function shownSections(d: AnalysisResultsDto): (ProposalSection | null)[] {
+  const unassigned =
+    d.requirements.some((r) => r.section === null) ||
+    d.vendors.some((v) => v.risks.some((r) => r.section === null));
+  return SECTION_ORDER.filter((s) => s !== null || unassigned);
+}
 
-/** "SECTION 3" caption over the section name; `as="span"` inside buttons. */
+/** The section's name as a card title; `as="span"` inside buttons. */
 export function SectionTitle({ section, as: Tag = "h3" }: { section: ProposalSection | null; as?: "h3" | "span" }) {
-  const n = sectionNumber(section);
-  return (
-    <span className="flex min-w-0 flex-col gap-0.5">
-      <span className="caption-caps text-ink-muted">{n ? `Section ${n}` : "Other"}</span>
-      <Tag className="font-heading text-lg font-semibold text-ink">{sectionLabel(section)}</Tag>
-    </span>
-  );
+  return <Tag className="font-heading text-lg font-semibold text-ink">{sectionLabel(section)}</Tag>;
 }
 
 export type Scope = "standard" | "rfp";

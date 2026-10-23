@@ -17,12 +17,12 @@ import type {
 import type { FindingStatus, ProposalSection } from "@/lib/domain";
 import {
   type OpenEvidence,
-  SECTION_ORDER,
   SectionTitle,
   VendorLabel,
   pctText,
   scopeStats,
   sectionLabel,
+  shownSections,
 } from "./shared";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
@@ -120,7 +120,7 @@ export function ComparisonTab({
       {comparing && chosen.length >= 2 && (
         <>
           <Bars d={d} vendors={chosen} colors={colors} />
-          {SECTION_ORDER.filter((s) => d.requirements.some((r) => r.section === s)).map((s) => (
+          {shownSections(d).map((s) => (
             <SectionDiff key={s ?? "none"} d={d} section={s} vendors={chosen} colors={colors} onEvidence={onEvidence} />
           ))}
         </>
@@ -212,6 +212,15 @@ function SectionDiff({
   // Biggest gaps first: a point one vendor meets and another does not.
   diffs.sort((a, b) => spread(byVendor, b.id) - spread(byVendor, a.id));
 
+  if (reqs.length === 0) {
+    return (
+      <section aria-label={sectionLabel(section)} className={cn(card, "flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-4")}>
+        <SectionTitle section={section} />
+        <span className="text-xs text-ink-muted">Nothing to compare: no point falls in this section</span>
+      </section>
+    );
+  }
+
   return (
     <section aria-label={sectionLabel(section)} className={card}>
       <button
@@ -226,13 +235,16 @@ function SectionDiff({
             ? `${diffs.length} difference${diffs.length === 1 ? "" : "s"} · same on ${reqs.length - diffs.length}`
             : `Same result on all ${reqs.length} points`}
         </span>
-        <span className="ms-auto flex flex-wrap items-center gap-3">
+        <span className="ms-auto flex flex-wrap items-center gap-x-4 gap-y-1">
           {vendors.map((v) => {
             const st = scopeStats(d, v, { section });
             return (
-              <span key={v.proposalId} className="inline-flex items-center gap-1.5 text-xs text-ink-2">
-                <span aria-hidden className="size-2 rounded-full" style={{ background: colors.get(v.proposalId) }} />
-                <span className="font-semibold tabular-nums">{pctText(st.pct)}</span>
+              <span key={v.proposalId} className="inline-flex min-w-0 items-center gap-1.5 text-xs text-ink-2">
+                <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: colors.get(v.proposalId) }} />
+                <span className="max-w-40 truncate" dir="auto">
+                  {v.vendor.name}
+                </span>
+                <span className="font-semibold text-ink tabular-nums">{pctText(st.pct)}</span>
               </span>
             );
           })}
@@ -241,22 +253,43 @@ function SectionDiff({
       </button>
       <AnimatePresence initial={false}>
         {open && diffs.length > 0 && (
-          <motion.ul
+          <motion.div
             initial={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
             animate={reduce ? { opacity: 1 } : { height: "auto", opacity: 1 }}
             exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: EASE_OUT_QUINT }}
-            className="flex flex-col divide-y divide-border/70 overflow-hidden"
+            className="overflow-hidden"
           >
-            {diffs.map((r) => (
-              <DiffRow key={r.id} r={r} vendors={vendors} findings={byVendor.map((m) => m.get(r.id))} colors={colors} onEvidence={onEvidence} />
-            ))}
-          </motion.ul>
+            {/* Column heads, so nobody has to scroll up to see whose column is whose. */}
+            <div
+              className="grid items-center gap-3 border-b border-border/70 bg-surface-muted/50 px-5 py-2"
+              style={{ gridTemplateColumns: diffColumns(vendors.length) }}
+            >
+              <span className="caption-caps text-ink-muted">Point</span>
+              {vendors.map((v) => (
+                <span key={v.proposalId} className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-ink">
+                  <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: colors.get(v.proposalId) }} />
+                  <span className="truncate" dir="auto">
+                    {v.vendor.name}
+                  </span>
+                </span>
+              ))}
+              <span aria-hidden />
+            </div>
+            <ul className="flex flex-col divide-y divide-border/70">
+              {diffs.map((r) => (
+                <DiffRow key={r.id} r={r} vendors={vendors} findings={byVendor.map((m) => m.get(r.id))} colors={colors} onEvidence={onEvidence} />
+              ))}
+            </ul>
+          </motion.div>
         )}
       </AnimatePresence>
     </section>
   );
 }
+
+/** Point · one column per vendor · the chevron: shared by the head row and every point. */
+const diffColumns = (n: number) => `minmax(180px, 1.3fr) repeat(${n}, minmax(0, 1fr)) 1rem`;
 
 const spread = (byVendor: Map<string, FindingResultDto>[], reqId: string) => {
   const ranks = byVendor.map((m) => RANK[m.get(reqId)?.status ?? "not_addressed"]);
@@ -285,7 +318,7 @@ function DiffRow({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         className="grid w-full items-start gap-3 px-5 py-3.5 text-start outline-none transition-colors hover:bg-surface-muted/50 focus-visible:bg-surface-muted"
-        style={{ gridTemplateColumns: `minmax(180px, 1.3fr) repeat(${vendors.length}, minmax(0, 1fr)) auto` }}
+        style={{ gridTemplateColumns: diffColumns(vendors.length) }}
       >
         <span className="flex min-w-0 flex-col gap-1">
           <span className="text-sm font-medium text-ink" dir="auto">

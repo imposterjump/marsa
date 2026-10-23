@@ -1,0 +1,12 @@
+EM-01 | PM10 and PM2.5 analysers shall be certified as equivalent to the EN reference method (EN 16450) by an accredited body; the certificates shall be submitted with the bid. | mandatory
+EM-02 | Gas analysers shall use the EN reference principles: chemiluminescence for NO2 (EN 14211), UV fluorescence for SO2 (EN 14212) and UV photometry for O3 (EN 14625). | mandatory
+EM-03 | Each station shall achieve at least 90 % valid hourly data for every pollutant in every calendar quarter. | important
+EM-04 | Analysers shall be calibrated at least every 3 months with gases and transfer standards traceable to a laboratory accredited to ISO/IEC 17025; calibration records shall be kept for 5 years. | mandatory
+EM-05 | Monitoring data shall be stored and processed on servers in the State controlled by the Authority; raw and validated data shall be kept for at least 10 years. | mandatory
+EM-06 | An exceedance of a limit value shall raise an alarm to the HSE duty officer within 5 minutes of the end of the averaging period. | important
+EM-07 | Noise monitoring terminals shall be Class 1 sound level meters to IEC 61672-1 and shall be verified every year. | mandatory
+EM-08 | Station enclosures shall be air-conditioned, rated IP55 or better, and operate in ambient temperatures from 0 °C to +50 °C. | important
+EM-09 | Stations shall keep at least 7 days of data locally and send it automatically after a communication outage. | important
+EM-10 | Data for the public shall be published through an open, documented API and a public dashboard in Arabic and English. | desirable
+EM-11 | The supplier shall respond on site within 48 hours to a station failure and keep spare analysers in the State. | important
+EM-12 | A warranty of at least 24 months from acceptance shall cover all equipment and software. | mandatory

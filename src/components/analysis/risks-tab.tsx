@@ -2,22 +2,24 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ChevronDown } from "lucide-react";
+import { ArrowUpRight, BookOpen, ChevronDown } from "lucide-react";
 import { cn } from "cn";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
+import { SourceChips } from "@/components/results/finding-card";
+import { Button } from "@/components/ui/button";
 import { RiskPill } from "@/components/ui/status-pill";
 import type { AnalysisResultsDto, RiskResultDto, VendorResultDto } from "@/lib/api-types";
 import type { ProposalSection, RiskSeverity } from "@/lib/domain";
 import { maxSeverity } from "@/lib/scoring";
 import {
   MeterBar,
+  type OpenEvidence,
   RISK_FILL,
-  SECTION_ORDER,
   SEVERITY_ORDER,
   SectionTitle,
   VendorLabel,
-  sectionChip,
   sectionLabel,
+  shownSections,
 } from "./shared";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
@@ -26,17 +28,32 @@ const byWeight = (a: RiskResultDto, b: RiskResultDto) =>
   SEVERITY_RANK[a.severity as RiskSeverity] - SEVERITY_RANK[b.severity as RiskSeverity] ||
   b.likelihood * b.impact - a.likelihood * a.impact;
 
+/** What a risk card can open: the evidence in the reader, and its section in Compliance. */
+interface RiskLinks {
+  d: AnalysisResultsDto;
+  onEvidence: OpenEvidence;
+  onSection: (s: ProposalSection | null) => void;
+}
+
 /**
  * Risks (user's design: divided like Compliance). Top: every vendor's 0–100 risk score. Then one
- * card per proposal section ("Section 1 · Company & references"), and in it every vendor's risks
- * for that section: count, highest severity, its top risk, a severity line, and a dropdown with
- * the risk cards (details behind "View more").
+ * card per proposal section, and in it every vendor's risks for that section: count, highest
+ * severity, its top risk, a severity line, and a dropdown with the risk cards. "View more" links
+ * the risk to what it is about, as in Compliance: the RFP clause or standard rule, the vendor's
+ * evidence and the section's points.
  */
-export function RisksTab({ d, colors }: { d: AnalysisResultsDto; colors: Map<string, string> }) {
+export function RisksTab({
+  d,
+  colors,
+  onEvidence,
+  onSection,
+}: {
+  d: AnalysisResultsDto;
+  colors: Map<string, string>;
+} & Omit<RiskLinks, "d">) {
   const vendors = d.vendors.filter((v) => v.scores);
-  const sections = SECTION_ORDER.filter(
-    (s) => vendors.some((v) => v.risks.some((r) => r.section === s)) || (s !== null && d.requirements.some((r) => r.section === s)),
-  );
+  const sections = shownSections(d);
+  const links: RiskLinks = { d, onEvidence, onSection };
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,13 +92,13 @@ export function RisksTab({ d, colors }: { d: AnalysisResultsDto; colors: Map<str
             href={`#risk-${s ?? "none"}`}
             className="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-ink-2 transition-colors outline-none hover:border-border-strong hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
           >
-            {sectionChip(s)}
+            {sectionLabel(s)}
           </a>
         ))}
       </nav>
 
       {sections.map((s) => (
-        <SectionCard key={s ?? "none"} section={s} vendors={vendors} colors={colors} />
+        <SectionCard key={s ?? "none"} section={s} vendors={vendors} colors={colors} links={links} />
       ))}
     </div>
   );
@@ -91,19 +108,28 @@ function SectionCard({
   section,
   vendors,
   colors,
+  links,
 }: {
   section: ProposalSection | null;
   vendors: VendorResultDto[];
   colors: Map<string, string>;
+  links: RiskLinks;
 }) {
   const all = vendors.flatMap((v) => v.risks.filter((r) => r.section === section));
   const top = all.length ? maxSeverity(all.map((r) => r.severity)) : null;
   return (
     <section id={`risk-${section ?? "none"}`} aria-label={sectionLabel(section)} className={cn(card, "scroll-mt-24")}>
-      <header className="flex flex-wrap items-end justify-between gap-2 border-b border-border/70 px-5 py-4">
+      <header
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-2 px-5 py-4",
+          all.length > 0 && "border-b border-border/70",
+        )}
+      >
         <SectionTitle section={section} />
         <span className="flex items-center gap-2 text-xs text-ink-muted">
-          {all.length ? `${all.length} risk${all.length === 1 ? "" : "s"} across ${vendors.length} vendors` : "No risks raised"}
+          {all.length
+            ? `${all.length} risk${all.length === 1 ? "" : "s"} across ${vendors.length} vendors`
+            : "No risks raised in this section"}
           {top && (
             <>
               <span aria-hidden>·</span> highest <RiskPill severity={top} size="sm" />
@@ -111,11 +137,13 @@ function SectionCard({
           )}
         </span>
       </header>
-      <ul className="flex flex-col divide-y divide-border/70">
-        {vendors.map((v) => (
-          <VendorRisks key={v.proposalId} v={v} section={section} color={colors.get(v.proposalId)} />
-        ))}
-      </ul>
+      {all.length > 0 && (
+        <ul className="flex flex-col divide-y divide-border/70">
+          {vendors.map((v) => (
+            <VendorRisks key={v.proposalId} v={v} section={section} color={colors.get(v.proposalId)} links={links} />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
@@ -124,10 +152,12 @@ function VendorRisks({
   v,
   section,
   color,
+  links,
 }: {
   v: VendorResultDto;
   section: ProposalSection | null;
   color?: string;
+  links: RiskLinks;
 }) {
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
@@ -190,7 +220,7 @@ function VendorRisks({
           >
             <ol className="grid gap-3 bg-surface-muted/40 px-5 pt-1 pb-5 lg:grid-cols-2">
               {list.map((r) => (
-                <RiskCard key={r.id} r={r} />
+                <RiskCard key={r.id} r={r} v={v} links={links} />
               ))}
             </ol>
           </motion.div>
@@ -200,8 +230,18 @@ function VendorRisks({
   );
 }
 
-export function RiskCard({ r }: { r: RiskResultDto }) {
+function RiskCard({ r, v, links }: { r: RiskResultDto; v: VendorResultDto; links: RiskLinks }) {
   const [open, setOpen] = useState(false);
+  const { d, onEvidence, onSection } = links;
+  const reqs = r.requirementCodes
+    .map((code) => d.requirements.find((x) => x.code === code))
+    .filter((x): x is NonNullable<typeof x> => !!x);
+  // The vendor's own sentence behind the risk: the finding on the same requirement, if it has one.
+  const finding = reqs
+    .map((req) => v.findings.find((f) => f.requirementId === req.id))
+    .find((f) => f?.evidenceDocId);
+  const open_ = (docId: string, page: number | null, quote: string) => onEvidence(docId, page, quote, v.proposalId);
+
   return (
     <li className={cn(card, "flex flex-col gap-2.5 p-4 text-[13px]")}>
       <div className="flex flex-wrap items-start gap-2">
@@ -226,7 +266,7 @@ export function RiskCard({ r }: { r: RiskResultDto }) {
         </button>
       </div>
       {open && (
-        <dl className="grid gap-x-4 gap-y-2 border-t border-border/70 pt-3 sm:grid-cols-[7rem_1fr]">
+        <dl className="grid gap-x-4 gap-y-2.5 border-t border-border/70 pt-3 sm:grid-cols-[7rem_1fr]">
           <dt className="text-xs font-semibold text-ink-muted">If it happens</dt>
           <dd className="text-ink-2" dir="auto">
             {r.consequence}
@@ -239,20 +279,62 @@ export function RiskCard({ r }: { r: RiskResultDto }) {
           <dd className="text-ink-2" dir="auto">
             {r.mitigation}
           </dd>
-          {r.evidence && (
+          {(r.evidence || finding) && (
             <>
               <dt className="text-xs font-semibold text-ink-muted">Evidence</dt>
-              <dd className="text-ink-2 italic" dir="auto">
-                {r.evidence}
+              <dd className="flex flex-col items-start gap-1.5">
+                {r.evidence && (
+                  <span className="text-ink-2 italic" dir="auto">
+                    “{r.evidence}”
+                  </span>
+                )}
+                {finding?.evidenceDocId && (
+                  <Button
+                    variant="secondary"
+                    size="xs"
+                    onClick={() =>
+                      open_(finding.evidenceDocId!, finding.evidencePage, finding.evidenceQuote ?? r.evidence ?? "")
+                    }
+                  >
+                    <BookOpen /> Open in {v.vendor.name}&apos;s proposal
+                    {finding.evidencePage ? `, page ${finding.evidencePage}` : ""}
+                  </Button>
+                )}
               </dd>
             </>
           )}
           {r.requirementCodes.length > 0 && (
             <>
-              <dt className="text-xs font-semibold text-ink-muted">Requirements</dt>
-              <dd className="font-mono text-xs text-ink-2">{r.requirementCodes.join(", ")}</dd>
+              <dt className="text-xs font-semibold text-ink-muted">About</dt>
+              <dd className="flex flex-col gap-2">
+                {r.requirementCodes.map((code) => {
+                  const req = reqs.find((x) => x.code === code);
+                  return (
+                    <span key={code} className="flex flex-col gap-1">
+                      {req && (
+                        <span className="text-xs text-ink-2" dir="auto">
+                          <span className="font-mono text-ink-muted">{req.scope === "standard" ? req.sourceRef : req.code}</span>{" "}
+                          {req.title}
+                        </span>
+                      )}
+                      <SourceChips sources={req ? (d.sources[req.id] ?? []) : []} fallback={code} onOpen={open_} />
+                    </span>
+                  );
+                })}
+              </dd>
             </>
           )}
+          <dt className="text-xs font-semibold text-ink-muted">Section</dt>
+          <dd>
+            <button
+              type="button"
+              onClick={() => onSection(r.section)}
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink-2 transition-colors outline-none hover:border-brand/50 hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              {sectionLabel(r.section)}: see its points in Compliance
+              <ArrowUpRight className="size-3 text-ink-faint" aria-hidden />
+            </button>
+          </dd>
         </dl>
       )}
     </li>

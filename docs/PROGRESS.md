@@ -17,7 +17,8 @@
 | # | Item | Where |
 |---|---|---|
 | P8 | **Test P8**: guided form, project page, Add vendor, AI analysis results page (Overview · Compliance · Risks · Comparison · AI quality). I push after your OK | [test-inputs/poc-inputs/README.md](../test-inputs/poc-inputs/README.md) |
-| M | **Meeting demo:** rehearse with POC set 1, then run set 2. About $1 of credit is left, so use Haiku (≈ $0.03 per run); Sonnet ≈ $0.60 | [test-inputs/poc-inputs/README.md](../test-inputs/poc-inputs/README.md) |
+| M | **Meeting demo:** rehearse with POC set 1, then run set 2. Set 3 has three vendors. Test on Haiku (≈ $0.05–0.09 a run), then run Opus once (≈ $1.3–2) | [test-inputs/poc-inputs/README.md](../test-inputs/poc-inputs/README.md) |
+| R | **Your Haiku run:** you start it; we go through the results together | — |
 | 0 | **Test Phases 6 + 7**: analysis, mission control, results, generate with AI. Part B spends credits on Opus (≈ $2–4 / $7–10 / $0.4 per case). I push P6 + P7 after your OK | [test-inputs/phase-6/README.md](../test-inputs/phase-6/README.md) |
 | 1 | **Test Phase 5 (viewer checkpoint P5.8)**: categories, reader, Analyse panel, evidence links. **UNTESTED** (pushed at your request before testing) | [test-inputs/phase-5/README.md](../test-inputs/phase-5/README.md) |
 | 1b | Phase 1 design checkpoint (P1.9): no feedback received yet, assumed OK | — |
@@ -26,7 +27,10 @@
 ## Decision log
 | Date | Decision | By |
 |---|---|---|
-| 2026-10-23 | About **$1 of API credit left**: any paid call uses **Haiku 5.5** | You |
+| 2026-10-23 | **≈ $6 of credit** (you added $5): test on **Haiku**, run **Opus once** when everything is ready; you start the runs and we review them together | You |
+| 2026-10-23 | All 7 sections always shown; section **names only** (no numbers); vendor names above the Comparison columns; a risk's details link to the clause/rule, the evidence and its section | You |
+| 2026-10-23 | A third POC set with **three vendors** | You |
+| 2026-10-23 | About **$1 of API credit left**: any paid call uses **Haiku 5.5** (superseded the same day) | You |
 | 2026-10-23 | Risks tab divided like Compliance: "Section N · name", then each vendor's risks in that section | You |
 | 2026-10-22 | **New story after the client meeting** (plan approved): guided New project form **Project → Standards (by category) → Vendors**; project page keeps Overview + Proposals + one AI analysis button; results on their own full-width page (sidebar collapsed) with Overview · Compliance · Risks · Comparison; vendors can be added after an analysis, then re-run | You |
 | 2026-10-22 | Analysis checks **standards and RFP separately**, each point with a summary line + details; proposals follow **7 sections**; risk is a **0–100 number** calibrated so a ~90 %-compliant top vendor is not "very high" | You |
@@ -182,10 +186,13 @@
 | 2026-10-21 | P7.5 generate 2 bids | Sonnet 5.5 | $0.19 | Strong + risky bids, DOCX + PDF |
 | | **Total (my runs)** | | **≈ $6.17** | |
 | 2026-10-23 | Balance check | — | — | You: "about 1 dollar left" (your own runs on :3001 are not logged here). P8 used **no** credits: everything was verified with the free demo AI |
+| 2026-10-23 | You added $5 | — | — | ≈ $6 available |
+| 2026-10-23 | POC set 3 check (3 vendors, 11 steps), throwaway server | Haiku 5.5 | **$0.094** | Sabkha recommended, all 7 sections filled; found the "Section E" leak and the Haiku estimate gap (fixed) |
 
 ## Session log
 | Date | Session summary |
 |---|---|
+| 2026-10-23 (S6b) | Your test of P8: all 7 sections now show (smarter section guess); Comparison columns carry the vendor names; a risk's "View more" opens the clause or rule, the vendor's page and its Compliance section; section numbers hidden; fixed "0 rules" after creating a standard from a file and the AI writing "Section E". New POC set 3 with three vendors. One Haiku check: $0.094. |
 | 2026-10-22/23 (S6) | Client feedback → new story for P8 (plan approved). Kept the RTA look, rebuilt the rest: guided New project form (project first, standards by category or new from a dropped rules file, vendors with two drop zones), project page with one AI analysis button and Add vendor, a pipeline that checks standards and the RFP separately and files every point under 7 proposal sections, a 0–100 risk score, and the full-width AI analysis results page (Overview, Compliance and Risks by numbered section, Comparison, AI quality). POC sets rebuilt on the 7-section template with Excel/CSV rules. Fixed on the way: first RFP upload did not refresh the draft, a vendor from an earlier tender could not be retyped. 177 unit + 20 E2E green. Local commits only, no API credits used. |
 | 2026-10-21 (S1) | Requirements gathered (7 decisions). Skills reviewed (epic-design, frontend, backend, architect, claude-api). UI research (dashboards, bid-comparison tools, viewers). Wrote PRD, RDD, PHASES, PROGRESS. 22 recommendations awaiting approval. |
 | 2026-10-21 (S2) | Phase 0 complete: Next 16.4 + Tailwind 4 + shadcn (radix-nova, RTL) scaffold, Drizzle/SQLite schema (16 tables), typed env, traversal-safe storage, `/api/health`, Vitest + Playwright. Created HANDOFF.md. 7 environment issues found and solved (HANDOFF §4). |

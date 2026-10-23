@@ -156,7 +156,7 @@ async function checklist(input: Extract<StepInput, { phase: "checklist" }>, deps
   const seen = new Set<string>();
   const reqs: ChecklistOutput["requirements"] = [];
   for (const s of await sentencesOf(input.ctx.rfpDocs, deps)) {
-    if (!/\b(shall|must)\b/i.test(s.text) || reqs.length >= 24) continue;
+    if (!/\b(shall|must)\b/i.test(s.text) || reqs.length >= 60) continue;
     const key = [...s.words].slice(0, 8).join(" ");
     if (seen.has(key)) continue;
     seen.add(key);

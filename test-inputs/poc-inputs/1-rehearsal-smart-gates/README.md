@@ -81,7 +81,7 @@ Click **Create project**. The project page opens.
 
    | Model | Cost | Time |
    |---|---|---|
-   | Haiku | ≈ $0.03 | ≈ 2 min |
+   | Haiku | ≈ $0.05 | ≈ 3–4 min |
    | Sonnet | ≈ $0.66 | ≈ 3 min |
 
 2. The **AI analysis results** page opens (the sidebar folds away). Mission control shows the 8 steps live: Checklist → Standards → RFP → Risk → Recommendation.
