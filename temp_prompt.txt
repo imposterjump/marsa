@@ -1,21 +1,244 @@
- /plan if u changed the foonts and ui and classes thats okay but anything else i told u will be ignored we will need a new story, the right tabs will be the
-  same project and standards, but in the project page when the client create a new client we will take him to a guided form, first stepper will be the
-  standards, can be skipped ( because he can choose from current standards or he doesnt have at all, then second stepper will be a mandatory which will be
-  the project, he has to fill the project title and category and at least one rfp file, should be able to drage and drop files, then third stepper is the
-  vendors, the the client should be able to enter the data of 1 or more vendors ( skippable too  but it can be added later on even efter evaluation and he
-  can rerun the evaluations with new vendors) he should also be able to drag and drop the commercial and tech proposal in 2 seperact drag and drop boxes, see
-  how u will manage gaving more than 1 vendor after that he presses create and we redirect him to the project view page. then the ai evaluation or process
-  will be something else like at all i will show u screen shots of each page of the process and then tell u what we will do. unf i dont have the photos rn so
-  i will try to explain it in text. when the user presses start ai analysis we will analyse each vendor proposals against the standard seperately ( saving
-  which part did it violate and which did it follow every point should have a summary phrase and a detailed explanation because there will be a view more step later, then we will do the same but for the rfp and i want to divide the proposals intos sections, so for now lets make all
-  proposals has the same like template and sections so we will compare section by section later on. after we analyse this we will calculate the risks of each
-  one, and the risks should be high of a number like the last test we made we had a a vendor that had a 90 percentages and first randking and his risk was
-  too high or very high so we need to adjust that part pls. now we will still show the analysis steps to the client so he isnt hanging there while we are
-  running, after its ready we wont take him to a tab that is under the project we will take him to a page called ai analysis results, it will have more than
-  one tab, the first tabe will be the overview i want that the side bar to be automatically collapsed so we have as much space as possible, then underneath
-  it there will be the recommended vendor's name, inside a box and three mini boxes that has the same height in total as the main box each one will have the
-  standards compliance percentage and rfp and risks too, there is also another option to display the vendor name and then beside it 3 circle charts ( i dont
-  remember the name ) and have them beside each other beside the vendor name showing the percentage of each aspect, then underneath this will be the standard
-  compliance percentage display, under the section label we will have rows each row is a vendor, having the name and the percentage on its right and underneath
-  them how many standard rule sdid it follow and partialy comply and non comply and not addressed in like a colored line u did it i think i sent me screenshots, that will be for each client, same exact thing for rfp and then the risks, there will be 3 more tabs, compliances tab ( will be detailed level but i still dont have the vision or the screenshot for it), risks tab ( same as compliances tab for now  ), and then the comparison tab, the user will find each vendor name in a card that has a checkbox in it so he can select amongst them and then after selecting more than one he will find a comparison button, when its pressed we hide the non selected vendors and keep both and display the differences between boths, id love
-  everything to be visualized not blocks of texts and then a dropdown button that has detailed data underneath the corresponding item so when the client still wants details he can easely access it but at the same time we dont throw tons of data in his place. u can start with these now, if u have recommendations for the  ui and ux and the concept of the tabs that i dont have now i dont mind share them with me and i will choosee i need something visualy informative that have charts and number explanation and high level details hidden until its needed. so all the data we are displaying currently is perfect it just needs to be seperated and arranged. if you have any questions or any recommendations u must share before u start 
+HANDOFF PROMPT FOR THE NEXT AGENT · project "Marsa" (shown to users as "Mizan") · written 2026-10-23
+
+You are taking over an active project from another Claude session. Read this whole prompt, then
+the files it points to, before you change anything. The user is waiting on feedback cycles, not a
+fresh start: keep the momentum and the conventions below.
+
+====================================================================================================
+0. FIRST THINGS TO DO
+====================================================================================================
+1. Read CLAUDE.md (project rules, plus the naming note at the top) and AGENTS.md (Next.js 16 warning).
+2. Read docs/HANDOFF.md completely. It holds:
+   - environment quirks;
+   - gotchas G-01…G-85, the traps already hit, with fixes;
+   - open issues I-01…I-30;
+   - small design decisions (§6);
+   - the session log (§8).
+   It is the source of truth. Then read docs/PROGRESS.md (status, decisions, API spend) and the P8
+   section of docs/PHASES.md.
+3. Run `git log --oneline -15` and `git status`. The last pushed commit is 44489ea on main (GitHub:
+   https://github.com/imposterjump/marsa, private). Tags `before-rta-redesign` and
+   `before-vendor-first-layout` are rollback points, also pushed.
+4. Do NOT start servers or AI runs until the user asks (rules in §3).
+
+====================================================================================================
+1. WHAT THE PRODUCT IS
+====================================================================================================
+A procurement-evaluation prototype for ports & customs.
+- A customer creates a project (tender) with its RFP documents, applies "standards" (the
+  organisation's rule sets) and adds vendors with a commercial and a technical proposal (PDF/Word…).
+- Claude analyses every vendor against the standards and, separately, against the RFP; finds
+  risks; recommends a vendor.
+- Everything is shown with evidence that opens the vendor's document highlighted.
+
+NAMING (important, user decision 2026-10-23):
+- Users see the product as **Mizan** (ميزان, "the scale"). The displayed name comes from APP_NAME
+  in src/lib/brand.ts.
+- "Marsa" is the internal codename and stays everywhere in code, package.json, the database,
+  folders, docs and comments. Never rename code, tables or files to Mizan.
+- The settings table still stores app_name "Marsa". It is ignored on purpose: the settings API
+  overrides appName with APP_NAME (G-85, G-52: never change DDL on existing tables).
+- An alternative name, "Tarsiya" (ترسية, tender award), was offered. It is a one-line change in
+  brand.ts if the user ever asks.
+
+BRAND:
+- The logo is the Sharjah emblem: public/brand/sharjah-emblem.png, icons icon-32/64/180.png, and
+  the Emblem component in src/components/shell/brand-mark.tsx.
+- The RTA logo was removed, but the RTA design system stays: colours, the red gradient (bg-rta,
+  rta-rule), caption-caps, kpi, fonts Hanken Grotesk / Noto Sans Arabic / IBM Plex Mono, and the
+  deep-ink sidebar.
+- The user's company design reference is the untracked folder "rta standard/". Never commit it.
+
+STACK:
+- Next.js 16.4 (cacheComponents on, App Router), React 19, Tailwind v4, shadcn/radix, motion.
+- Drizzle + better-sqlite3; local file storage under data/.
+- Anthropic TypeScript SDK: streaming, structured outputs, adaptive thinking, prompt caching, Files API.
+- Models: Opus 5.5 (the app default), Sonnet 5.5, Haiku 5.5, chosen in Settings → AI & runtime.
+- AI_MODE: `mock` is a free deterministic demo engine; `live` uses real Claude.
+
+====================================================================================================
+2. CURRENT FEATURES (phase P8, re-planned after a client meeting; built, being tested by the user)
+====================================================================================================
+Sidebar: Projects, Standards, Settings (collapsible; collapses automatically on the results page).
+
+GUIDED "NEW PROJECT" FORM (src/components/projects/new-project-wizard.tsx)
+- Steps: Project (title, category, RFP drop zone; mandatory) → Standards (only the project's
+  category + General; skippable) → Vendors (each with 2 drop zones, Commercial and Technical;
+  skippable; VendorsEditor) → Create (publishes, opens the project).
+- Open stepper: every step can be opened before anything is filled in, so the user can show the
+  steps without creating anything.
+- The draft is created lazily, only when something must be stored (first RFP drop, a saved vendor,
+  or Create): ensureDraft(stayOn).
+- Create validates. If something is missing it goes back to step 1, shows the errors and focuses
+  the exact field (or scrolls to and pulses the RFP zone).
+- Standards chosen before a draft exists are kept as `pendingStandards` and applied later.
+- "New standard" dialog: drop a rules file (XLSX/CSV/DOCX/TXT are parsed free by
+  src/server/standards/rules-file.ts; a PDF needs AI extraction, which is paid and asks first).
+  After creating, the list is invalidated so the "12 rules" count shows (G-82).
+
+PROJECT PAGE (/projects/[id])
+- Tabs: Overview and Proposals only.
+- Header button (AiAnalysisAction): Run AI analysis / Open AI analysis / Run a new analysis.
+- Proposals tab: an "Add vendor" dialog (also after an analysis), "Generate with AI" (a demo tool
+  that writes bids), and the AI analysis panel (steps, time and cost estimate).
+- The vendor simulator /vendor-portal still exists, reachable from Settings → Demo tools (I-27).
+- The proposal page /projects/[id]/proposals/[pid] still has old per-vendor
+  Compliance/Comparison/Risk tabs (I-26: the user was asked whether to remove them; no answer yet).
+
+ANALYSIS PIPELINE (src/server/ai/*, src/server/runs/*), 3N+2 steps
+- Order: checklist → standards check per vendor → RFP check per vendor → risk register per vendor
+  → recommendation.
+- Proposals follow a 7-section template (PROPOSAL_SECTIONS in src/lib/domain.ts): company,
+  solution, security, implementation, support, commercial, terms.
+- Every requirement, finding and risk has a section and a one-line headline, stored in the new table
+  analysis_meta. src/lib/sections.ts guessSection() is a weighted keyword score, used by the mock
+  engine and as a fallback.
+- Scores are computed by the app, never by the AI (src/lib/scoring.ts, src/server/runs/scores.ts):
+  - Standards % and RFP % use the settings weights and partial credit.
+  - Risk score = 45×min(1, mandatory not met/5) + 30×gap share + 25×(average of the top-3 L×I/25).
+    Bands: <25 low, <50 moderate, <70 high, else critical.
+  - Overall = 0.4 Std + 0.4 RFP + 0.2(100−risk); without standards, 0.8 RFP + 0.2(100−risk).
+  - The recommendation is the formula's pick; the AI only writes the reason.
+- The system prompt forbids writing the input's "Section A–E" labels (a live run once wrote
+  "Section E"; that old run's text still shows it).
+
+AI ANALYSIS RESULTS PAGE
+- URL: /analysis/[projectId]?run=&tab=overview|rfp|standards|risks|comparison|quality&reader=&page=&q=&v=
+- While a run is active it shows "mission control" (live steps, ETA, phases, vendor boxes of equal
+  height).
+- Tabs:
+  - Overview: the recommended-vendor box with the AI reason, 3 mini boxes, per-vendor rows.
+  - RFP and Standards (separate tabs; there is no "Compliance" tab any more):
+    - vendor-first cards in ranking order, each labelled "Vendor N of M";
+    - a tinted summary band with the overall %, then "By proposal section" rows;
+    - a row opens its points with status pills (non-compliant / partial / not addressed /
+      compliant; one group at a time);
+    - empty sections are listed once at the end.
+  - Risks: vendor-first in the same way; "View more" links the clause or rule, the evidence, and
+    "see its points".
+  - Comparison: pick ≥2 vendors, then a pricing-page style table (one column per vendor; rows for
+    overall, RFP by section, standards by section, risks by section, commercial terms; the best
+    value is marked). It is computed from saved results, with no AI call. An optional AI-written
+    comparison summary was offered (~$0.01–0.02 on Haiku); the user has not answered.
+  - AI quality: run report + human review.
+- A "Latest analysis ▾" menu holds the run history. Old /projects/:id/evaluation and /ai-review
+  URLs redirect here.
+
+====================================================================================================
+3. THE USER'S STANDING RULES (non-negotiable; also in HANDOFF §0 and the auto-memory)
+====================================================================================================
+1. End of every phase or feature round:
+   - the app running;
+   - the localhost link;
+   - a short bullet list of what changed;
+   - the exact click-by-click test case with COPY-PASTE values for every field.
+   The user is busy ("i dont have time"): give the values directly.
+2. Test inputs must be deep and production-like (PDFs) and must NEVER help the AI: no evaluator
+   hints, RFP and standards consistent, vendor bids legitimate. Human-only expectations go in each
+   README's "What a good result looks like" or in test-inputs/SCENARIO.md.
+3. Bigger changes: plan → share recommendations/questions → build. Small UI feedback: just do it,
+   quickly. The user writes fast and casually with typos; read for intent.
+4. Commit locally after each change (trailers below). Push only when the user has tested or
+   explicitly says to push. Before every commit/push: scan for `sk-ant-` keys
+   (git diff | grep sk-ant-).
+5. Credits: about $6 was available on 2026-10-23, minus ~$0.18 spent since (two Haiku runs).
+   - Testing runs on Haiku (~$0.05–0.10 per run); Opus runs ONCE at the end, when the user says
+     everything is ready (~$1.3–2.1 per run).
+   - Never start a live analysis yourself: the user starts runs in the UI and then reviews results
+     with you ("let me do the ai run … check the results w me").
+   - Ask before any paid call, log costs in PROGRESS → API spend.
+   - Live experiments only in throwaway data folders (data/haiku-check, data/screens…), never data/.
+6. Secrets: the real key is in .env (gitignored). Never print it (check length/prefix only). Never
+   put an empty ANTHROPIC_API_KEY= in .env.local.
+7. Processes:
+   - Only kill processes you started (check the command line first).
+   - The user's own server on port 3001 (next start, NEXT_DIST_DIR=.next-view,
+     DATA_DIR=./data/live-test, holds real Sonnet results) must not be touched; it runs a pre-P8
+     build.
+   - If Claude Code kills a background server for low memory, report it and do NOT restart it
+     unless asked.
+8. Docs: at the end of a session update HANDOFF (§1, gotchas, issues, session log) and PROGRESS
+   (decisions, status, spend); keep CLAUDE.md's naming note true. The user explicitly wants docs to
+   record changes "so the next agent doesnt mix up stuff".
+9. Commit trailers (end of every commit message):
+     Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+     Claude-Session: https://claude.ai/code/session_014LZj4cYavmHzyCh8PJ4xLN
+   (use your own session's trailers if your environment gives different ones)
+
+====================================================================================================
+4. ENVIRONMENT & HOW TO RUN (Windows 11, repo path has spaces: "C:\work\mawane2 w gamarek")
+====================================================================================================
+.env.local: AI_MODE=live (switched from mock on 2026-10-23 for the user's Haiku tests),
+DATA_DIR=./data. Settings in the user's DB: model = Haiku 5.5. Set AI_MODE=mock for free demos.
+
+THE USER'S APP ON :3000
+- It runs as a PRODUCTION build, because `npm run dev` reload-loops while Visual Studio has the
+  folder open: VS rewrites .vs/ and Turbopack reloads (G-84).
+- Rebuild + start:
+    rm -rf .next-design && NEXT_DIST_DIR=.next-design npx next build
+    NEXT_DIST_DIR=.next-design npx next start -p 3000
+  In PowerShell: $env:NEXT_DIST_DIR=".next-design"; npx next start -p 3000
+- After code changes it must be rebuilt. Before restarting, check
+  `curl http://localhost:3000/api/runs/active` returns [], because a restart interrupts a running
+  analysis.
+- Its last start was killed by Claude Code for low memory; the user was told how to restart it.
+
+OTHER PORTS
+- 3200: Playwright E2E (builds .next-e2e).
+- 3400: your throwaway demo/screenshot server (e.g. DATA_DIR=./data/screens AI_MODE=mock).
+
+CHECKS
+- `npm run check` (lint + typecheck + contrast + vitest): 178 tests green.
+- `npx playwright test`: ~20 E2E, green. analysis.spec.ts has a 120 s timeout.
+
+GOTCHAS YOU WILL HIT (details in HANDOFF)
+- next dev / next build may rewrite tsconfig.json: `git checkout -- tsconfig.json` before
+  committing (G-74).
+- After deleting a route, run `npx next typegen` (and once per extra dist folder) (G-75).
+- Bash heredocs with quotes break; write Python patch scripts with the Write tool and run
+  `python -I script.py`; open files with newline="\n" (G-80, G-25).
+- Next 16: GET routes that read the DB call `await connection()`; redirects go in next.config;
+  useSearchParams sits inside Suspense. Read node_modules/next/dist/docs before using Next APIs.
+- G-52: never change DDL on existing tables (add new tables instead).
+- Radix Select triggers aren't labelled by Field: tests use getByRole("combobox").first() (G-79).
+- Memory is tight (~3–4 GB free): run one extra server at a time.
+
+====================================================================================================
+5. TEST INPUTS (what the user demos with) · test-inputs/poc-inputs/
+====================================================================================================
+Generator: npx tsx scripts/test-inputs/build-poc.ts. It rebuilds ALL sets, so revert byte-only PDF
+churn in unchanged sets with git checkout. Content: scripts/test-inputs/content/poc-*.ts.
+All proposals follow the 7-section template.
+
+Sets (each folder has a README with exact copy-paste values):
+  1-rehearsal-smart-gates      POTS-2026, 2 vendors, IT & security
+  2-meeting-e-seals            CTS-2026, 2 vendors, IT & security
+  3-three-vendors-air-quality  PEMS-2026, 3 vendors, Safety & environment
+                               (real Haiku run: Sabkha 1st, Kaltenmoor, Nimbrel)
+  4-three-vendors-customs-lab  CLQS-2026, 3 vendors, Quality
+                               (Qalamra, Veridane, Corvantis; LIMS)
+
+Each standard has its rules as .xlsx, .csv and .txt (12 rules: 6 M · 5 I · 1 D).
+Older phase test inputs live in test-inputs/phase-N/.
+
+Screenshots of every page (34, AI results from the real Haiku run) are in screenshots/2026-10-23/
+plus a captioned PDF and a zip (gitignored). They were sent to the user's phone.
+
+====================================================================================================
+6. WHERE THINGS STAND / WHAT'S NEXT
+====================================================================================================
+- P8 is built and pushed; the user is in a rapid feedback loop (checkpoint P8.6). Expect more
+  small UI requests on the results tabs, the guided form and the test cases.
+- The user ran set 3 on Haiku on their own data ($0.089). They may ask to review the results
+  together: open /analysis/<project>?run=… and compare with the README's "What a good result looks
+  like".
+- Open questions to the user:
+  - remove the old per-vendor tabs on the proposal page (I-26)?
+  - add an AI-written comparison summary?
+  - keep the name Mizan?
+- Calibrate the cost estimate after their runs (I-30: Haiku OUTPUT_FACTOR = 2 in src/lib/plan.ts).
+- The final Opus run happens once, only when the user says.
+- After P8: P9 polish/deploy (Dockerfile I-04, responsive pass, accessibility, code review).
+
+When unsure, check HANDOFF first, then ask the user one short question. Never guess about money,
+pushing or deleting.
