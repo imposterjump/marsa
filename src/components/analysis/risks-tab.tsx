@@ -14,6 +14,7 @@ import { maxSeverity } from "@/lib/scoring";
 import {
   MeterBar,
   type OpenEvidence,
+  type Scope,
   RISK_FILL,
   SEVERITY_ORDER,
   SectionTitle,
@@ -32,7 +33,7 @@ const byWeight = (a: RiskResultDto, b: RiskResultDto) =>
 interface RiskLinks {
   d: AnalysisResultsDto;
   onEvidence: OpenEvidence;
-  onSection: (s: ProposalSection | null) => void;
+  onSection: (s: ProposalSection | null, scope?: Scope) => void;
 }
 
 /**
@@ -52,7 +53,9 @@ export function RisksTab({
   colors: Map<string, string>;
 } & Omit<RiskLinks, "d">) {
   const vendors = d.vendors.filter((v) => v.scores);
-  const sections = shownSections(d);
+  // Sections with risks first (template order); the rest are listed once at the end.
+  const sections = shownSections(d).filter((s) => vendors.some((v) => v.risks.some((r) => r.section === s)));
+  const empty = shownSections(d).filter((s) => s !== null && !sections.includes(s));
   const links: RiskLinks = { d, onEvidence, onSection };
 
   return (
@@ -100,6 +103,20 @@ export function RisksTab({
       {sections.map((s) => (
         <SectionCard key={s ?? "none"} section={s} vendors={vendors} colors={colors} links={links} />
       ))}
+
+      {empty.length > 0 && (
+        <section
+          aria-label="No risks raised in these sections"
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-dashed border-border-strong/70 px-5 py-4"
+        >
+          <span className="text-[13px] text-ink-muted">No risks raised in these sections:</span>
+          {empty.map((s) => (
+            <span key={s} className="rounded-full bg-surface-muted px-3 py-1 text-xs font-medium text-ink-muted">
+              {sectionLabel(s)}
+            </span>
+          ))}
+        </section>
+      )}
     </div>
   );
 }
@@ -328,7 +345,7 @@ function RiskCard({ r, v, links }: { r: RiskResultDto; v: VendorResultDto; links
           <dd>
             <button
               type="button"
-              onClick={() => onSection(r.section)}
+              onClick={() => onSection(r.section, reqs[0]?.scope)}
               className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink-2 transition-colors outline-none hover:border-brand/50 hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               {sectionLabel(r.section)}: see its points in Compliance

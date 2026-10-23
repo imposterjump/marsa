@@ -1,28 +1,44 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { BookOpen, ChevronDown, Columns3, Pencil } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  BookOpen,
+  Check,
+  ChevronDown,
+  Columns3,
+  FileText,
+  Pencil,
+  Receipt,
+  ShieldAlert,
+  ShieldCheck,
+  Trophy,
+} from "lucide-react";
 import { cn } from "cn";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FindingStatusPill, PriorityPill } from "@/components/ui/status-pill";
+import { InitialsAvatar } from "@/components/ui/initials-avatar";
+import { FindingStatusPill, RiskPill } from "@/components/ui/status-pill";
 import type {
   AnalysisResultsDto,
   FindingResultDto,
   RequirementResultDto,
   VendorResultDto,
 } from "@/lib/api-types";
-import type { FindingStatus, ProposalSection } from "@/lib/domain";
+import type { FindingStatus, ProposalSection, RiskSeverity } from "@/lib/domain";
+import { maxSeverity } from "@/lib/scoring";
 import {
+  COMPLIANCE_FILL,
+  MeterBar,
   type OpenEvidence,
-  SectionTitle,
+  RISK_FILL,
+  type Scope,
+  SECTION_ORDER,
   VendorLabel,
   pctText,
   scopeStats,
   sectionLabel,
-  shownSections,
 } from "./shared";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
@@ -32,11 +48,14 @@ const RANK: Record<FindingStatus, number> = {
   not_addressed: 2,
   non_compliant: 3,
 };
+const SEVERITY_WEIGHT: Record<RiskSeverity, number> = { low: 1, moderate: 2, high: 3, critical: 4 };
 
 /**
- * Comparison (user's design): vendor cards with a checkbox; with two or more picked, Compare hides
- * the others and shows them side by side: their numbers as bars, then, section by section, only
- * the points where they differ (details in a dropdown). Computed from the saved analysis, free.
+ * Comparison (user's design, 2026-10-23: "like SaaS pricing pages"). Pick two or more vendors,
+ * then one big column per vendor and one row per aspect: the overall numbers, RFP compliance and
+ * standards compliance per proposal section, risks per section, and the commercial terms the AI
+ * read from each proposal. The best value of a row is marked. A section row opens the points
+ * where the vendors differ. Everything comes from the saved analysis: no new AI call, no cost.
  */
 export function ComparisonTab({
   d,
@@ -51,80 +70,64 @@ export function ComparisonTab({
   const [picked, setPicked] = useState<string[]>([]);
   const [comparing, setComparing] = useState(false);
   const chosen = analysed.filter((v) => picked.includes(v.proposalId));
-  const shown = comparing ? chosen : analysed;
+
+  if (comparing && chosen.length >= 2) {
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="max-w-3xl text-[13px] text-ink-muted">
+            Side by side from the AI analysis of each proposal. The best value in each row is marked; open a section to
+            see the points where the vendors differ.
+          </p>
+          <Button variant="secondary" onClick={() => setComparing(false)}>
+            <Pencil /> Change selection
+          </Button>
+        </div>
+        <PricingTable d={d} vendors={chosen} colors={colors} onEvidence={onEvidence} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[13px] text-ink-muted">
-          {comparing
-            ? `Comparing ${chosen.length} vendors. Only the points where they differ are listed.`
-            : "Pick the vendors to compare, then press Compare."}
-        </p>
-        {comparing ? (
-          <Button variant="secondary" onClick={() => setComparing(false)}>
-            <Pencil /> Change selection
-          </Button>
-        ) : (
-          <Button onClick={() => setComparing(true)} disabled={picked.length < 2}>
-            <Columns3 /> {picked.length < 2 ? "Pick at least 2 vendors" : `Compare ${picked.length} vendors`}
-          </Button>
-        )}
+        <p className="text-[13px] text-ink-muted">Pick the vendors to compare, then press Compare.</p>
+        <Button onClick={() => setComparing(true)} disabled={picked.length < 2}>
+          <Columns3 /> {picked.length < 2 ? "Pick at least 2 vendors" : `Compare ${picked.length} vendors`}
+        </Button>
       </div>
-
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Vendors">
-        <AnimatePresence initial={false}>
-          {shown.map((v) => {
-            const on = picked.includes(v.proposalId);
-            return (
-              <motion.li
-                key={v.proposalId}
-                layout
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.97 }}
-                transition={{ duration: 0.2, ease: EASE_OUT_QUINT }}
+        {analysed.map((v) => {
+          const on = picked.includes(v.proposalId);
+          return (
+            <li key={v.proposalId}>
+              <label
+                className={cn(
+                  card,
+                  "flex cursor-pointer flex-col gap-3 p-4 transition-colors",
+                  on && "border-brand/50 ring-2 ring-brand/15",
+                )}
               >
-                <label
-                  className={cn(
-                    card,
-                    "flex cursor-pointer flex-col gap-3 p-4 transition-colors",
-                    on && "border-brand/50 ring-2 ring-brand/15",
-                    comparing && "cursor-default",
-                  )}
-                >
-                  <span className="flex items-center gap-3">
-                    {!comparing && (
-                      <Checkbox
-                        checked={on}
-                        onCheckedChange={(c) =>
-                          setPicked((p) => (c === true ? [...p, v.proposalId] : p.filter((x) => x !== v.proposalId)))
-                        }
-                        aria-label={`Compare ${v.vendor.name}`}
-                      />
-                    )}
-                    <VendorLabel v={v} color={colors.get(v.proposalId)} />
-                  </span>
-                  <dl className="grid grid-cols-3 gap-2 text-center">
-                    <Num label="Standards" value={pctText(v.scores!.standardsPct)} />
-                    <Num label="RFP" value={pctText(v.scores!.rfpPct)} />
-                    <Num label="Risk" value={String(v.scores!.riskScore)} />
-                  </dl>
-                </label>
-              </motion.li>
-            );
-          })}
-        </AnimatePresence>
+                <span className="flex items-center gap-3">
+                  <Checkbox
+                    checked={on}
+                    onCheckedChange={(c) =>
+                      setPicked((p) => (c === true ? [...p, v.proposalId] : p.filter((x) => x !== v.proposalId)))
+                    }
+                    aria-label={`Compare ${v.vendor.name}`}
+                  />
+                  <VendorLabel v={v} color={colors.get(v.proposalId)} />
+                </span>
+                <dl className="grid grid-cols-3 gap-2 text-center">
+                  <Num label="Standards" value={pctText(v.scores!.standardsPct)} />
+                  <Num label="RFP" value={pctText(v.scores!.rfpPct)} />
+                  <Num label="Risk" value={String(v.scores!.riskScore)} />
+                </dl>
+              </label>
+            </li>
+          );
+        })}
       </ul>
-
-      {comparing && chosen.length >= 2 && (
-        <>
-          <Bars d={d} vendors={chosen} colors={colors} />
-          {shownSections(d).map((s) => (
-            <SectionDiff key={s ?? "none"} d={d} section={s} vendors={chosen} colors={colors} onEvidence={onEvidence} />
-          ))}
-        </>
-      )}
     </div>
   );
 }
@@ -138,254 +141,686 @@ function Num({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Grouped horizontal bars: one group per measure, one bar per vendor in its colour. */
-function Bars({ d, vendors, colors }: { d: AnalysisResultsDto; vendors: VendorResultDto[]; colors: Map<string, string> }) {
-  const reduce = useReducedMotion();
-  const measures: { label: string; hint: string; value: (v: VendorResultDto) => number | null; suffix: string }[] = [
-    ...(d.hasStandards
-      ? [{ label: "Standards compliance", hint: "higher is better", value: (v: VendorResultDto) => v.scores!.standardsPct, suffix: "%" }]
-      : []),
-    { label: "RFP compliance", hint: "higher is better", value: (v) => v.scores!.rfpPct, suffix: "%" },
-    { label: "Risk score", hint: "lower is better", value: (v) => v.scores!.riskScore, suffix: "" },
-  ];
-  return (
-    <section aria-label="Scores" className={cn(card, "grid gap-6 p-5 lg:grid-cols-3")}>
-      {measures.map((m) => (
-        <div key={m.label} className="flex flex-col gap-3">
-          <div className="flex items-baseline justify-between gap-2">
-            <h3 className="text-sm font-semibold text-ink">{m.label}</h3>
-            <span className="text-2xs text-ink-muted">{m.hint}</span>
-          </div>
-          <ul className="flex flex-col gap-2.5">
-            {vendors.map((v) => {
-              const val = m.value(v);
-              return (
-                <li key={v.proposalId} className="flex flex-col gap-1">
-                  <span className="flex items-baseline justify-between gap-2 text-xs">
-                    <span className="truncate text-ink-2" dir="auto">
-                      {v.vendor.name}
-                    </span>
-                    <span className="font-semibold text-ink tabular-nums">
-                      {val === null ? "—" : `${val}${m.suffix}`}
-                    </span>
-                  </span>
-                  <span className="h-2.5 w-full overflow-hidden rounded-full bg-surface-muted">
-                    <motion.span
-                      className="block h-full rounded-full"
-                      style={{ background: colors.get(v.proposalId) }}
-                      initial={reduce ? false : { width: 0 }}
-                      animate={{ width: `${Math.max(0, Math.min(100, val ?? 0))}%` }}
-                      transition={{ duration: 0.6, ease: EASE_OUT_QUINT }}
-                    />
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
-    </section>
-  );
+/* ───────────────────────── The table ───────────────────────── */
+
+type Best = "high" | "low";
+
+/** Indexes of the best values (none when all are equal or missing). */
+function bestOf(values: (number | null)[], best: Best): Set<number> {
+  const nums = values.filter((x): x is number => x !== null);
+  if (nums.length < 2 || nums.every((x) => x === nums[0])) return new Set();
+  const target = best === "high" ? Math.max(...nums) : Math.min(...nums);
+  return new Set(values.flatMap((x, i) => (x === target ? [i] : [])));
 }
 
-function SectionDiff({
+const cleanText = (s: string | null | undefined) => (s ?? "").replace(/[\s,;.]+$/, "").trim();
+
+function PricingTable({
   d,
-  section,
   vendors,
   colors,
   onEvidence,
 }: {
   d: AnalysisResultsDto;
-  section: ProposalSection | null;
   vendors: VendorResultDto[];
   colors: Map<string, string>;
   onEvidence: OpenEvidence;
 }) {
-  const reduce = useReducedMotion();
-  const [open, setOpen] = useState(true);
-  const reqs = d.requirements.filter((r) => r.section === section);
-  const byVendor = vendors.map((v) => new Map(v.findings.map((f) => [f.requirementId, f])));
-  const diffs = reqs.filter((r) => {
-    const st = byVendor.map((m) => m.get(r.id)?.status);
-    return new Set(st).size > 1;
-  });
-  // Biggest gaps first: a point one vendor meets and another does not.
-  diffs.sort((a, b) => spread(byVendor, b.id) - spread(byVendor, a.id));
-
-  if (reqs.length === 0) {
-    return (
-      <section aria-label={sectionLabel(section)} className={cn(card, "flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-4")}>
-        <SectionTitle section={section} />
-        <span className="text-xs text-ink-muted">Nothing to compare: no point falls in this section</span>
-      </section>
+  const ranked = d.vendors.filter((v) => v.scores);
+  const recommended = d.recommendation?.proposalId ?? ranked[0]?.proposalId;
+  const sectionsFor = (scope: Scope) =>
+    SECTION_ORDER.filter((s) => d.requirements.some((r) => r.section === s && r.scope === scope));
+  const missingFor = (scope: Scope) =>
+    SECTION_ORDER.filter((s): s is ProposalSection => s !== null && !sectionsFor(scope).includes(s));
+  const riskSections = SECTION_ORDER.filter((s) => vendors.some((v) => v.risks.some((r) => r.section === s)));
+  const n = vendors.length;
+  const colCls: ColCls = (i, extra) =>
+    cn(
+      "border-x border-border bg-surface px-4 align-top",
+      // The tint is a background image over the solid surface, so the pinned header stays opaque.
+      vendors[i].proposalId === recommended &&
+        "border-brand/40 bg-[linear-gradient(color-mix(in_srgb,var(--brand)_4%,transparent),color-mix(in_srgb,var(--brand)_4%,transparent))]",
+      extra,
     );
-  }
 
   return (
-    <section aria-label={sectionLabel(section)} className={card}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 border-b border-border/70 px-5 py-4 text-start outline-none focus-visible:bg-surface-muted"
+    <div className="overflow-x-auto pb-2 lg:overflow-visible">
+      <table
+        aria-label="Vendor comparison"
+        className="w-full min-w-[760px] table-fixed border-separate text-sm [border-spacing:0.75rem_0]"
       >
-        <SectionTitle section={section} as="span" />
-        <span className="text-xs text-ink-muted">
-          {diffs.length
-            ? `${diffs.length} difference${diffs.length === 1 ? "" : "s"} · same on ${reqs.length - diffs.length}`
-            : `Same result on all ${reqs.length} points`}
-        </span>
-        <span className="ms-auto flex flex-wrap items-center gap-x-4 gap-y-1">
-          {vendors.map((v) => {
-            const st = scopeStats(d, v, { section });
-            return (
-              <span key={v.proposalId} className="inline-flex min-w-0 items-center gap-1.5 text-xs text-ink-2">
-                <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: colors.get(v.proposalId) }} />
-                <span className="max-w-40 truncate" dir="auto">
-                  {v.vendor.name}
+        <colgroup>
+          <col className="w-60" />
+          {vendors.map((v) => (
+            <col key={v.proposalId} />
+          ))}
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col" className="sticky top-16 z-10 bg-background pt-2 pb-4 text-start align-bottom font-normal">
+              <span className="caption-caps text-ink-muted">{n} vendors compared</span>
+              <span className="mt-1 flex items-center gap-1.5 text-xs text-ink-muted">
+                <span className="inline-flex size-4 items-center justify-center rounded-full bg-ok-fill text-white">
+                  <Check className="size-3" aria-hidden />
                 </span>
-                <span className="font-semibold text-ink tabular-nums">{pctText(st.pct)}</span>
+                best in the row
               </span>
-            );
-          })}
-          <ChevronDown className={cn("size-5 text-ink-muted transition-transform", open && "rotate-180")} aria-hidden />
-        </span>
-      </button>
-      <AnimatePresence initial={false}>
-        {open && diffs.length > 0 && (
-          <motion.div
-            initial={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            animate={reduce ? { opacity: 1 } : { height: "auto", opacity: 1 }}
-            exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: EASE_OUT_QUINT }}
-            className="overflow-hidden"
-          >
-            {/* Column heads, so nobody has to scroll up to see whose column is whose. */}
-            <div
-              className="grid items-center gap-3 border-b border-border/70 bg-surface-muted/50 px-5 py-2"
-              style={{ gridTemplateColumns: diffColumns(vendors.length) }}
-            >
-              <span className="caption-caps text-ink-muted">Point</span>
-              {vendors.map((v) => (
-                <span key={v.proposalId} className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-ink">
-                  <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: colors.get(v.proposalId) }} />
-                  <span className="truncate" dir="auto">
-                    {v.vendor.name}
-                  </span>
+            </th>
+            {vendors.map((v, i) => (
+              <th
+                key={v.proposalId}
+                scope="col"
+                className={cn(
+                  colCls(i),
+                  "sticky top-16 z-10 rounded-t-xl border-t pt-0 pb-4 text-start font-normal shadow-[0_8px_16px_-12px_rgb(0_0_0/0.25)]",
+                )}
+              >
+                <VendorHead
+                  v={v}
+                  color={colors.get(v.proposalId)}
+                  rank={ranked.findIndex((x) => x.proposalId === v.proposalId) + 1}
+                  of={ranked.length}
+                  recommended={v.proposalId === recommended}
+                />
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <GroupRow title="Overall" icon={Trophy} vendors={vendors} colCls={colCls} />
+          <ValueRow
+            label="Overall score"
+            hint="Standards, RFP and risk combined"
+            vendors={vendors}
+            colCls={colCls}
+            values={vendors.map((v) => v.scores!.overall)}
+            best="high"
+            render={(v) => <Big value={String(v.scores!.overall)} />}
+          />
+          {d.hasStandards && (
+            <ValueRow
+              label="Standards compliance"
+              vendors={vendors}
+              colCls={colCls}
+              values={vendors.map((v) => v.scores!.standardsPct)}
+              best="high"
+              render={(v) => <PctCell pct={v.scores!.standardsPct} />}
+            />
+          )}
+          <ValueRow
+            label="RFP compliance"
+            vendors={vendors}
+            colCls={colCls}
+            values={vendors.map((v) => v.scores!.rfpPct)}
+            best="high"
+            render={(v) => <PctCell pct={v.scores!.rfpPct} />}
+          />
+          <ValueRow
+            label="Risk score"
+            hint="0–100, lower is better"
+            vendors={vendors}
+            colCls={colCls}
+            values={vendors.map((v) => v.scores!.riskScore)}
+            best="low"
+            render={(v) => (
+              <span className="flex flex-col gap-1.5">
+                <span className="flex items-center justify-between gap-2">
+                  <Big value={String(v.scores!.riskScore)} suffix="/100" />
+                  <RiskPill severity={v.scores!.riskLevel} size="sm" />
                 </span>
-              ))}
-              <span aria-hidden />
-            </div>
-            <ul className="flex flex-col divide-y divide-border/70">
-              {diffs.map((r) => (
-                <DiffRow key={r.id} r={r} vendors={vendors} findings={byVendor.map((m) => m.get(r.id))} colors={colors} onEvidence={onEvidence} />
-              ))}
-            </ul>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </section>
+                <MeterBar value={v.scores!.riskScore} fill={RISK_FILL[v.scores!.riskLevel]} label="Risk score" />
+              </span>
+            )}
+          />
+          <ValueRow
+            label="Mandatory requirements not met"
+            vendors={vendors}
+            colCls={colCls}
+            values={vendors.map((v) => v.scores!.mandatoryNotMet)}
+            best="low"
+            render={(v) => (
+              <span className={cn("text-base font-semibold tabular-nums", v.scores!.mandatoryNotMet ? "text-fail" : "text-ink")}>
+                {v.scores!.mandatoryNotMet || "None"}
+              </span>
+            )}
+          />
+
+          <ScopeGroup
+            scope="rfp"
+            title="RFP compliance by section"
+            icon={FileText}
+            d={d}
+            vendors={vendors}
+            colCls={colCls}
+            sections={sectionsFor("rfp")}
+            missing={missingFor("rfp")}
+            onEvidence={onEvidence}
+          />
+          {d.hasStandards && (
+            <ScopeGroup
+              scope="standard"
+              title="Standards compliance by section"
+              icon={ShieldCheck}
+              d={d}
+              vendors={vendors}
+              colCls={colCls}
+              sections={sectionsFor("standard")}
+              missing={missingFor("standard")}
+              onEvidence={onEvidence}
+            />
+          )}
+
+          <GroupRow title="Risks by section" icon={ShieldAlert} vendors={vendors} colCls={colCls} />
+          {riskSections.length === 0 ? (
+            <NoteRow text="No risks raised for these vendors." vendors={vendors} colCls={colCls} />
+          ) : (
+            riskSections.map((s) => <RiskRow key={s ?? "none"} section={s} vendors={vendors} colCls={colCls} />)
+          )}
+
+          <GroupRow
+            title="Commercial terms"
+            icon={Receipt}
+            hint="As the AI read them from each proposal"
+            vendors={vendors}
+            colCls={colCls}
+          />
+          {(
+            [
+              ["Total price", (v) => cleanText(v.commercial.totalPrice)],
+              ["Payment", (v) => cleanText(v.commercial.paymentTerms)],
+              ["Delivery", (v) => cleanText(v.commercial.deliveryTime)],
+              ["Warranty", (v) => cleanText(v.commercial.warranty)],
+              ["Bid validity", (v) => cleanText(v.commercial.validity)],
+            ] as [string, (v: VendorResultDto) => string][]
+          ).map(([label, get]) => (
+            <ValueRow
+              key={label}
+              label={label}
+              vendors={vendors}
+              colCls={colCls}
+              values={vendors.map(() => null)}
+              best="high"
+              render={(v) => {
+                const t = get(v);
+                return t ? (
+                  <span className="text-[13px] leading-relaxed text-ink-2" dir="auto">
+                    {t}
+                  </span>
+                ) : (
+                  <span className="text-[13px] text-ink-faint">Not stated</span>
+                );
+              }}
+            />
+          ))}
+          {/* Close the column cards. */}
+          <tr aria-hidden>
+            <td />
+            {vendors.map((v, i) => (
+              <td key={v.proposalId} className={colCls(i, "h-4 rounded-b-xl border-b")} />
+            ))}
+          </tr>
+        </tbody>
+      </table>
+    </div>
   );
 }
 
-/** Point · one column per vendor · the chevron: shared by the head row and every point. */
-const diffColumns = (n: number) => `minmax(180px, 1.3fr) repeat(${n}, minmax(0, 1fr)) 1rem`;
+function VendorHead({
+  v,
+  color,
+  rank,
+  of,
+  recommended,
+}: {
+  v: VendorResultDto;
+  color?: string;
+  rank: number;
+  of: number;
+  recommended: boolean;
+}) {
+  const price = cleanText(v.commercial.totalPrice);
+  return (
+    <span className="flex flex-col gap-3">
+      <span aria-hidden className="-mx-4 block h-1.5 rounded-t-xl" style={{ background: color }} />
+      <span className="flex items-center justify-between gap-2">
+        <span className="text-xs text-ink-muted tabular-nums">
+          Rank {rank} of {of}
+        </span>
+        {recommended && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-rta px-2 py-0.5 text-2xs font-semibold text-white">
+            <Trophy className="size-3" aria-hidden /> Recommended
+          </span>
+        )}
+      </span>
+      <span className="flex min-w-0 items-center gap-3">
+        <InitialsAvatar name={v.vendor.name} size="md" />
+        <span className="min-w-0 text-base leading-snug font-semibold text-ink" dir="auto">
+          {v.vendor.name}
+        </span>
+      </span>
+      <span className="flex flex-col">
+        <span className="kpi truncate text-2xl text-ink">{price || "—"}</span>
+        <span className="text-xs text-ink-muted">total bid price</span>
+      </span>
+    </span>
+  );
+}
+
+type ColCls = (i: number, extra?: string) => string;
+
+function GroupRow({
+  title,
+  icon: Icon,
+  hint,
+  vendors,
+  colCls,
+}: {
+  title: string;
+  icon: typeof Trophy;
+  hint?: string;
+  vendors: VendorResultDto[];
+  colCls: ColCls;
+}) {
+  return (
+    <tr>
+      <th scope="rowgroup" className="pt-7 pb-2 text-start align-bottom font-normal">
+        <span className="flex items-center gap-2 font-heading text-base font-semibold text-ink">
+          <Icon className="size-4 text-brand" aria-hidden /> {title}
+        </span>
+        {hint && <span className="mt-0.5 block text-xs text-ink-muted">{hint}</span>}
+      </th>
+      {vendors.map((v, i) => (
+        <td key={v.proposalId} className={colCls(i, "pt-7 pb-2")} />
+      ))}
+    </tr>
+  );
+}
+
+function NoteRow({ text, vendors, colCls }: { text: string; vendors: VendorResultDto[]; colCls: ColCls }) {
+  return (
+    <tr>
+      <th scope="row" className="border-t border-border/70 py-3 text-start text-xs font-normal text-ink-muted">
+        {text}
+      </th>
+      {vendors.map((v, i) => (
+        <td key={v.proposalId} className={colCls(i, "border-t border-t-border/70 py-3")} />
+      ))}
+    </tr>
+  );
+}
+
+function ValueRow({
+  label,
+  hint,
+  vendors,
+  colCls,
+  values,
+  best,
+  render,
+}: {
+  label: React.ReactNode;
+  hint?: string;
+  vendors: VendorResultDto[];
+  colCls: ColCls;
+  values: (number | null)[];
+  best: Best;
+  render: (v: VendorResultDto) => React.ReactNode;
+}) {
+  const winners = bestOf(values, best);
+  return (
+    <tr>
+      <th scope="row" className="border-t border-border/70 py-3.5 pe-2 text-start align-top font-normal">
+        <span className="block text-[13px] font-medium text-ink-2">{label}</span>
+        {hint && <span className="block text-xs text-ink-muted">{hint}</span>}
+      </th>
+      {vendors.map((v, i) => (
+        <td key={v.proposalId} className={colCls(i, "border-t border-t-border/70 py-3.5")}>
+          <Cell best={winners.has(i)}>{render(v)}</Cell>
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+function Cell({ best, children }: { best: boolean; children: React.ReactNode }) {
+  return (
+    <span className="relative block">
+      {best && (
+        <span
+          className="absolute -end-1 -top-1 inline-flex size-4 items-center justify-center rounded-full bg-ok-fill text-white"
+          title="Best in this row"
+        >
+          <Check className="size-3" aria-hidden />
+          <span className="sr-only">Best in this row</span>
+        </span>
+      )}
+      <span className={cn("block", best && "pe-5")}>{children}</span>
+    </span>
+  );
+}
+
+function Big({ value, suffix }: { value: string; suffix?: string }) {
+  return (
+    <span className="inline-flex items-baseline gap-1">
+      <span className="kpi text-2xl text-ink">{value}</span>
+      {suffix && <span className="text-xs text-ink-muted">{suffix}</span>}
+    </span>
+  );
+}
+
+function PctCell({ pct, sub }: { pct: number | null; sub?: React.ReactNode }) {
+  return (
+    <span className="flex flex-col gap-1.5">
+      <span className="flex items-baseline justify-between gap-2">
+        <span className="text-lg font-semibold text-ink tabular-nums">{pctText(pct)}</span>
+        {sub}
+      </span>
+      <MeterBar value={pct} fill={COMPLIANCE_FILL} label="Compliance" />
+    </span>
+  );
+}
+
+/* ── A scope (RFP or standards): one row per section, a section opens its differing points ── */
+
+function ScopeGroup({
+  scope,
+  title,
+  icon,
+  d,
+  vendors,
+  colCls,
+  sections,
+  missing,
+  onEvidence,
+}: {
+  scope: Scope;
+  title: string;
+  icon: typeof Trophy;
+  d: AnalysisResultsDto;
+  vendors: VendorResultDto[];
+  colCls: ColCls;
+  sections: (ProposalSection | null)[];
+  missing: ProposalSection[];
+  onEvidence: OpenEvidence;
+}) {
+  return (
+    <>
+      <GroupRow
+        title={title}
+        icon={icon}
+        hint="Open a section to see where the vendors differ"
+        vendors={vendors}
+        colCls={colCls}
+      />
+      {sections.map((s) => (
+        <SectionRow
+          key={s ?? "none"}
+          d={d}
+          scope={scope}
+          section={s}
+          vendors={vendors}
+          colCls={colCls}
+          onEvidence={onEvidence}
+        />
+      ))}
+      {missing.length > 0 && (
+        <NoteRow
+          text={`Nothing to compare in: ${missing.map((s) => sectionLabel(s)).join(", ")}`}
+          vendors={vendors}
+          colCls={colCls}
+        />
+      )}
+    </>
+  );
+}
+
+function SectionRow({
+  d,
+  scope,
+  section,
+  vendors,
+  colCls,
+  onEvidence,
+}: {
+  d: AnalysisResultsDto;
+  scope: Scope;
+  section: ProposalSection | null;
+  vendors: VendorResultDto[];
+  colCls: ColCls;
+  onEvidence: OpenEvidence;
+}) {
+  const [open, setOpen] = useState(false);
+  const stats = vendors.map((v) => scopeStats(d, v, { section, scope }));
+  const winners = bestOf(
+    stats.map((s) => s.pct),
+    "high",
+  );
+  const reqs = d.requirements.filter((r) => r.section === section && r.scope === scope);
+  const byVendor = vendors.map((v) => new Map(v.findings.map((f) => [f.requirementId, f])));
+  const diffs = reqs
+    .filter((r) => new Set(byVendor.map((m) => m.get(r.id)?.status)).size > 1)
+    .sort((a, b) => spread(byVendor, b.id) - spread(byVendor, a.id));
+
+  return (
+    <>
+      <tr>
+        <th scope="row" className="border-t border-border/70 py-3 pe-2 text-start align-top font-normal">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            className="flex w-full items-start justify-between gap-2 rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <span className="flex flex-col">
+              <span className="text-[13px] font-medium text-ink-2">{sectionLabel(section)}</span>
+              <span className="text-xs text-ink-muted">
+                {diffs.length
+                  ? `${diffs.length} difference${diffs.length === 1 ? "" : "s"} of ${reqs.length}`
+                  : `Same on all ${reqs.length}`}
+              </span>
+            </span>
+            <ChevronDown
+              className={cn("mt-0.5 size-4 shrink-0 text-ink-muted transition-transform", open && "rotate-180")}
+              aria-hidden
+            />
+          </button>
+        </th>
+        {vendors.map((v, i) => {
+          const st = stats[i];
+          const short = st.counts.non_compliant + st.counts.not_addressed + st.counts.partial;
+          return (
+            <td key={v.proposalId} className={colCls(i, "border-t border-t-border/70 py-3")}>
+              <Cell best={winners.has(i)}>
+                <PctCell
+                  pct={st.pct}
+                  sub={
+                    <span className={cn("text-xs", st.mandatoryNotMet ? "text-fail" : "text-ink-muted")}>
+                      {st.mandatoryNotMet
+                        ? `${st.mandatoryNotMet} mandatory short`
+                        : short
+                          ? `${short} short`
+                          : "all met"}
+                    </span>
+                  }
+                />
+              </Cell>
+            </td>
+          );
+        })}
+      </tr>
+      <AnimatePresence initial={false}>
+        {open &&
+          (diffs.length === 0 ? (
+            <NoteRow
+              key="same"
+              text="The vendors have the same result on every point here."
+              vendors={vendors}
+              colCls={colCls}
+            />
+          ) : (
+            diffs.map((r) => (
+              <PointRow
+                key={r.id}
+                r={r}
+                vendors={vendors}
+                findings={byVendor.map((m) => m.get(r.id))}
+                colCls={colCls}
+                onEvidence={onEvidence}
+              />
+            ))
+          ))}
+      </AnimatePresence>
+    </>
+  );
+}
 
 const spread = (byVendor: Map<string, FindingResultDto>[], reqId: string) => {
   const ranks = byVendor.map((m) => RANK[m.get(reqId)?.status ?? "not_addressed"]);
   return Math.max(...ranks) - Math.min(...ranks);
 };
 
-function DiffRow({
+function PointRow({
   r,
   vendors,
   findings,
-  colors,
+  colCls,
   onEvidence,
 }: {
   r: RequirementResultDto;
   vendors: VendorResultDto[];
   findings: (FindingResultDto | undefined)[];
-  colors: Map<string, string>;
+  colCls: ColCls;
   onEvidence: OpenEvidence;
 }) {
-  const [open, setOpen] = useState(false);
   const isRule = r.scope === "standard";
   return (
-    <li className="flex flex-col">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="grid w-full items-start gap-3 px-5 py-3.5 text-start outline-none transition-colors hover:bg-surface-muted/50 focus-visible:bg-surface-muted"
-        style={{ gridTemplateColumns: diffColumns(vendors.length) }}
+    <motion.tr
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2, ease: EASE_OUT_QUINT }}
+    >
+      <th
+        scope="row"
+        className="border-t border-dashed border-border/70 py-2.5 ps-3 pe-2 text-start align-top font-normal"
       >
-        <span className="flex min-w-0 flex-col gap-1">
-          <span className="text-sm font-medium text-ink" dir="auto">
-            {r.title}
-          </span>
-          <span className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
-            <span className="font-mono">{isRule ? r.sourceRef : r.code}</span>
-            <span>{isRule ? "Standard rule" : "RFP"}</span>
-            <PriorityPill priority={r.priority} size="sm" short />
-          </span>
+        <span className="block font-mono text-2xs text-ink-muted">{isRule ? r.sourceRef : r.code}</span>
+        <span className="line-clamp-3 text-xs text-ink-2" dir="auto">
+          {r.title}
         </span>
-        {findings.map((f, i) => (
-          <span key={vendors[i].proposalId} className="flex min-w-0 flex-col gap-1">
-            <span className="flex items-center gap-1.5">
-              <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: colors.get(vendors[i].proposalId) }} />
-              {f ? <FindingStatusPill status={f.status} size="sm" /> : <span className="text-xs text-ink-faint">—</span>}
-            </span>
-            {f && (
+      </th>
+      {findings.map((f, i) => (
+        <td
+          key={vendors[i].proposalId}
+          className={colCls(i, "border-t border-dashed border-t-border/70 bg-surface-muted/40 py-2.5")}
+        >
+          {f ? (
+            <span className="flex flex-col items-start gap-1">
+              <FindingStatusPill status={f.status} size="sm" />
               <span className="line-clamp-2 text-xs text-ink-2" dir="auto">
                 {f.headline}
               </span>
-            )}
-          </span>
-        ))}
-        <ChevronDown className={cn("mt-1 size-4 text-ink-muted transition-transform", open && "rotate-180")} aria-hidden />
-      </button>
-      {open && (
-        <div
-          className="grid gap-3 bg-surface-muted/40 px-5 pt-1 pb-4"
-          style={{ gridTemplateColumns: `repeat(${vendors.length}, minmax(0, 1fr))` }}
-        >
-          {findings.map((f, i) => {
-            const v = vendors[i];
-            return (
-              <div key={v.proposalId} className="flex min-w-0 flex-col gap-2 rounded-lg border border-border bg-surface p-3 text-[13px]">
-                <VendorLabel v={v} color={colors.get(v.proposalId)} />
-                {f ? (
-                  <>
-                    <p className="text-ink-2" dir="auto">
-                      {f.vendorResponse || "Not addressed in the proposal."}
-                    </p>
-                    {(f.gap || f.assessment) && f.status !== "compliant" && (
-                      <p className="text-ink-muted" dir="auto">
-                        <span className="font-semibold text-ink-2">Short: </span>
-                        {f.gap || f.assessment}
-                      </p>
-                    )}
-                    {f.evidenceDocId && (
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        className="w-fit"
-                        onClick={() => onEvidence(f.evidenceDocId!, f.evidencePage, f.evidenceQuote ?? "", v.proposalId)}
-                      >
-                        <BookOpen /> {f.evidencePage ? `Page ${f.evidencePage}` : "Open"}
-                      </Button>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-ink-muted">Not analysed.</p>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </li>
+              {f.evidenceDocId && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onEvidence(f.evidenceDocId!, f.evidencePage, f.evidenceQuote ?? "", vendors[i].proposalId)
+                  }
+                  className="inline-flex items-center gap-1 rounded-sm text-xs font-medium text-brand-ink outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
+                >
+                  <BookOpen className="size-3" aria-hidden />
+                  {f.evidencePage ? `Page ${f.evidencePage}` : "Open"}
+                </button>
+              )}
+            </span>
+          ) : (
+            <span className="text-xs text-ink-faint">Not analysed</span>
+          )}
+        </td>
+      ))}
+    </motion.tr>
   );
 }
 
+/* ── Risks: one row per section, a row opens the vendors' risks there ── */
+
+function RiskRow({
+  section,
+  vendors,
+  colCls,
+}: {
+  section: ProposalSection | null;
+  vendors: VendorResultDto[];
+  colCls: ColCls;
+}) {
+  const [open, setOpen] = useState(false);
+  const lists = vendors.map((v) => v.risks.filter((r) => r.section === section));
+  const weights = lists.map((l) => l.reduce((s, r) => s + SEVERITY_WEIGHT[r.severity as RiskSeverity], 0));
+  const winners = bestOf(weights, "low");
+  return (
+    <>
+      <tr>
+        <th scope="row" className="border-t border-border/70 py-3 pe-2 text-start align-top font-normal">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            className="flex w-full items-start justify-between gap-2 rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <span className="text-[13px] font-medium text-ink-2">{sectionLabel(section)}</span>
+            <ChevronDown
+              className={cn("mt-0.5 size-4 shrink-0 text-ink-muted transition-transform", open && "rotate-180")}
+              aria-hidden
+            />
+          </button>
+        </th>
+        {lists.map((l, i) => {
+          const top = l.length ? maxSeverity(l.map((r) => r.severity)) : null;
+          return (
+            <td key={vendors[i].proposalId} className={colCls(i, "border-t border-t-border/70 py-3")}>
+              <Cell best={winners.has(i)}>
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] text-ink-2">
+                    {l.length ? `${l.length} risk${l.length === 1 ? "" : "s"}` : "No risk"}
+                  </span>
+                  {top && <RiskPill severity={top} size="sm" />}
+                </span>
+              </Cell>
+            </td>
+          );
+        })}
+      </tr>
+      {open && (
+        <tr>
+          <th
+            scope="row"
+            className="border-t border-dashed border-border/70 py-2.5 ps-3 text-start align-top text-xs font-normal text-ink-muted"
+          >
+            The risks
+          </th>
+          {lists.map((l, i) => (
+            <td
+              key={vendors[i].proposalId}
+              className={colCls(i, "border-t border-dashed border-t-border/70 bg-surface-muted/40 py-2.5")}
+            >
+              {l.length ? (
+                <ul className="flex flex-col gap-2">
+                  {l.map((r) => (
+                    <li key={r.id} className="flex flex-col items-start gap-1">
+                      <RiskPill severity={r.severity as RiskSeverity} size="sm" />
+                      <span className="text-xs text-ink-2" dir="auto">
+                        {r.title}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <span className="text-xs text-ink-faint">None raised</span>
+              )}
+            </td>
+          ))}
+        </tr>
+      )}
+    </>
+  );
+}

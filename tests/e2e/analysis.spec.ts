@@ -71,12 +71,14 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
       "compliant",
     );
 
-    // Compliance: numbered section cards, one row per vendor; points behind the dropdown
+    // Compliance: an RFP view and a Standards view, each with its own section cards (sections
+    // without points listed once at the end); one row per vendor, points behind the dropdown
     await page.getByRole("tab", { name: "Compliance" }).click();
     await expect(page).toHaveURL(/tab=compliance/);
+    const views = page.getByRole("radiogroup", { name: "Checked against" });
+    await expect(views.getByRole("radio", { name: /RFP/ })).toHaveAttribute("aria-checked", "true");
     const sections = page.locator("section[id^=sec-]");
-    await expect(sections).toHaveCount(7); // every section of the template, empty ones too
-    await expect(sections.first()).toContainText("Company & references");
+    await expect(sections.first()).toBeVisible();
     const meridian = page.locator("section[id^=sec-] li > button", {
       hasText: "Meridian Scan Technologies",
     });
@@ -92,7 +94,9 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     });
     await page.keyboard.press("Escape");
     await expect(page).not.toHaveURL(/reader=/);
-    // A standard rule links to the rule in its standard
+    // The Standards view: a standard rule links to the rule in its standard
+    await views.getByRole("radio", { name: /Standards/ }).click();
+    for (let i = 0; i < (await meridian.count()); i++) await meridian.nth(i).click();
     const rule = page.getByRole("link", { name: /CITS-2026 SEC-\d+/ }).first();
     const ruleCode = ((await rule.textContent()) ?? "").match(/SEC-\d+/)![0];
     await rule.click();
@@ -133,7 +137,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     // Risks: a 0–100 score per vendor, then the same numbered sections
     await page.getByRole("tab", { name: "Risks" }).click();
     await expect(page.getByRole("region", { name: "Risk scores" })).toContainText("/100");
-    await expect(page.locator("section[id^=risk-]")).toHaveCount(7);
+    await expect(page.locator("section[id^=risk-]").first()).toBeVisible();
     // A risk links to what it is about, and to its section's points in Compliance
     const riskRow = page.locator("section[id^=risk-] li > button[aria-expanded]").first();
     await riskRow.click();
@@ -142,19 +146,22 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await expect(page).toHaveURL(/tab=compliance/);
     await page.getByRole("tab", { name: "Risks" }).click();
 
-    // Comparison: pick two vendors, compare, only their differences remain
+    // Comparison (pricing-page table): one column per picked vendor, one row per aspect
     await page.getByRole("tab", { name: "Comparison" }).click();
     await expect(page.getByRole("button", { name: "Pick at least 2 vendors" })).toBeDisabled();
     await page.getByRole("checkbox", { name: "Compare Meridian Scan Technologies" }).click();
     await page.getByRole("checkbox", { name: "Compare Harborline Systems" }).click();
     await page.getByRole("button", { name: "Compare 2 vendors" }).click();
-    await expect(page.getByRole("list", { name: "Vendors" }).getByRole("listitem")).toHaveCount(2);
-    await expect(page.getByRole("region", { name: "Scores" })).toContainText("Risk score");
-    await expect(page.getByText(/\d+ differences? · same on \d+/).first()).toBeVisible();
-    // Each section's columns are headed with the vendor names
-    const firstDiff = page.locator("section", { hasText: /differences? · same on/ }).first();
-    await expect(firstDiff.getByText("Point", { exact: true })).toBeVisible();
-    await expect(firstDiff.getByText("Meridian Scan Technologies").first()).toBeVisible();
+    const table = page.getByRole("table", { name: "Vendor comparison" });
+    await expect(table.getByRole("columnheader")).toHaveCount(3);
+    await expect(table.getByRole("columnheader", { name: /Meridian Scan Technologies/ })).toBeVisible();
+    await expect(table.getByRole("columnheader", { name: /Harborline Systems/ })).toBeVisible();
+    await expect(table.getByRole("rowheader", { name: "Risk score" })).toBeVisible();
+    await expect(table.getByText("Best in this row").first()).toBeAttached();
+    // A section row opens the points where the two differ, in the same columns
+    const sectionRow = table.getByRole("button", { name: /differences? of \d+/ }).first();
+    await sectionRow.click();
+    await expect(sectionRow).toHaveAttribute("aria-expanded", "true");
 
     // Run a new analysis, cancel it, then resume to completion
     await page.getByRole("button", { name: "Run a new analysis" }).click();

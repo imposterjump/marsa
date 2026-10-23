@@ -372,3 +372,12 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
   - **User reports:** only 4 sections; vendor names missing above the Comparison columns; a risk's "View more" didn't link anywhere; section numbers to hide; "0 rules" after creating a standard from a file. Also asked for a 3-vendor test case. **All fixed** (G-81, G-82, G-83; Comparison column heads; risk links).
   - **Budget:** the user added $5 (≈ $6 total): Haiku for tests, Opus once at the end. Before the user's "let me do the ai run" message arrived, I ran one Haiku check of set 3 on a throwaway server (`data/haiku-check`, Haiku-only guard in the script): **$0.094**. It found the "Section E" leak (G-83) and the Haiku estimate gap (I-30).
   - **Checks:** 178 unit ✔, E2E ✔ (analysis, projects and proposals specs re-run; the analysis journey now has a 120 s timeout).
+- **Second feedback round (same day), after the user's own Haiku run (set 3, $0.089):**
+  - **Compliance:** an RFP view and a Standards view (radio group "Checked against"). Each shows only the sections with points of that kind, in template order; the empty sections are listed once at the end. Risks does the same. A risk's section link opens the view its requirement belongs to (`ComplianceFocus.scope`; the tab remounts on a new focus).
+  - **Comparison:** rebuilt as a pricing-page `<table aria-label="Vendor comparison">`.
+    - One column card per vendor: header with rank, Recommended badge and price, pinned below the top bar (`top-16`, opaque).
+    - Row groups: Overall, RFP by section, Standards by section, Risks by section, Commercial terms (AI-read).
+    - The best value of a row gets a check; a section row opens the differing points in the same columns.
+    - Still computed from the saved analysis, no AI call: the user had noticed it was instant.
+  - **Mission control:** every vendor box has a second line ("No mandatory fails" or the fail count) and `min-h-24`, so the boxes match.
+  - **Checks:** 178 unit ✔, analysis E2E ✔. Screens checked on the real Haiku data in a mock-mode viewer (port 3400, `data/haiku-check`). The :3000 app was rebuilt (`.next-design`) after checking that no run was active.

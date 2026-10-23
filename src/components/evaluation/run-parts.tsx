@@ -67,7 +67,7 @@ export function VendorChips({
             href={`/projects/${projectId}/proposals/${c.proposalId}`}
             className={cn(
               card,
-              "flex items-center gap-3 p-4 transition-colors hover:border-border-strong focus-visible:outline-2 focus-visible:outline-brand",
+              "flex min-h-24 items-center gap-3 p-4 transition-colors hover:border-border-strong focus-visible:outline-2 focus-visible:outline-brand",
             )}
           >
             <InitialsAvatar name={c.vendor} />
@@ -82,15 +82,21 @@ export function VendorChips({
                     initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6, y: 4 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     transition={{ type: "spring", stiffness: 420, damping: 22 }}
-                    className="flex flex-wrap items-center gap-1.5 text-xs text-ink-muted"
+                    className="flex flex-col items-start gap-1.5 text-xs text-ink-muted"
                   >
-                    <span className="font-semibold text-ink tabular-nums">{c.scorePct}%</span>
-                    compliance
+                    <span>
+                      <span className="font-semibold text-ink tabular-nums">{c.scorePct}%</span> compliance
+                    </span>
+                    {/* Always a second line, so every vendor's box has the same height (user, 2026-10-23). */}
                     {c.mandatoryFailures ? (
                       <Pill tone="fail" size="sm">
                         {c.mandatoryFailures} mandatory fail{c.mandatoryFailures === 1 ? "" : "s"}
                       </Pill>
-                    ) : null}
+                    ) : (
+                      <Pill tone="ok" size="sm">
+                        No mandatory fails
+                      </Pill>
+                    )}
                   </motion.span>
                 ) : (
                   <motion.span

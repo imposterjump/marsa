@@ -27,6 +27,7 @@
 ## Decision log
 | Date | Decision | By |
 |---|---|---|
+| 2026-10-23 | **Compliance split into RFP and Standards views** (sections with points first, empty ones listed once at the end; same for Risks); **Comparison as a pricing-page table** (one column per vendor, one row per aspect); mission-control vendor boxes the same height | You |
 | 2026-10-23 | **≈ $6 of credit** (you added $5): test on **Haiku**, run **Opus once** when everything is ready; you start the runs and we review them together | You |
 | 2026-10-23 | All 7 sections always shown; section **names only** (no numbers); vendor names above the Comparison columns; a risk's details link to the clause/rule, the evidence and its section | You |
 | 2026-10-23 | A third POC set with **three vendors** | You |
@@ -187,11 +188,13 @@
 | | **Total (my runs)** | | **≈ $6.17** | |
 | 2026-10-23 | Balance check | — | — | You: "about 1 dollar left" (your own runs on :3001 are not logged here). P8 used **no** credits: everything was verified with the free demo AI |
 | 2026-10-23 | You added $5 | — | — | ≈ $6 available |
+| 2026-10-23 | Your run: POC set 3 on your data (:3000) | Haiku 5.5 | **$0.089** | Started by you |
 | 2026-10-23 | POC set 3 check (3 vendors, 11 steps), throwaway server | Haiku 5.5 | **$0.094** | Sabkha recommended, all 7 sections filled; found the "Section E" leak and the Haiku estimate gap (fixed) |
 
 ## Session log
 | Date | Session summary |
 |---|---|
+| 2026-10-23 (S6c) | After your Haiku run: Compliance is two views (RFP · Standards) with only the sections that have points, empty ones listed at the end; Risks the same; Comparison rebuilt as a pricing-page table (vendor columns, overall / RFP by section / standards by section / risks by section / commercial terms, best value marked, sections open the differing points); mission-control boxes all the same height. Your app on :3000 runs as a production build (G-84). |
 | 2026-10-23 (S6b) | Your test of P8: all 7 sections now show (smarter section guess); Comparison columns carry the vendor names; a risk's "View more" opens the clause or rule, the vendor's page and its Compliance section; section numbers hidden; fixed "0 rules" after creating a standard from a file and the AI writing "Section E". New POC set 3 with three vendors. One Haiku check: $0.094. |
 | 2026-10-22/23 (S6) | Client feedback → new story for P8 (plan approved). Kept the RTA look, rebuilt the rest: guided New project form (project first, standards by category or new from a dropped rules file, vendors with two drop zones), project page with one AI analysis button and Add vendor, a pipeline that checks standards and the RFP separately and files every point under 7 proposal sections, a 0–100 risk score, and the full-width AI analysis results page (Overview, Compliance and Risks by numbered section, Comparison, AI quality). POC sets rebuilt on the 7-section template with Excel/CSV rules. Fixed on the way: first RFP upload did not refresh the draft, a vendor from an earlier tender could not be retyped. 177 unit + 20 E2E green. Local commits only, no API credits used. |
 | 2026-10-21 (S1) | Requirements gathered (7 decisions). Skills reviewed (epic-design, frontend, backend, architect, claude-api). UI research (dashboards, bid-comparison tools, viewers). Wrote PRD, RDD, PHASES, PROGRESS. 22 recommendations awaiting approval. |
