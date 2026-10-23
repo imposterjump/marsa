@@ -16,6 +16,7 @@ import {
   type Scope,
   RISK_FILL,
   SEVERITY_ORDER,
+  VendorDivider,
   VendorLabel,
   sectionLabel,
   shownSections,
@@ -73,8 +74,11 @@ export function RisksTab({
           </nav>
         )}
       </div>
-      {vendors.map((v) => (
-        <VendorRiskCard key={v.proposalId} d={d} v={v} color={colors.get(v.proposalId)} links={links} />
+      {vendors.map((v, i) => (
+        <div key={v.proposalId} className="flex flex-col gap-2">
+          <VendorDivider n={i + 1} total={vendors.length} />
+          <VendorRiskCard d={d} v={v} color={colors.get(v.proposalId)} links={links} />
+        </div>
       ))}
     </div>
   );

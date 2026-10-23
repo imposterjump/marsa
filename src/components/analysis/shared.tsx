@@ -205,3 +205,16 @@ export function CountsLegend({
     </ul>
   );
 }
+
+/** "VENDOR 2" over a vendor's card, with a rule, so the cards read as separate blocks. */
+export function VendorDivider({ n, total }: { n: number; total: number }) {
+  return (
+    <div className="flex items-center gap-3" aria-hidden>
+      <span className="caption-caps text-ink-muted">
+        Vendor {n}
+        <span className="text-ink-faint"> of {total}</span>
+      </span>
+      <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}

@@ -17,6 +17,7 @@ import {
   type OpenEvidence,
   type Scope,
   SECTION_ORDER,
+  VendorDivider,
   VendorLabel,
   pctText,
   scopeStats,
@@ -55,7 +56,8 @@ export interface ComplianceFocus {
   at: number;
 }
 
-const rowId = (proposalId: string, section: ProposalSection | null) => `sec-${proposalId}-${section ?? "none"}`;
+const rowId = (proposalId: string, section: ProposalSection | null) =>
+  `sec-${proposalId}-${section ?? "none"}`;
 
 /**
  * The RFP tab and the Standards tab (user's design, 2026-10-23, "vendor first"): one card per
@@ -104,8 +106,10 @@ export function ComplianceTab({
         <p className="flex items-center gap-2 text-[13px] text-ink-muted">
           <Icon className="size-4" aria-hidden />
           {inScope.length} {inScope.length === 1 ? one : many}
-          {scope === "standard" && d.standards.length > 0 && ` from ${d.standards.map((s) => s.code).join(", ")}`} · each
-          vendor&apos;s score per proposal section
+          {scope === "standard" &&
+            d.standards.length > 0 &&
+            ` from ${d.standards.map((s) => s.code).join(", ")}`}{" "}
+          · each vendor&apos;s score per proposal section
         </p>
         {vendors.length > 1 && (
           <nav aria-label="Vendors" className="flex flex-wrap gap-2">
@@ -115,7 +119,11 @@ export function ComplianceTab({
                 href={`#vendor-${v.proposalId}`}
                 className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium text-ink-2 transition-colors outline-none hover:border-border-strong hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
               >
-                <span aria-hidden className="size-2 rounded-full" style={{ background: colors.get(v.proposalId) }} />
+                <span
+                  aria-hidden
+                  className="size-2 rounded-full"
+                  style={{ background: colors.get(v.proposalId) }}
+                />
                 <span dir="auto">{v.vendor.name}</span>
               </a>
             ))}
@@ -123,17 +131,19 @@ export function ComplianceTab({
         )}
       </div>
 
-      {vendors.map((v) => (
-        <VendorCard
-          key={v.proposalId}
-          d={d}
-          scope={scope}
-          v={v}
-          color={colors.get(v.proposalId)}
-          sections={sections}
-          onEvidence={onEvidence}
-          focusSection={target?.proposalId === v.proposalId ? target.section : undefined}
-        />
+      {vendors.map((v, i) => (
+        <div key={v.proposalId} className="flex flex-col gap-2">
+          <VendorDivider n={i + 1} total={vendors.length} />
+          <VendorCard
+            d={d}
+            scope={scope}
+            v={v}
+            color={colors.get(v.proposalId)}
+            sections={sections}
+            onEvidence={onEvidence}
+            focusSection={target?.proposalId === v.proposalId ? target.section : undefined}
+          />
+        </div>
       ))}
 
       {empty.length > 0 && (
@@ -143,7 +153,10 @@ export function ComplianceTab({
         >
           <span className="text-[13px] text-ink-muted">{SCOPE_TEXT[scope].none}:</span>
           {empty.map((s) => (
-            <span key={s} className="rounded-full bg-surface-muted px-3 py-1 text-xs font-medium text-ink-muted">
+            <span
+              key={s}
+              className="rounded-full bg-surface-muted px-3 py-1 text-xs font-medium text-ink-muted"
+            >
               {sectionLabel(s)}
             </span>
           ))}
@@ -174,30 +187,39 @@ function VendorCard({
   const st = scopeStats(d, v, { scope });
   const short = st.counts.non_compliant + st.counts.not_addressed + st.counts.partial;
   return (
-    <section id={`vendor-${v.proposalId}`} aria-label={v.vendor.name} className={cn(card, "scroll-mt-24")}>
+    <section
+      id={`vendor-${v.proposalId}`}
+      aria-label={v.vendor.name}
+      className={cn(card, "scroll-mt-24")}
+    >
       <header className="grid grid-cols-1 items-center gap-x-6 gap-y-3 border-b border-border/70 px-5 py-5 md:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)_1.25rem]">
         <span className="flex min-w-0 flex-col gap-1">
           <VendorLabel v={v} color={color} size="md" />
           <span className="ps-[4.75rem] text-xs text-ink-muted">
             {short ? `${short} point${short === 1 ? "" : "s"} short` : "Everything met"}
             {st.mandatoryNotMet > 0 && (
-              <span className="text-fail">
-                {" "}
-                · {st.mandatoryNotMet} mandatory not met
-              </span>
+              <span className="text-fail"> · {st.mandatoryNotMet} mandatory not met</span>
             )}
           </span>
         </span>
         <span className="flex flex-col gap-2">
           <span className="flex items-center gap-3">
-            <MeterBar value={st.total ? st.pct : null} fill={COMPLIANCE_FILL} label={`${v.vendor.name} compliance`} className="flex-1" />
-            <span className="kpi w-20 text-end text-3xl text-ink">{pctText(st.pct)}</span>
+            <MeterBar
+              value={st.total ? st.pct : null}
+              fill={COMPLIANCE_FILL}
+              label={`${v.vendor.name} compliance`}
+              className="flex-1"
+            />
+            <span className="w-20 text-end text-3xl kpi text-ink">{pctText(st.pct)}</span>
           </span>
           <CountsLegend counts={st.counts} label={`${v.vendor.name}: all points`} />
         </span>
         <span aria-hidden />
       </header>
-      <ul aria-label={`${v.vendor.name} by section`} className="flex flex-col divide-y divide-border/70">
+      <ul
+        aria-label={`${v.vendor.name} by section`}
+        className="flex flex-col divide-y divide-border/70"
+      >
         {sections.map((s) => (
           <SectionRow
             key={s ?? "none"}
@@ -254,25 +276,38 @@ function SectionRow({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="grid w-full grid-cols-1 items-center gap-x-6 gap-y-3 px-5 py-4 text-start outline-none transition-colors hover:bg-surface-muted/50 focus-visible:bg-surface-muted md:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)_1.25rem]"
+        className="grid w-full grid-cols-1 items-center gap-x-6 gap-y-3 px-5 py-4 text-start transition-colors outline-none hover:bg-surface-muted/50 focus-visible:bg-surface-muted md:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)_1.25rem]"
       >
         <span className="flex min-w-0 flex-col gap-0.5">
           <span className="text-sm font-medium text-ink">{sectionLabel(section)}</span>
           <span className="text-xs text-ink-muted">
-            {st.total} point{st.total === 1 ? "" : "s"} · {short ? `${short} short` : "everything met"}
-            {st.mandatoryNotMet > 0 && <span className="text-fail"> · {st.mandatoryNotMet} mandatory not met</span>}
+            {st.total} point{st.total === 1 ? "" : "s"} ·{" "}
+            {short ? `${short} short` : "everything met"}
+            {st.mandatoryNotMet > 0 && (
+              <span className="text-fail"> · {st.mandatoryNotMet} mandatory not met</span>
+            )}
           </span>
         </span>
         <span className="flex flex-col gap-2">
           <span className="flex items-center gap-3">
-            <MeterBar value={st.total ? st.pct : null} fill={COMPLIANCE_FILL} label={`${sectionLabel(section)} compliance`} className="flex-1" />
-            <span className="w-20 text-end text-lg font-semibold text-ink tabular-nums">{pctText(st.pct)}</span>
+            <MeterBar
+              value={st.total ? st.pct : null}
+              fill={COMPLIANCE_FILL}
+              label={`${sectionLabel(section)} compliance`}
+              className="flex-1"
+            />
+            <span className="w-20 text-end text-lg font-semibold text-ink tabular-nums">
+              {pctText(st.pct)}
+            </span>
           </span>
           <CountsLegend counts={st.counts} label={`${sectionLabel(section)}: points`} />
         </span>
         <ChevronDown
           aria-hidden
-          className={cn("size-5 justify-self-end text-ink-muted transition-transform", open && "rotate-180")}
+          className={cn(
+            "size-5 justify-self-end text-ink-muted transition-transform",
+            open && "rotate-180",
+          )}
         />
       </button>
       <AnimatePresence initial={false}>
@@ -285,7 +320,11 @@ function SectionRow({
             className="overflow-hidden"
           >
             <div className="flex flex-col gap-3 bg-surface-muted/40 px-5 pt-1 pb-5">
-              <div role="radiogroup" aria-label={`${sectionLabel(section)}: show points`} className="flex flex-wrap gap-2">
+              <div
+                role="radiogroup"
+                aria-label={`${sectionLabel(section)}: show points`}
+                className="flex flex-wrap gap-2"
+              >
                 {STATUS_PILLS.map((s) => {
                   const n = byStatus(s).length;
                   const on = s === active;
