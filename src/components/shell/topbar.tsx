@@ -65,7 +65,7 @@ function Trail({ trail }: { trail: Crumb[] }) {
 
 export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border/70 bg-background/80 px-4 backdrop-blur-md sm:px-6 lg:rounded-t-2xl lg:px-8">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface/85 px-4 backdrop-blur-md sm:px-6 lg:px-10">
       <Button
         variant="ghost"
         size="icon"

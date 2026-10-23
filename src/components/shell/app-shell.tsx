@@ -14,8 +14,8 @@ import { TitleSync } from "./title-sync";
 import { Topbar } from "./topbar";
 
 /**
- * App frame (RDD §9.2 layout): sidebar on the frame colour, main content in an inset,
- * rounded panel that owns its own scroll on desktop.
+ * App frame, the canonical RTA PoC shell: deep-ink sidebar, light top bar and a light content
+ * canvas that owns its own scroll on desktop.
  */
 /**
  * usePathname() suspends on routes with unknown dynamic params under cacheComponents (and the
@@ -87,7 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Sidebar collapsed={collapsed} onToggle={toggle} />
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetContent side="left" className="w-[280px] bg-frame p-0">
+            <SheetContent side="left" className="sidebar-drawer w-[280px] border-none bg-rail p-0">
               <SheetTitle className="sr-only">Navigation</SheetTitle>
               <div className="flex h-full flex-col pb-4">
                 <SidebarContent onNavigate={() => setMobileOpen(false)} />
@@ -95,13 +95,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </SheetContent>
           </Sheet>
 
-          <div className="flex min-w-0 flex-1 flex-col lg:min-h-0 lg:py-2 lg:pe-2">
+          <div className="flex min-w-0 flex-1 flex-col lg:min-h-0">
             {/* relative: the panel is the containing block of absolutely positioned descendants
                 (e.g. the hidden inputs Radix radio groups render inside forms). Otherwise they are
                 placed against the page and make it taller than the window (HANDOFF G-70). */}
             <div
               id="app-scroll"
-              className="relative flex min-h-dvh flex-1 flex-col bg-background lg:min-h-0 lg:overflow-y-auto lg:overscroll-none lg:rounded-2xl lg:border lg:border-border lg:shadow-xs"
+              className="relative flex min-h-dvh flex-1 flex-col bg-background lg:min-h-0 lg:overflow-y-auto lg:overscroll-none"
             >
               <Topbar onOpenMenu={() => setMobileOpen(true)} />
               <main
@@ -109,7 +109,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 tabIndex={-1}
                 className="flex-1 px-4 py-8 outline-none sm:px-6 lg:px-10 lg:py-10"
               >
-                <div className="mx-auto w-full max-w-[1280px]">{children}</div>
+                <div className="mx-auto w-full max-w-[1440px]">{children}</div>
               </main>
             </div>
           </div>

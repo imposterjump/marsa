@@ -1,5 +1,5 @@
 /**
- * WCAG contrast check for the Harbor tokens in src/app/globals.css (P1.2).
+ * WCAG contrast check for the design tokens in src/app/globals.css (P1.2; RTA palette since P8).
  * Usage: npx tsx scripts/contrast-check.ts   → exits 1 if any pair fails.
  * Translucent colours (#RRGGBBAA) are composited over the background they sit on.
  */
@@ -93,6 +93,9 @@ const PAIRS: [string, string, number, string][] = [
   ["risk-high", "risk-high-soft", 4.5, "risk high"],
   ["risk-critical", "risk-critical-soft", 4.5, "risk critical"],
   ["border-strong", "surface", 1.4, "input borders (non-text, decorative min)"],
+  ["rail-ink", "rail", 4.5, "sidebar active item (deep-ink sidebar)"],
+  ["rail-muted", "rail", 4.5, "sidebar items"],
+  ["rail-muted", "rail-raised", 4.5, "sidebar item on hover"],
 ];
 
 let failures = 0;

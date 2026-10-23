@@ -3,7 +3,9 @@
 @import "shadcn/tailwind.css";
 
 /*
- * Marsa "Harbor" design tokens — source of truth: docs/RDD.md §9.2.
+ * Marsa design tokens, following the RTA PoC Design System ("rta standard/", 2026-10-22): light
+ * luminous canvas, deep-ink sidebar, RTA red gradient for identity and focus, semantic colours for
+ * data meaning (never brand red for "negative"), Hanken Grotesk as the RTA-font stand-in.
  * Every colour is a CSS variable redefined under .dark. Components use semantic
  * Tailwind classes only (bg-surface, text-ink-muted, text-ok, shadow-md …), never raw hex.
  * Contrast is verified by `npx tsx scripts/contrast-check.ts` (parses this file).
@@ -16,10 +18,11 @@
 
 @theme inline {
   /* ── fonts (variables come from src/app/fonts.ts) ── */
-  --font-sans: var(--font-inter), var(--font-plex-arabic), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --font-sans:
+    "RTA", var(--font-hanken), "Segoe UI", var(--font-noto-arabic), ui-sans-serif, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
   --font-heading:
-    var(--font-jakarta), var(--font-plex-arabic), ui-sans-serif, system-ui, sans-serif;
+    "RTA", var(--font-hanken), "Segoe UI", var(--font-noto-arabic), ui-sans-serif, sans-serif;
 
   /* ── shadcn semantic aliases ── */
   --color-background: var(--background);
@@ -76,6 +79,10 @@
   --color-brand-soft: var(--brand-soft);
   --color-brand-ink: var(--brand-ink);
   --color-on-brand: var(--on-brand);
+  --color-rail: var(--rail);
+  --color-rail-raised: var(--rail-raised);
+  --color-rail-ink: var(--rail-ink);
+  --color-rail-muted: var(--rail-muted);
 
   /* ── compliance status ── */
   --color-ok: var(--ok);
@@ -88,6 +95,11 @@
   --color-missing-soft: var(--missing-soft);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  /* status fills for bars and dots (non-text; text always carries the label) */
+  --color-ok-fill: var(--ok-fill);
+  --color-partial-fill: var(--partial-fill);
+  --color-fail-fill: var(--fail-fill);
+  --color-missing-fill: var(--missing-fill);
 
   /* ── risk levels ── */
   --color-risk-low: var(--risk-low);
@@ -106,13 +118,13 @@
   --shadow-lg: var(--elev-lg);
   --shadow-paper: var(--elev-paper);
 
-  /* ── radius scale: 6 badges · 8 inputs · 10 buttons · 16 cards · 24 hero ── */
+  /* ── radius scale (RTA): 6 badges · 8 small controls · 10 inputs & buttons · 14 cards ── */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
   --radius-3xl: 24px;
   --radius-4xl: 32px;
 
@@ -133,52 +145,66 @@
 /* ─────────────────────────── Light (default) ─────────────────────────── */
 :root {
   color-scheme: light;
-  --sidebar-w: 264px;
+  --sidebar-w: 248px;
+  --rta-gradient: linear-gradient(90deg, #ec1c24 0%, #ff5a47 55%, #ff8a5c 100%);
 
-  --frame: #efede8;
-  --background: #f7f6f3;
+  /* canvas & ink */
+  --frame: #fafbfd;
+  --background: #fafbfd;
   --surface: #ffffff;
-  --surface-muted: #f1efea;
-  --sunken: #eceae4;
-  --border: #e6e2da;
-  --border-strong: #d6d1c6;
+  --surface-muted: #f4f6f9;
+  --sunken: #eef1f5;
+  --border: #e8ecf2;
+  --border-strong: #d3d9e2;
 
-  --ink: #0b1b2b;
-  --ink-2: #3d4b5c;
-  --ink-muted: #5c6774;
-  --ink-faint: #848d98;
-  --navy: #13304d;
-  --stage: #0d1824;
-  --stage-raised: #152434;
+  --ink: #171b21;
+  --ink-2: #39414c;
+  --ink-muted: #5d6673;
+  --ink-faint: #8a94a6;
+  --navy: #171b21;
+  --stage: #121519;
+  --stage-raised: #1c2128;
   --stage-line: rgb(255 255 255 / 0.1);
-  --stage-ink: #eaf0f5;
-  --stage-muted: #9aabbd;
+  --stage-ink: #eef1f5;
+  --stage-muted: #a0a9b6;
 
-  --brand: #0e7c7b;
-  --brand-hover: #0a6665;
-  --brand-soft: #e2f1f0;
-  --brand-ink: #0a5f5e;
+  /* deep-ink sidebar: the single standing dark element */
+  --rail: #171b21;
+  --rail-raised: #232931;
+  --rail-ink: #ffffff;
+  --rail-muted: #ffffffb3;
+
+  /* brand red = identity & focus (AA-safe step of #EC1C24 for text and fills) */
+  --brand: #e31b23;
+  --brand-hover: #c4161c;
+  --brand-soft: #ec1c2414;
+  --brand-ink: #c4161c;
   --on-brand: #ffffff;
 
-  --ok: #136f36;
-  --ok-soft: #e7f4ec;
-  --partial: #a15c00;
-  --partial-soft: #fcf1de;
-  --fail: #c0362c;
-  --fail-soft: #fbe9e7;
-  --missing: #5b6675;
-  --missing-soft: #edf0f3;
-  --info: #1f5fa8;
-  --info-soft: #e6eef8;
+  /* semantic: data meaning, not brand (text steps darkened for WCAG AA) */
+  --ok: #0f7553;
+  --ok-soft: #1fa97c1a;
+  --partial: #9a5b00;
+  --partial-soft: #f5a6231f;
+  --fail: #c42b31;
+  --fail-soft: #e5484d1a;
+  --missing: #5d6673;
+  --missing-soft: #8a94a61f;
+  --info: #2763b5;
+  --info-soft: #3b7dd81a;
+  --ok-fill: #1fa97c;
+  --partial-fill: #f5a623;
+  --fail-fill: #e5484d;
+  --missing-fill: #a3acba;
 
-  --risk-low: #136f36;
-  --risk-low-soft: #e7f4ec;
-  --risk-moderate: #a15c00;
-  --risk-moderate-soft: #fcf1de;
-  --risk-high: #c2410c;
-  --risk-high-soft: #fdede3;
+  --risk-low: #0f7553;
+  --risk-low-soft: #1fa97c1a;
+  --risk-moderate: #9a5b00;
+  --risk-moderate-soft: #f5a6231f;
+  --risk-high: #b4470f;
+  --risk-high-soft: #f076301c;
   --risk-critical: #b42318;
-  --risk-critical-soft: #fbe7e5;
+  --risk-critical-soft: #e5484d1f;
 
   /* shadcn aliases */
   --foreground: var(--ink);
@@ -196,32 +222,34 @@
   --accent-foreground: var(--ink);
   --destructive: var(--fail);
   --input: var(--border-strong);
-  --ring: var(--brand);
+  --ring: #ec1c24;
   --radius: 10px;
 
-  --chart-1: #0e7c7b;
-  --chart-2: #3b6ea8;
-  --chart-3: #c98a1b;
-  --chart-4: #64748b;
-  --chart-5: #c2556b;
+  /* categorical data-viz palette (jewel tones for white backgrounds) */
+  --chart-1: #3b7dd8;
+  --chart-2: #1fa97c;
+  --chart-3: #6b5bd2;
+  --chart-4: #f5a623;
+  --chart-5: #d8558e;
 
-  --sidebar: var(--frame);
-  --sidebar-foreground: var(--ink-2);
+  --sidebar: var(--rail);
+  --sidebar-foreground: var(--rail-muted);
   --sidebar-primary: var(--brand);
   --sidebar-primary-foreground: var(--on-brand);
-  --sidebar-accent: #e5e2db;
-  --sidebar-accent-foreground: var(--ink);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--brand);
+  --sidebar-accent: var(--rail-raised);
+  --sidebar-accent-foreground: var(--rail-ink);
+  --sidebar-border: #ffffff14;
+  --sidebar-ring: #ec1c24;
 
-  --elev-xs: 0 1px 2px rgb(11 27 43 / 0.05);
-  --elev-sm: 0 1px 2px rgb(11 27 43 / 0.04), 0 2px 6px rgb(11 27 43 / 0.04);
-  --elev-md: 0 2px 4px rgb(11 27 43 / 0.04), 0 8px 24px rgb(11 27 43 / 0.07);
-  --elev-lg: 0 4px 8px rgb(11 27 43 / 0.04), 0 24px 48px rgb(11 27 43 / 0.11);
-  --elev-paper: 0 1px 1px rgb(0 0 0 / 0.04), 0 12px 32px rgb(11 27 43 / 0.12);
+  /* elevation: resting / raised */
+  --elev-xs: 0 1px 2px rgb(23 27 33 / 0.04);
+  --elev-sm: 0 1px 2px rgb(23 27 33 / 0.04), 0 12px 32px rgb(23 27 33 / 0.05);
+  --elev-md: 0 1px 2px rgb(23 27 33 / 0.05), 0 16px 40px rgb(23 27 33 / 0.08);
+  --elev-lg: 0 4px 8px rgb(23 27 33 / 0.06), 0 24px 64px rgb(23 27 33 / 0.14);
+  --elev-paper: 0 1px 1px rgb(0 0 0 / 0.04), 0 12px 32px rgb(23 27 33 / 0.12);
 
-  --glow: rgb(14 124 123 / 0.18);
-  --grid-line: rgb(19 48 77 / 0.07);
+  --glow: rgb(236 28 36 / 0.14);
+  --grid-line: rgb(23 27 33 / 0.06);
 }
 
 [data-sidebar="collapsed"] {
@@ -232,70 +260,74 @@
 .dark {
   color-scheme: dark;
 
-  --frame: #080d12;
-  --background: #0b1117;
-  --surface: #111922;
-  --surface-muted: #16202a;
-  --sunken: #0e151c;
-  --border: #222e3a;
-  --border-strong: #2e3c4a;
+  --frame: #0e1116;
+  --background: #0e1116;
+  --surface: #161a20;
+  --surface-muted: #1c2128;
+  --sunken: #12161b;
+  --border: #262c35;
+  --border-strong: #343b46;
 
-  --ink: #e7edf2;
-  --ink-2: #b4c0cb;
-  --ink-muted: #8d9aa8;
-  --ink-faint: #66737f;
-  --navy: #9cc3e6;
-  --stage: #070f17;
-  --stage-raised: #0f1b27;
+  --ink: #eef1f5;
+  --ink-2: #c3cad4;
+  --ink-muted: #98a2b1;
+  --ink-faint: #6e7888;
+  --navy: #eef1f5;
+  --stage: #0a0c10;
+  --stage-raised: #14181d;
   --stage-line: rgb(255 255 255 / 0.09);
-  --stage-ink: #e6edf3;
-  --stage-muted: #8fa1b4;
+  --stage-ink: #eef1f5;
+  --stage-muted: #98a2b1;
 
-  --brand: #2db3ac;
-  --brand-hover: #45c7c0;
-  --brand-soft: #2db3ac24;
-  --brand-ink: #7fd9d3;
-  --on-brand: #04201f;
+  --rail: #0a0c10;
+  --rail-raised: #1a1f26;
 
-  --ok: #4ade80;
-  --ok-soft: #4ade801f;
-  --partial: #fbbf24;
-  --partial-soft: #fbbf241f;
-  --fail: #f87171;
-  --fail-soft: #f871711f;
-  --missing: #a3b1c2;
-  --missing-soft: #94a3b81f;
-  --info: #60a5fa;
-  --info-soft: #60a5fa1f;
+  --brand: #ff6b5a;
+  --brand-hover: #ff8a5c;
+  --brand-soft: #ff5a4726;
+  --brand-ink: #ff9a85;
+  --on-brand: #1a0b0b;
 
-  --risk-low: #4ade80;
-  --risk-low-soft: #4ade801f;
-  --risk-moderate: #fbbf24;
-  --risk-moderate-soft: #fbbf241f;
-  --risk-high: #fb923c;
-  --risk-high-soft: #fb923c1f;
-  --risk-critical: #f87171;
-  --risk-critical-soft: #f871711f;
+  --ok: #4fd1a1;
+  --ok-soft: #4fd1a11f;
+  --partial: #fbbf4d;
+  --partial-soft: #fbbf4d1f;
+  --fail: #ff7a7f;
+  --fail-soft: #ff7a7f1f;
+  --missing: #a8b1be;
+  --missing-soft: #a8b1be1f;
+  --info: #7cb0f0;
+  --info-soft: #7cb0f01f;
+  --ok-fill: #3cc191;
+  --partial-fill: #f7b955;
+  --fail-fill: #ff6b70;
+  --missing-fill: #6e7888;
+
+  --risk-low: #4fd1a1;
+  --risk-low-soft: #4fd1a11f;
+  --risk-moderate: #fbbf4d;
+  --risk-moderate-soft: #fbbf4d1f;
+  --risk-high: #ff9b5e;
+  --risk-high-soft: #ff9b5e1f;
+  --risk-critical: #ff7a7f;
+  --risk-critical-soft: #ff7a7f1f;
 
   --input: var(--border-strong);
 
-  --chart-1: #2db3ac;
-  --chart-2: #6c9fdb;
-  --chart-3: #e0a83a;
-  --chart-4: #94a3b8;
-  --chart-5: #e07a8f;
-
-  --sidebar: var(--frame);
-  --sidebar-accent: #141d26;
+  --chart-1: #6fa8ec;
+  --chart-2: #4fd1a1;
+  --chart-3: #9c8cf0;
+  --chart-4: #f7b955;
+  --chart-5: #ec7fae;
 
   --elev-xs: 0 1px 2px rgb(0 0 0 / 0.4);
-  --elev-sm: 0 1px 2px rgb(0 0 0 / 0.35), 0 2px 6px rgb(0 0 0 / 0.25);
-  --elev-md: 0 2px 4px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.35);
-  --elev-lg: 0 4px 8px rgb(0 0 0 / 0.3), 0 24px 48px rgb(0 0 0 / 0.5);
+  --elev-sm: 0 1px 2px rgb(0 0 0 / 0.35), 0 12px 32px rgb(0 0 0 / 0.25);
+  --elev-md: 0 2px 4px rgb(0 0 0 / 0.3), 0 16px 40px rgb(0 0 0 / 0.35);
+  --elev-lg: 0 4px 8px rgb(0 0 0 / 0.3), 0 24px 64px rgb(0 0 0 / 0.5);
   --elev-paper: 0 1px 1px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.55);
 
-  --glow: rgb(45 179 172 / 0.16);
-  --grid-line: rgb(156 195 230 / 0.06);
+  --glow: rgb(255 90 71 / 0.14);
+  --grid-line: rgb(255 255 255 / 0.05);
 }
 
 @layer base {
@@ -306,7 +338,6 @@
     @apply font-sans;
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
-    font-feature-settings: "cv11", "ss03";
   }
   body {
     @apply bg-frame text-sm text-foreground;
@@ -333,6 +364,42 @@
     scrollbar-width: thin;
     scrollbar-color: var(--border-strong) transparent;
   }
+}
+
+/* ─────────────── RTA motif utilities (jewelry, not wallpaper) ─────────────── */
+/* The RTA gradient: primary actions, active markers, the one featured number per page. */
+@utility bg-rta {
+  background-image: var(--rta-gradient);
+}
+@utility text-rta {
+  background-image: var(--rta-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+/* Angled gradient rule under editorial page titles. */
+@utility rta-rule {
+  display: block;
+  width: 64px;
+  height: 4px;
+  background-image: var(--rta-gradient);
+  clip-path: polygon(0 0, 100% 0, 92% 100%, 0 100%);
+  border-radius: 2px;
+}
+/* Big light numbers: KPI and score figures. */
+@utility kpi {
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+/* Caption caps (the RTA "overline" style; Tailwind already has an `overline` decoration utility): 11px caps, bold, tracked. */
+@utility caption-caps {
+  font-size: 11px;
+  line-height: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 /* Accessibility: honour reduced motion everywhere (epic-design non-negotiable). */
@@ -391,7 +458,7 @@
     display: contents;
   }
   ::selection {
-    background: rgb(14 124 123 / 0.3);
+    background: rgb(59 125 216 / 0.3);
     color: transparent;
   }
   br::selection {
@@ -417,19 +484,19 @@
 
 /* Evidence quote highlight (text layer, DOCX, text and sheet pages). */
 mark.marsa-hit {
-  background: rgb(14 124 123 / 0.3);
+  background: rgb(245 166 35 / 0.38);
   color: inherit;
   border-radius: 2px;
-  box-shadow: 0 0 0 1px rgb(14 124 123 / 0.35);
+  box-shadow: 0 0 0 1px rgb(245 166 35 / 0.55);
 }
 
 /* 1.2 s accent pulse when a deep link lands on a sheet (RDD §8.4). */
 @keyframes marsa-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgb(45 179 172 / 0.75);
+    box-shadow: 0 0 0 0 rgb(236 28 36 / 0.55);
   }
   100% {
-    box-shadow: 0 0 0 18px rgb(45 179 172 / 0);
+    box-shadow: 0 0 0 18px rgb(236 28 36 / 0);
   }
 }
 .marsa-pulse {

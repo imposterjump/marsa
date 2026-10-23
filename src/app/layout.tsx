@@ -8,12 +8,15 @@ export const metadata: Metadata = {
   title: "Marsa",
   description: "Procurement Intelligence for Ports & Customs",
   applicationName: "Marsa",
+  // Static file, not src/app/icon.svg: a metadata icon route made the dev server rebuild and reload
+  // the page on every request.
+  icons: { icon: "/brand/icon.svg" },
 };
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#efede8" },
-    { media: "(prefers-color-scheme: dark)", color: "#080d12" },
+    { media: "(prefers-color-scheme: light)", color: "#fafbfd" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e1116" },
   ],
 };
 

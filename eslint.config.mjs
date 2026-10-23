@@ -16,6 +16,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Project ignores: third-party skill packs, generated SQL, runtime data, test output.
     "claude/**",
+    // The user's company design reference (RTA PoC Design System), kept locally, not app code.
+    "rta standard/**",
+    ".next-design/**",
     "drizzle/**",
     "data/**",
     "coverage/**",

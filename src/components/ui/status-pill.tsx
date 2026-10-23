@@ -26,6 +26,7 @@ type Tone =
   | "info"
   | "brand"
   | "neutral"
+  | "ink"
   | "risk-low"
   | "risk-moderate"
   | "risk-high"
@@ -39,6 +40,8 @@ const TONE: Record<Tone, string> = {
   info: "bg-info-soft text-info",
   brand: "bg-brand-soft text-brand-ink",
   neutral: "bg-surface-muted text-ink-2",
+  /** Strong but not alarming: dark ink, used for "Mandatory". */
+  ink: "bg-ink text-surface",
   "risk-low": "bg-risk-low-soft text-risk-low",
   "risk-moderate": "bg-risk-moderate-soft text-risk-moderate",
   "risk-high": "bg-risk-high-soft text-risk-high",
@@ -137,8 +140,8 @@ export function ProjectStatusPill({ status, size }: { status: ProjectStatus; siz
 }
 
 const PRIORITY: Record<Priority, { tone: Tone; label: string; short: string }> = {
-  mandatory: { tone: "info", label: "Mandatory", short: "M" },
-  important: { tone: "brand", label: "Important", short: "I" },
+  mandatory: { tone: "ink", label: "Mandatory", short: "M" },
+  important: { tone: "info", label: "Important", short: "I" },
   desirable: { tone: "neutral", label: "Desirable", short: "D" },
 };
 
