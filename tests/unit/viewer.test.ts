@@ -19,24 +19,31 @@ const pack = (f: string) =>
 const enc = (s: string) => new TextEncoder().encode(s);
 
 describe("analysis plan (RDD §7.1)", () => {
-  it("T = 3N + 2, with the comparison skipped for one proposal", () => {
+  // P8: checklist → per vendor standards, RFP and risk → recommendation (no comparison step).
+  it("T = 3N + 2 with standards, 2N + 2 without", () => {
     expect(planRun(0)).toMatchObject({ total: 0, skipped: 0 });
-    expect(planRun(1)).toMatchObject({ total: 5, skipped: 1, phases: { analyze: 1, compare: 1 } });
+    expect(planRun(1)).toMatchObject({
+      total: 5,
+      skipped: 0,
+      phases: { standards: 1, compare: 0 },
+    });
     expect(planRun(4)).toMatchObject({
       total: 14,
       skipped: 0,
-      phases: { checklist: 1, analyze: 4, compare: 4, risk: 4, summary: 1 },
+      phases: { checklist: 1, standards: 4, analyze: 4, compare: 0, risk: 4, summary: 1 },
     });
+    expect(planRun(4, false)).toMatchObject({ total: 10, phases: { standards: 0 } });
   });
 
   it("estimates time by phase waves and concurrency", () => {
     expect(estimateSeconds(0, { concurrency: 3, mode: "live" })).toBe(0);
-    // 4 vendors, 3 at a time → 2 waves each for analyse, compare, risk
+    // 4 vendors, 3 at a time → 2 waves each for standards, RFP and risk
     expect(estimateSeconds(4, { concurrency: 3, mode: "live" })).toBe(
-      75 + 2 * 120 + 2 * 60 + 2 * 50 + 45,
+      75 + 2 * 80 + 2 * 110 + 2 * 50 + 30,
     );
-    // N = 1 skips the comparison phase
-    expect(estimateSeconds(1, { concurrency: 3, mode: "live" })).toBe(75 + 120 + 50 + 45);
+    expect(estimateSeconds(1, { concurrency: 3, mode: "live", withStandards: false })).toBe(
+      75 + 110 + 50 + 30,
+    );
     expect(estimateSeconds(4, { concurrency: 3, mode: "mock" })).toBe(Math.round(3.5 * 8));
     expect(estimateSeconds(4, { concurrency: 6, mode: "live" })).toBeLessThan(
       estimateSeconds(4, { concurrency: 1, mode: "live" }),
@@ -57,10 +64,14 @@ describe("analysis plan (RDD §7.1)", () => {
     previousRequirements: 31,
   };
 
-  it("reproduces the measured Sonnet run (PCS, 3 vendors: $1.17) within 10 %", () => {
+  // The measured run (P6.10) cost $1.17; its checklist, analysis and risk steps cost $0.89
+  // (per-step usage in data/live-test). P8 splits each analysis into a standards and an RFP check
+  // (the second reads the first's cache) and replaces compare + summary by a small
+  // recommendation without documents, so a run should cost about the same as those $0.89.
+  it("matches the measured Sonnet run's steps (PCS, 3 vendors: ≈ $0.89 + split checks)", () => {
     const e = estimateRun(pcs, { model: "claude-sonnet-5-5", concurrency: 3 });
-    expect(e.usd).toBeGreaterThan(1.17 * 0.9);
-    expect(e.usd).toBeLessThan(1.17 * 1.1);
+    expect(e.usd).toBeGreaterThan(0.85);
+    expect(e.usd).toBeLessThan(1.1);
     expect(e.low).toBeLessThan(e.usd);
     expect(e.high).toBeGreaterThan(e.usd);
     expect(e).toMatchObject({ steps: 11, requirements: 31, requirementsEstimated: false });
@@ -90,7 +101,8 @@ describe("analysis plan (RDD §7.1)", () => {
     expect(fresh.requirements).toBeGreaterThan(14);
   });
 
-  it("the large X-ray tender costs what the measured run suggests (≈ $4.5 on Sonnet)", () => {
+  // Measured X-ray run: $4.80 in all, $3.70 for its checklist, analysis and risk steps.
+  it("the large X-ray tender costs what the measured run suggests (≈ $3.7 on Sonnet)", () => {
     const xray: RunEstimateInput = {
       shared: {
         pdfPages: 24,
@@ -104,8 +116,8 @@ describe("analysis plan (RDD §7.1)", () => {
       previousRequirements: 91,
     };
     const e = estimateRun(xray, { model: "claude-sonnet-5-5", concurrency: 3 });
-    expect(e.usd).toBeGreaterThan(3.8);
-    expect(e.usd).toBeLessThan(5.2);
+    expect(e.usd).toBeGreaterThan(3.2);
+    expect(e.usd).toBeLessThan(4.6);
   });
 
   it("Haiku costs 5× more per token above 100K prompt tokens", () => {

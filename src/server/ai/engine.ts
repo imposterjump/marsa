@@ -18,9 +18,11 @@ import {
   OUTPUT_FIELD,
   OUTPUT_SCHEMA,
   fromWire,
-  ensureStandardRules,
+  normalizeAnalysis,
   normalizeChecklist,
   normalizeRisks,
+  withStandardRules,
+  type AnalysisOutput,
   type ChecklistOutput,
   type StepOutput,
   type RiskOutput,
@@ -79,10 +81,10 @@ export function createLiveEngine(db: Db, storage: LocalStorage, model: string): 
       }
       let data: unknown = fromWire(field, answer);
       if (i.phase === "checklist") {
-        data = ensureStandardRules(
-          normalizeChecklist(data as ChecklistOutput),
-          i.ctx.standards,
-        ).checklist;
+        // The model lists the RFP requirements; every standard rule is added as its own one.
+        data = withStandardRules(normalizeChecklist(data as ChecklistOutput), i.ctx.standards);
+      } else if (i.phase === "standards" || i.phase === "analyze") {
+        data = normalizeAnalysis(data as AnalysisOutput);
       } else if (i.phase === "risk") {
         data = normalizeRisks(data as RiskOutput);
       }

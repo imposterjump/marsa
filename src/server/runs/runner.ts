@@ -1,6 +1,7 @@
 /**
- * Run engine (RDD §7.2, P6.7). Phases run in strict order (checklist → analyze → compare → risk →
- * summary); inside a phase, steps run up to `concurrency` at a time. The first step of a phase
+ * Run engine (RDD §7.2, P6.7). Phases run in strict order (P8: checklist → standards → analyze
+ * (RFP) → risk → summary; `compare` only in older runs); inside a phase, steps run up to
+ * `concurrency` at a time. The first step of a phase
  * goes alone until its response starts streaming, so the others can read the prompt-cache entry
  * it writes (parallel requests with the same prefix can't share a cache entry).
  *
@@ -11,7 +12,7 @@
 import { eq, inArray } from "drizzle-orm";
 import type { Db } from "../db/connect";
 import { analysisRuns, analysisSteps, projects } from "../db/schema";
-import { RUN_PHASES, type RunPhase, type RiskSeverity } from "../../lib/domain";
+import { RUN_PHASES, type RunPhase } from "../../lib/domain";
 import { ApiError } from "../api-errors";
 import { describeError } from "../ai/client";
 import { nativeDocsFor } from "../ai/content";
@@ -25,6 +26,7 @@ import type {
 } from "../ai/schemas";
 import type { AiEngine, RunContext, SourceDoc, StepInput } from "../ai/types";
 import { loadRunContext } from "./context";
+import { computeVendorScores } from "./scores";
 import {
   addStepUsage,
   createRun,
@@ -39,9 +41,7 @@ import {
   markStepSkipped,
   outcomeOf,
   readChecklist,
-  readComparison,
   readDigests,
-  readRiskOutput,
   reconcileInterruptedRuns,
   saveAnalysis,
   saveChecklist,
@@ -72,6 +72,8 @@ interface Handle {
 
 export type Runner = ReturnType<typeof createRunner>;
 
+const vendorNames = (ctx: RunContext) => new Map(ctx.vendors.map((v) => [v.proposalId, v.name]));
+
 export function createRunner(deps: RunnerDeps) {
   const { db } = deps;
   const live = new Map<string, Handle>();
@@ -81,7 +83,12 @@ export function createRunner(deps: RunnerDeps) {
   function blockedReason(step: StepRow, run: RunRow, ctx: RunContext): string | null {
     if (step.phase === "checklist") return null;
     if (!readChecklist(db, run.id)) return "Needs the checklist (step 1).";
-    if (step.phase === "analyze" || step.phase === "compare" || step.phase === "risk") {
+    if (
+      step.phase === "standards" ||
+      step.phase === "analyze" ||
+      step.phase === "compare" ||
+      step.phase === "risk"
+    ) {
       if (!ctx.vendors.some((v) => v.proposalId === step.proposalId))
         return "The proposal was removed.";
     }
@@ -104,6 +111,8 @@ export function createRunner(deps: RunnerDeps) {
     const vendor = ctx.vendors.find((v) => v.proposalId === step.proposalId);
     const analyses = readDigests(db, run.id, ctx);
     switch (step.phase) {
+      case "standards":
+        return { phase: "standards", ctx, checklist, vendor: vendor! };
       case "analyze":
         return { phase: "analyze", ctx, checklist, vendor: vendor! };
       case "compare":
@@ -117,23 +126,20 @@ export function createRunner(deps: RunnerDeps) {
           analysis: analyses.find((a) => a.proposalId === step.proposalId)!,
         };
       case "summary": {
-        const comparisons: { vendor: string; data: ComparisonOutput }[] = [];
-        const risks: { vendor: string; overall: RiskSeverity; top: string[] }[] = [];
-        for (const a of analyses) {
-          const c = readComparison(db, run.id, a.proposalId);
-          if (c) comparisons.push({ vendor: a.vendor, data: c });
-          const r = readRiskOutput(db, run.id, a.proposalId);
-          if (r)
-            risks.push({
-              vendor: a.vendor,
-              overall: r.overall,
-              top: r.risks.slice(0, 3).map((x) => x.title),
-            });
-        }
+        // P8: Marsa ranks the vendors and picks one; the model explains the pick.
+        const scores = computeVendorScores(db, run, vendorNames(ctx));
         const missing = ctx.vendors
           .filter((v) => !analyses.some((a) => a.proposalId === v.proposalId))
           .map((v) => v.name);
-        return { phase: "summary", ctx, checklist, analyses, comparisons, risks, missing };
+        return {
+          phase: "summary",
+          ctx,
+          checklist,
+          analyses,
+          scores,
+          recommended: scores[0]?.vendor ?? null,
+          missing,
+        };
       }
     }
   }
@@ -148,14 +154,22 @@ export function createRunner(deps: RunnerDeps) {
     switch (step.phase) {
       case "checklist":
         return saveChecklist(db, step, data as ChecklistOutput, ctx, usage);
+      case "standards":
       case "analyze":
-        return void saveAnalysis(db, step, run, ctx, data as AnalysisOutput, usage);
+        return saveAnalysis(db, step, run, ctx, data as AnalysisOutput, usage);
       case "compare":
         return saveComparison(db, step, data as ComparisonOutput, usage);
       case "risk":
         return saveRisks(db, step, data as RiskOutput, usage);
       case "summary":
-        return saveSummary(db, step, ctx, data as SummaryOutput, usage);
+        return saveSummary(
+          db,
+          step,
+          ctx,
+          data as SummaryOutput,
+          usage,
+          computeVendorScores(db, run, vendorNames(ctx)),
+        );
     }
   }
 

@@ -1,11 +1,13 @@
 /**
- * Structured-output schemas for the five pipeline steps (RDD §7.5, P6.2).
+ * Structured-output schemas for the pipeline steps (RDD §7.5, P6.2; P8: standards step, proposal
+ * sections, one-line finding summaries).
  * Sent to Claude through `betaZodOutputFormat` (output_config.format) and validated again on
  * receipt. Shape rules for the JSON Schema the API accepts: every field is present
  * (optional values are `nullable`, not `optional`), and numeric ranges are not expressed in the
  * schema; `normalize*` clamps them after parsing.
  */
 import { z } from "zod";
+import { toSection } from "../../lib/sections";
 import {
   CONFIDENCE_LEVELS,
   FINDING_STATUSES,
@@ -29,8 +31,15 @@ export const ChecklistSchema = z.object({
       sourceType: z.enum(REQUIREMENT_SOURCES),
       sourceRef: z
         .string()
-        .describe('Where it comes from, e.g. "RFP §4.1.1", "Annex B TB-07", "SEC-04"'),
+        .describe('Where it comes from, e.g. "RFP §4.1.1", "Annex B TB-07", "Addendum 1 Q3"'),
       acceptance: z.string().describe("How compliance is verified or what evidence is acceptable"),
+      section: z.string().describe("Proposal section key where a vendor answers it"),
+    }),
+  ),
+  ruleSections: z.array(
+    z.object({
+      code: z.string().describe("Standard rule code"),
+      section: z.string().describe("Proposal section key where a vendor answers the rule"),
     }),
   ),
   keyConstraints: z.array(
@@ -47,6 +56,7 @@ export const AnalysisSchema = z.object({
     z.object({
       code: z.string().describe("Requirement code from the checklist"),
       status: z.enum(FINDING_STATUSES),
+      headline: z.string().describe("The finding in one short phrase (at most 15 words)"),
       vendorResponse: z.string().describe("What the vendor states or offers for this requirement"),
       evidenceQuote: z
         .string()
@@ -97,6 +107,7 @@ export const RiskSchema = z.object({
       mitigation: z.string(),
       evidence: z.string().nullable(),
       requirementCodes: z.array(z.string()),
+      section: z.string().describe("Proposal section key the risk relates to"),
     }),
   ),
 });
@@ -113,6 +124,7 @@ export type SummaryOutput = z.infer<typeof SummarySchema>;
 
 export const STEP_SCHEMAS = {
   checklist: ChecklistSchema,
+  standards: AnalysisSchema,
   analyze: AnalysisSchema,
   compare: ComparisonSchema,
   risk: RiskSchema,
@@ -131,6 +143,7 @@ export const AnalysisWire = AnalysisSchema.extend({
     z.object({
       code: z.string().describe("Requirement code from the checklist"),
       status: z.enum(FINDING_STATUSES),
+      headline: z.string().describe("The finding in one short phrase (at most 15 words)"),
       vendorResponse: z.string().describe("What the vendor states or offers for this requirement"),
       evidenceQuote: z
         .string()
@@ -199,6 +212,7 @@ export type StepOutput = z.infer<typeof EvaluateOutputSchema> & z.infer<typeof R
 /** The output format each phase sends. */
 export const OUTPUT_SCHEMA = {
   checklist: EvaluateOutputSchema,
+  standards: EvaluateOutputSchema,
   analyze: EvaluateOutputSchema,
   risk: EvaluateOutputSchema,
   compare: RankOutputSchema,
@@ -250,6 +264,7 @@ export function fromWire(field: keyof StepOutput, data: NonNullable<StepOutput[k
 /** The field of StepOutputSchema each phase answers in. */
 export const OUTPUT_FIELD = {
   checklist: "checklist",
+  standards: "analysis",
   analyze: "analysis",
   compare: "comparison",
   risk: "riskRegister",
@@ -266,21 +281,45 @@ export function normalizeRisks(out: RiskOutput): RiskOutput {
       ...r,
       likelihood: clamp15(r.likelihood),
       impact: clamp15(r.impact),
+      section: toSection(r.section, `${r.title} ${r.description}`),
     })),
   };
 }
 
-/** Requirement codes: uppercase, unique, REQ-### when the model drifts from the format. */
+/** Findings: a short, single-line summary phrase. */
+export function normalizeAnalysis(out: AnalysisOutput): AnalysisOutput {
+  return {
+    ...out,
+    findings: out.findings.map((f) => {
+      const h = (f.headline ?? "").replace(/\s+/g, " ").trim();
+      return { ...f, headline: h.length > 160 ? `${h.slice(0, 157)}…` : h };
+    }),
+  };
+}
+
+/**
+ * The RFP part of the checklist: codes uppercase, unique, REQ-### when the model drifts from the
+ * format; sections normalised to keys. Standard rules are added separately (withStandardRules),
+ * so anything the model labelled "standard" is dropped here.
+ */
 export function normalizeChecklist(out: ChecklistOutput): ChecklistOutput {
   const seen = new Set<string>();
-  const requirements = out.requirements.map((r, i) => {
-    let code = r.code.trim().toUpperCase();
-    if (!/^REQ-\d{3,}$/.test(code) || seen.has(code))
-      code = `REQ-${String(i + 1).padStart(3, "0")}`;
-    while (seen.has(code)) code = `${code}A`;
-    seen.add(code);
-    return { ...r, code, title: r.title.trim(), sourceRef: r.sourceRef.trim() };
-  });
+  const requirements = out.requirements
+    .filter((r) => r.sourceType !== "standard")
+    .map((r, i) => {
+      let code = r.code.trim().toUpperCase();
+      if (!/^REQ-\d{3,}$/.test(code) || seen.has(code))
+        code = `REQ-${String(i + 1).padStart(3, "0")}`;
+      while (seen.has(code)) code = `${code}A`;
+      seen.add(code);
+      return {
+        ...r,
+        code,
+        title: r.title.trim(),
+        sourceRef: r.sourceRef.trim(),
+        section: toSection(r.section, `${r.title} ${r.description}`),
+      };
+    });
   return { ...out, requirements };
 }
 
@@ -292,39 +331,47 @@ export function categoryForStandard(standardCategory: string): RequirementCatego
 }
 
 /**
- * Deterministic safety net (RDD §7.1): every applied standard rule must be in the checklist. A rule
- * whose code is not cited in any sourceRef is appended as its own requirement, so no mandatory rule
- * can silently drop out of the evaluation.
+ * P8: every applied standard rule is its own requirement (sourceType "standard", code and
+ * sourceRef = the rule code, priority from the rule), appended after the RFP requirements, so a
+ * vendor is checked against the standards rule by rule, separately from the RFP. A rule code used
+ * by two standards gets its standard's code as a prefix.
  */
-export function ensureStandardRules(
+export function withStandardRules(
   out: ChecklistOutput,
   standards: {
     code: string;
     category: string;
     rules: { code: string; text: string; priority: Priority }[];
   }[],
-): { checklist: ChecklistOutput; appended: string[] } {
-  const cited = out.requirements.map((r) => r.sourceRef.toUpperCase()).join(" | ");
-  const escape = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const isCited = (code: string) =>
-    new RegExp(`(^|[^A-Z0-9-])${escape(code.toUpperCase())}($|[^A-Z0-9])`).test(cited);
-  const appended: string[] = [];
+): ChecklistOutput {
+  const sectionOf = new Map(
+    (out.ruleSections ?? []).map((r) => [r.code.trim().toUpperCase(), r.section]),
+  );
+  const taken = new Set(out.requirements.map((r) => r.code));
   const requirements = [...out.requirements];
   for (const s of standards) {
     for (const rule of s.rules) {
-      if (isCited(rule.code)) continue;
-      appended.push(rule.code);
+      let code = rule.code.trim().toUpperCase();
+      if (taken.has(code)) code = `${s.code.toUpperCase()}-${code}`;
+      taken.add(code);
       requirements.push({
-        code: `REQ-${String(requirements.length + 1).padStart(3, "0")}`,
+        code,
         title: `${s.code} ${rule.code}`,
         description: rule.text,
         category: categoryForStandard(s.category),
         priority: rule.priority,
         sourceType: "standard",
         sourceRef: rule.code,
-        acceptance: "The proposal states how this standard rule is met.",
+        acceptance: "The proposal shows how this rule is met.",
+        section: toSection(sectionOf.get(rule.code.toUpperCase()), rule.text),
       });
     }
   }
-  return { checklist: normalizeChecklist({ ...out, requirements }), appended };
+  return { ...out, requirements };
 }
+
+/** Checklist requirements a step checks: the standard rules, or the RFP (and notes) ones. */
+export const requirementsFor = (checklist: ChecklistOutput, scope: "standards" | "rfp") =>
+  checklist.requirements.filter((r) =>
+    scope === "standards" ? r.sourceType === "standard" : r.sourceType !== "standard",
+  );

@@ -97,7 +97,20 @@ export const STEP_STATUSES = [
 ] as const;
 export type StepStatus = (typeof STEP_STATUSES)[number];
 
-export const RUN_PHASES = ["checklist", "analyze", "compare", "risk", "summary"] as const;
+/**
+ * Run phases in execution order. Since P8: checklist (RFP requirements + rule sections) →
+ * standards (each vendor against every standard rule) → analyze (each vendor against the RFP) →
+ * risk → summary (Marsa's scores and recommendation, with a short AI reason). `compare` only
+ * exists in runs from before P8. Stored as text: no DB constraint to change.
+ */
+export const RUN_PHASES = [
+  "checklist",
+  "standards",
+  "analyze",
+  "compare",
+  "risk",
+  "summary",
+] as const;
 export type RunPhase = (typeof RUN_PHASES)[number];
 
 export const PROPOSAL_STATUSES = ["submitted", "withdrawn"] as const;
@@ -161,3 +174,23 @@ export interface RunConfig {
 /** Human verdict on an analysis run (AI review, saved for improving the system). */
 export const REVIEW_VERDICTS = ["trust", "trust_with_edits", "do_not_trust"] as const;
 export type ReviewVerdict = (typeof REVIEW_VERDICTS)[number];
+
+/**
+ * The proposal template (P8): every vendor proposal follows these sections, and every checklist
+ * requirement, standard rule and risk is filed under one, so vendors can be compared section by
+ * section. Technical proposal = company … support; commercial proposal = commercial and terms.
+ */
+export const PROPOSAL_SECTIONS = [
+  "company",
+  "solution",
+  "security",
+  "implementation",
+  "support",
+  "commercial",
+  "terms",
+] as const;
+export type ProposalSection = (typeof PROPOSAL_SECTIONS)[number];
+
+/** What an analysis_meta row describes. */
+export const META_KINDS = ["requirement", "finding", "risk"] as const;
+export type MetaKind = (typeof META_KINDS)[number];

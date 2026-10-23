@@ -112,3 +112,53 @@ export function maxSeverity(list: RiskSeverity[]): RiskSeverity {
     "low",
   );
 }
+
+// ─── Risk score and recommendation (P8) ──────────────────────────────────────
+/**
+ * Risk of awarding to a vendor, 0–100 (higher = riskier), computed by Marsa instead of the AI's
+ * own label, which was too harsh (a 91.6 % compliant vendor came out "high"):
+ *   45 × min(1, mandatory not met / 5)
+ * + 30 × gap share (not met + not addressed + ½ partly met, over all checked points)
+ * + 25 × average of the three most severe risks' likelihood × impact / 25
+ * Calibrated on the real Sonnet runs (HANDOFF: X-ray, PCS).
+ */
+export function riskScore({
+  mandatoryNotMet,
+  counts,
+  risks,
+}: {
+  mandatoryNotMet: number;
+  counts: StatusCounts;
+  risks: { likelihood: number; impact: number }[];
+}): number {
+  const total = FINDING_STATUSES.reduce((s, k) => s + counts[k], 0);
+  const gaps = counts.non_compliant + counts.not_addressed + 0.5 * counts.partial;
+  const top = risks
+    .map((r) => r.likelihood * r.impact)
+    .sort((a, b) => b - a)
+    .slice(0, 3);
+  const register = top.length ? top.reduce((s, x) => s + x, 0) / top.length / 25 : 0;
+  const score =
+    45 * Math.min(1, mandatoryNotMet / 5) + 30 * (total ? gaps / total : 0) + 25 * register;
+  return Math.round(Math.min(100, Math.max(0, score)));
+}
+
+/** Bands of the risk score: 0–24 low · 25–49 moderate · 50–69 high · 70–100 critical. */
+export function riskLevel(score: number): RiskSeverity {
+  if (score >= 70) return "critical";
+  if (score >= 50) return "high";
+  if (score >= 25) return "moderate";
+  return "low";
+}
+
+/**
+ * Overall value used to rank vendors and pick the recommended one: compliance with the
+ * standards and the RFP, and low risk. Without applied standards the RFP carries their weight.
+ */
+export function overallValue(standardsPct: number | null, rfpPct: number, risk: number): number {
+  const v =
+    standardsPct === null
+      ? 0.8 * rfpPct + 0.2 * (100 - risk)
+      : 0.4 * standardsPct + 0.4 * rfpPct + 0.2 * (100 - risk);
+  return round1(v);
+}

@@ -13,7 +13,7 @@
  * breakpoint must be identical between steps, so nothing here may depend on time or step order.
  */
 import type Anthropic from "@anthropic-ai/sdk";
-import { OUTPUT_FIELD, type ChecklistOutput } from "./schemas";
+import { OUTPUT_FIELD, requirementsFor, type ChecklistOutput } from "./schemas";
 import type { AnalysisDigest, RunContext, SourceDoc, StepInput, VendorContext } from "./types";
 import {
   analyzeTask,
@@ -21,6 +21,7 @@ import {
   checklistTask,
   compareTask,
   riskTask,
+  standardsTask,
   summaryTask,
 } from "./prompts";
 
@@ -158,18 +159,36 @@ export function tenderBlocks(ctx: RunContext): Block[] {
 }
 
 function stepBlocks(input: StepInput): Block[] {
-  const shared = tenderBlocks(input.ctx);
+  const shared = input.phase === "summary" ? [] : tenderBlocks(input.ctx);
   switch (input.phase) {
     case "checklist": {
       const codes = input.ctx.standards.flatMap((s) => s.rules.map((r) => r.code));
       return [...shared, text(checklistTask(codes))];
     }
+    // Standards and RFP checks of one vendor share ① ② ③: the second reads the first's cache.
+    case "standards":
+      return [
+        ...shared,
+        ...cached(checklistSection(input.checklist)),
+        ...cached(vendorSection(input.vendor)),
+        text(
+          standardsTask(
+            input.vendor.name,
+            requirementsFor(input.checklist, "standards").map((r) => r.code),
+          ),
+        ),
+      ];
     case "analyze":
       return [
         ...shared,
         ...cached(checklistSection(input.checklist)),
         ...cached(vendorSection(input.vendor)),
-        text(analyzeTask(input.vendor.name, input.checklist.requirements.length)),
+        text(
+          analyzeTask(
+            input.vendor.name,
+            requirementsFor(input.checklist, "rfp").map((r) => r.code),
+          ),
+        ),
       ];
     case "compare": {
       const others = input.analyses.filter((a) => a.proposalId !== input.vendor.proposalId);
@@ -193,28 +212,33 @@ function stepBlocks(input: StepInput): Block[] {
         ...analysesSection(`Analysis of ${input.vendor.name}`, digestForPrompt(input.analysis)),
         text(riskTask(input.vendor.name)),
       ];
+    // P8: the recommendation needs the scores and analyses only, not the tender documents.
     case "summary":
       return [
-        ...shared,
-        ...cached(checklistSection(input.checklist)),
-        ...analysesSection("Analyses, comparisons and risk registers", {
+        ...checklistSection(input.checklist),
+        ...analysesSection("Marsa's scores and the vendors' analyses", {
+          ranking: input.scores.map((s) => ({
+            rank: s.rank,
+            vendor: s.vendor,
+            standardsCompliancePct: s.standardsPct,
+            rfpCompliancePct: s.rfpPct,
+            mandatoryRequirementsNotMet: s.mandatoryNotMet,
+            riskScore: s.riskScore,
+            riskLevel: s.riskLevel,
+            overall: s.overall,
+          })),
           analyses: input.analyses.map(digestForPrompt),
-          comparisons: input.comparisons,
-          risks: input.risks,
         }),
-        text(
-          summaryTask(
-            input.analyses.map((a) => a.vendor),
-            input.missing,
-          ),
-        ),
+        text(summaryTask(input.recommended, input.missing)),
       ];
   }
 }
 
 /** Documents a step sends natively (they need Files API ids before the call). */
 export function nativeDocsFor(input: StepInput): SourceDoc[] {
+  if (input.phase === "summary") return [];
   const docs = [...input.ctx.rfpDocs, ...input.ctx.standards.flatMap((s) => s.docs)];
-  if (input.phase === "analyze" || input.phase === "risk") docs.push(...input.vendor.docs);
+  if (input.phase === "standards" || input.phase === "analyze" || input.phase === "risk")
+    docs.push(...input.vendor.docs);
   return docs.filter((d) => d.aiReadable && isNativeDoc(d));
 }

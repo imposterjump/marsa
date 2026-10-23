@@ -10,13 +10,16 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { migrateDb, openDb, type Db } from "@/server/db/connect";
 import {
+  analysisMeta,
   evaluations,
   findings,
   projects,
   proposals,
   requirements,
   risks,
+  runSummaries,
 } from "@/server/db/schema";
+import { computeVendorScores } from "@/server/runs/scores";
 import { createMockEngine, createPageLoader } from "@/server/ai/mock";
 import { AiError } from "@/server/ai/result";
 import type { AiEngine } from "@/server/ai/types";
@@ -96,7 +99,7 @@ describe("analysis runner (mock engine)", () => {
     const r = runner(db, e);
     const project = xray(db);
     const run = r.start(project.id);
-    expect(run.totalSteps).toBe(14); // 3 × 4 + 2
+    expect(run.totalSteps).toBe(14); // P8: checklist + 4 × (standards, RFP, risk) + recommendation
     expect(db.select().from(projects).where(eq(projects.id, project.id)).get()!.status).toBe(
       "evaluating",
     );
@@ -107,16 +110,31 @@ describe("analysis runner (mock engine)", () => {
     expect(done.doneSteps).toBe(14);
     expect(calls).toHaveLength(14);
     expect(calls[0]).toBe("checklist");
+    expect(calls.slice(1, 5).every((c) => c.startsWith("standards:"))).toBe(true);
+    expect(calls.slice(5, 9).every((c) => c.startsWith("analyze:"))).toBe(true);
     expect(calls.at(-1)).toBe("summary");
     expect(listSteps(db, run.id).every((s) => s.status === "done")).toBe(true);
     expect(db.select().from(projects).where(eq(projects.id, project.id)).get()!.status).toBe(
       "evaluated",
     );
 
-    // Checklist: RFP requirements + every applied standard rule.
+    // Checklist: RFP requirements + every applied standard rule as its own requirement, each
+    // filed under a proposal section.
     const reqs = db.select().from(requirements).where(eq(requirements.runId, run.id)).all();
     expect(reqs.length).toBeGreaterThan(40);
-    expect(reqs.filter((q) => q.sourceType === "standard" && q.standardId)).not.toHaveLength(0);
+    const rules = reqs.filter((q) => q.sourceType === "standard");
+    expect(rules.length).toBe(38); // CITS-2026 14 + PESE-03 12 + PCT-07 12
+    expect(rules.every((q) => q.standardId && q.code === q.sourceRef)).toBe(true);
+    const meta = db.select().from(analysisMeta).where(eq(analysisMeta.runId, run.id)).all();
+    const reqMeta = meta.filter((m) => m.kind === "requirement");
+    expect(reqMeta).toHaveLength(reqs.length);
+    expect(reqMeta.every((m) => m.section)).toBe(true);
+    expect(new Set(reqMeta.map((m) => m.section)).size).toBeGreaterThan(3);
+    // Every finding has a one-line summary; every risk a section.
+    const findingMeta = meta.filter((m) => m.kind === "finding");
+    expect(findingMeta.length).toBe(reqs.length * 4);
+    expect(findingMeta.every((m) => m.headline.length > 0)).toBe(true);
+    expect(meta.filter((m) => m.kind === "risk").every((m) => m.section)).toBe(true);
     // One finding per requirement per vendor.
     const evs = db.select().from(evaluations).where(eq(evaluations.runId, run.id)).all();
     expect(evs).toHaveLength(4);
@@ -148,9 +166,15 @@ describe("analysis runner (mock engine)", () => {
     expect(hosting[0].evidencePage).toBeGreaterThan(0);
     expect(hosting[0].evidenceDocId).toBeTruthy();
 
+    // Marsa ranks and recommends; the model only explains.
     const results = getRunResults(db, run.id);
     expect(results.summary?.ranking).toHaveLength(4);
-    expect(results.comparisons).toHaveLength(4);
+    expect(results.comparisons).toHaveLength(0);
+    const scores = computeVendorScores(db, getRun(db, run.id));
+    expect(scores.map((x) => x.rank)).toEqual([1, 2, 3, 4]);
+    expect(scores.every((x) => x.standardsPct !== null && x.riskScore >= 0)).toBe(true);
+    const summary = db.select().from(runSummaries).where(eq(runSummaries.runId, run.id)).get()!;
+    expect(summary.recommendedProposalId).toBe(scores[0].proposalId);
     expect(
       getRunStatus(db, run.id, false).chips.every((c) => c.scorePct !== null && c.overallRisk),
     ).toBe(true);
@@ -215,13 +239,14 @@ describe("analysis runner (mock engine)", () => {
     expect(atlas.attempt).toBe(2);
     expect(nile.status).toBe("failed");
     expect(nile.error).toContain("Network down");
+    // Its standards check succeeded; only its risk step had to be skipped.
     expect(
       steps.filter((s) => s.proposalId === nile.proposalId && s.status === "skipped"),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     expect(getRun(db, run.id).status).toBe("completed_with_errors");
     expect(getRunResults(db, run.id).summary?.ranking).toHaveLength(3);
 
-    // Fix the "network" and retry: analyse + compare + risk for Nile Gate, then the summary again.
+    // Fix the "network" and retry: the RFP check + risk for Nile Gate, then the summary again.
     const before = calls.length;
     const fixed = runner(db, engine().engine);
     fixed.retryStep(run.id, nile.id);
@@ -258,7 +283,7 @@ describe("analysis runner (mock engine)", () => {
     await r.wait(run.id);
   }, 60_000);
 
-  it("one proposal: the comparison is skipped and the run still completes", async () => {
+  it("one proposal: checklist, its three checks and the recommendation", async () => {
     const db = freshDb();
     const p = xray(db);
     const ids = db.select().from(proposals).where(eq(proposals.projectId, p.id)).all();
@@ -269,7 +294,13 @@ describe("analysis runner (mock engine)", () => {
     expect(run.totalSteps).toBe(5);
     await r.wait(run.id);
     const steps = listSteps(db, run.id);
-    expect(steps.find((s) => s.phase === "compare")!.status).toBe("skipped");
+    expect(steps.map((s) => s.phase)).toEqual([
+      "checklist",
+      "standards",
+      "analyze",
+      "risk",
+      "summary",
+    ]);
     expect(getRun(db, run.id).status).toBe("completed");
   }, 60_000);
 });

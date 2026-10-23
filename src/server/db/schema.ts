@@ -17,6 +17,8 @@ import {
   AI_MODELS,
   CONFIDENCE_LEVELS,
   DEFAULT_AI_MODEL,
+  META_KINDS,
+  PROPOSAL_SECTIONS,
   DEFAULT_CONCURRENCY,
   DEFAULT_PARTIAL_CREDIT,
   DEFAULT_WEIGHTS,
@@ -405,4 +407,23 @@ export const runReviews = sqliteTable(
     createdAt: createdAt(),
   },
   (t) => [index("run_reviews_run_idx").on(t.runId, t.createdAt)],
+);
+
+// ─── Analysis meta (P8): proposal section and summary phrase per item ─────────
+/**
+ * Extra fields of the P8 pipeline for rows of existing tables, which are never altered (G-52):
+ * the proposal section of a requirement or risk, and the one-line summary of a finding.
+ */
+export const analysisMeta = sqliteTable(
+  "analysis_meta",
+  {
+    itemId: text("item_id").primaryKey(),
+    runId: text("run_id")
+      .notNull()
+      .references(() => analysisRuns.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: META_KINDS }).notNull(),
+    section: text("section", { enum: PROPOSAL_SECTIONS }),
+    headline: text("headline").notNull().default(""),
+  },
+  (t) => [index("analysis_meta_run_idx").on(t.runId, t.kind)],
 );

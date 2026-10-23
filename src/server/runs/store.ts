@@ -3,9 +3,10 @@
  * Each finished step is persisted immediately (step output + rows), so a crash or restart never
  * loses paid work and Resume never re-bills a finished step. No `server-only` (G-08).
  */
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Db } from "../db/connect";
 import {
+  analysisMeta,
   analysisRuns,
   analysisSteps,
   comparisons,
@@ -18,6 +19,7 @@ import {
   requirements,
   risks,
   runSummaries,
+  standardRules,
   standards,
 } from "../db/schema";
 import { ApiError, notFound } from "../api-errors";
@@ -31,16 +33,18 @@ import type {
   TokenUsage,
 } from "../../lib/domain";
 import { newId } from "../../lib/ids";
-import { addUsage, analyzeLabel, costFromUsage, planSteps } from "../../lib/plan";
+import { addUsage, analyzeLabel, costFromUsage, planSteps, standardsLabel } from "../../lib/plan";
+import { toSection } from "../../lib/sections";
 import { computeCategoryScores, computeScore, riskSeverity } from "../../lib/scoring";
-import type {
-  AnalysisOutput,
-  ChecklistOutput,
-  ComparisonOutput,
-  RiskOutput,
-  SummaryOutput,
+import {
+  requirementsFor,
+  type AnalysisOutput,
+  type ChecklistOutput,
+  type ComparisonOutput,
+  type RiskOutput,
+  type SummaryOutput,
 } from "../ai/schemas";
-import type { AnalysisDigest, RunContext, SourceDoc } from "../ai/types";
+import type { AnalysisDigest, RunContext, SourceDoc, VendorScores } from "../ai/types";
 import { getSettings } from "../services/settings";
 
 export type RunRow = typeof analysisRuns.$inferSelect;
@@ -156,9 +160,16 @@ export function createRun(
       .all()
       .map((r) => [r.id, r.name]),
   );
+  const rules = standardIds.length
+    ? (db
+        .select({ n: count() })
+        .from(standardRules)
+        .where(inArray(standardRules.standardId, standardIds))
+        .get()?.n ?? 0)
+    : 0;
   const plan = planSteps(
     config.proposalIds.map((id) => ({ proposalId: id, name: names.get(id) ?? "Vendor" })),
-    standardIds.length,
+    { standards: standardIds.length, rules },
   );
   const runId = newId("run");
   db.transaction((tx) => {
@@ -251,8 +262,14 @@ export function readDigests(db: Db, runId: string, ctx: RunContext): AnalysisDig
   const out: AnalysisDigest[] = [];
   for (const v of ctx.vendors) {
     const ev = rows.find((r) => r.proposalId === v.proposalId);
-    const analysis = stepOutput<AnalysisOutput>(db, runId, "analyze", v.proposalId);
-    if (!ev || !analysis) continue;
+    const rfp = stepOutput<AnalysisOutput>(db, runId, "analyze", v.proposalId);
+    if (!ev || !rfp) continue;
+    // P8: the standards check of the same vendor adds its findings (the RFP step has the prose).
+    const std = stepOutput<AnalysisOutput>(db, runId, "standards", v.proposalId);
+    const analysis: AnalysisOutput = {
+      ...rfp,
+      findings: [...(std?.findings ?? []), ...rfp.findings],
+    };
     out.push({
       proposalId: v.proposalId,
       vendor: v.name,
@@ -398,8 +415,12 @@ export function saveChecklist(
 ) {
   const ruleOwner = new Map<string, string>();
   for (const s of ctx.standards) for (const r of s.rules) ruleOwner.set(r.code.toUpperCase(), s.id);
+  const ids = checklist.requirements.map(() => newId("requirement"));
   db.transaction((tx) => {
     tx.delete(requirements).where(eq(requirements.runId, step.runId)).run();
+    tx.delete(analysisMeta)
+      .where(and(eq(analysisMeta.runId, step.runId), eq(analysisMeta.kind, "requirement")))
+      .run();
     tx.insert(requirements)
       .values(
         checklist.requirements.map((r, i) => {
@@ -411,7 +432,7 @@ export function saveChecklist(
               ).test(ref),
             )?.[1] ?? null;
           return {
-            id: newId("requirement"),
+            id: ids[i],
             runId: step.runId,
             code: r.code,
             title: r.title,
@@ -427,14 +448,45 @@ export function saveChecklist(
         }),
       )
       .run();
+    // P8: the proposal section each requirement is answered in.
+    if (checklist.requirements.length) {
+      tx.insert(analysisMeta)
+        .values(
+          checklist.requirements.map((r, i) => ({
+            itemId: ids[i],
+            runId: step.runId,
+            kind: "requirement" as const,
+            section: toSection(r.section, `${r.title} ${r.description}`),
+          })),
+        )
+        .run();
+    }
   });
   finishStep(db, step, "done", { output: checklist, usage });
-  // Analyse labels now know the checklist size: "Analysing Atlas: checking 42 requirements".
+  // Step labels now know the checklist size: "Checking Atlas against the RFP: 42 requirements".
+  const rfpCount = requirementsFor(checklist, "rfp").length;
+  const ruleCount = requirementsFor(checklist, "standards").length;
   for (const s of listSteps(db, step.runId)) {
     const v = ctx.vendors.find((x) => x.proposalId === s.proposalId);
-    if (s.phase === "analyze" && v)
-      setStepLabel(db, s.id, analyzeLabel(v.name, checklist.requirements.length));
+    if (!v) continue;
+    if (s.phase === "analyze") setStepLabel(db, s.id, analyzeLabel(v.name, rfpCount));
+    if (s.phase === "standards") setStepLabel(db, s.id, standardsLabel(v.name, ruleCount));
   }
+}
+
+/**
+ * The requirements a check covers. Runs since P8 check the standard rules and the RFP in separate
+ * steps; a run without a standards step (no standards applied, or a run from before P8) checks
+ * every requirement in its RFP step.
+ */
+export function stepRequirements(db: Db, step: StepRow, checklist: ChecklistOutput) {
+  if (step.phase === "standards") return requirementsFor(checklist, "standards");
+  const split = db
+    .select({ id: analysisSteps.id })
+    .from(analysisSteps)
+    .where(and(eq(analysisSteps.runId, step.runId), eq(analysisSteps.phase, "standards")))
+    .get();
+  return split ? requirementsFor(checklist, "rfp") : checklist.requirements;
 }
 
 /** Map the model's evidence reference back to one of the vendor's documents. */
@@ -454,7 +506,7 @@ export function matchEvidenceDoc(title: string | null, docs: SourceDoc[]): Sourc
  * first, and a requirement the model skipped counts as not addressed (RDD §7.6).
  */
 export function alignFindings(
-  checklist: ChecklistOutput,
+  checklist: Pick<ChecklistOutput, "requirements">,
   analysis: AnalysisOutput,
 ): { findings: AnalysisOutput["findings"]; missing: string[] } {
   const byCode = new Map<string, AnalysisOutput["findings"][number]>();
@@ -470,6 +522,7 @@ export function alignFindings(
     return {
       code: r.code,
       status: "not_addressed" as FindingStatus,
+      headline: "Not assessed",
       vendorResponse: "",
       evidenceQuote: null,
       evidenceDocument: null,
@@ -483,6 +536,11 @@ export function alignFindings(
   return { findings: out, missing };
 }
 
+/**
+ * Persist one vendor check (P8: the standards check and the RFP check of a vendor write into the
+ * same evaluation; each replaces only its own requirements' findings). The evaluation's overall
+ * score is recomputed from all its findings; the RFP check also brings the prose and terms.
+ */
 export function saveAnalysis(
   db: Db,
   step: StepRow,
@@ -490,86 +548,136 @@ export function saveAnalysis(
   ctx: RunContext,
   raw: AnalysisOutput,
   usage: TokenUsage,
-): AnalysisDigest {
+): void {
   const vendor = ctx.vendors.find((v) => v.proposalId === step.proposalId);
   if (!vendor) throw new Error(`Step ${step.id} has no vendor.`);
   const checklist = readChecklist(db, run.id);
   if (!checklist) throw new Error("The checklist is missing.");
-  const { findings: aligned } = alignFindings(checklist, raw);
+  const scope = stepRequirements(db, step, checklist);
+  const { findings: aligned } = alignFindings({ requirements: scope }, raw);
   const analysis: AnalysisOutput = { ...raw, findings: aligned };
   const reqRows = db.select().from(requirements).where(eq(requirements.runId, run.id)).all();
   const reqByCode = new Map(reqRows.map((r) => [r.code, r]));
-  const items = aligned.map((f) => {
-    const r = reqByCode.get(f.code)!;
-    return { priority: r.priority, status: f.status, category: r.category };
-  });
-  const score = computeScore(items, run.config.weights, run.config.partialCredit);
-  const categoryScores = computeCategoryScores(items, run.config.weights, run.config.partialCredit);
+  const scopeIds = scope.map((r) => reqByCode.get(r.code)?.id).filter((x): x is string => !!x);
+  const prose = step.phase !== "standards";
   const c = analysis.commercial;
+  const findingIds = aligned.map(() => newId("finding"));
+
   db.transaction((tx) => {
-    tx.delete(evaluations)
+    let ev = tx
+      .select()
+      .from(evaluations)
       .where(and(eq(evaluations.runId, run.id), eq(evaluations.proposalId, vendor.proposalId)))
-      .run();
-    const evaluationId = newId("evaluation");
-    tx.insert(evaluations)
-      .values({
-        id: evaluationId,
-        runId: run.id,
-        proposalId: vendor.proposalId,
+      .get();
+    if (!ev) {
+      tx.insert(evaluations)
+        .values({
+          id: newId("evaluation"),
+          runId: run.id,
+          proposalId: vendor.proposalId,
+          scorePct: 0,
+          counts: { compliant: 0, partial: 0, non_compliant: 0, not_addressed: 0 },
+          mandatoryFailures: 0,
+          categoryScores: {},
+          summary: "",
+          strengths: [],
+          weaknesses: [],
+          commercial: {},
+        })
+        .run();
+      ev = tx
+        .select()
+        .from(evaluations)
+        .where(and(eq(evaluations.runId, run.id), eq(evaluations.proposalId, vendor.proposalId)))
+        .get()!;
+    }
+    // Replace this check's findings (a retry or resume never duplicates them).
+    const old = scopeIds.length
+      ? tx
+          .select({ id: findings.id })
+          .from(findings)
+          .where(and(eq(findings.evaluationId, ev.id), inArray(findings.requirementId, scopeIds)))
+          .all()
+          .map((f) => f.id)
+      : [];
+    if (old.length) {
+      tx.delete(findings).where(inArray(findings.id, old)).run();
+      tx.delete(analysisMeta).where(inArray(analysisMeta.itemId, old)).run();
+    }
+    if (aligned.length) {
+      tx.insert(findings)
+        .values(
+          aligned.map((f, i) => {
+            const doc = f.evidenceQuote ? matchEvidenceDoc(f.evidenceDocument, vendor.docs) : null;
+            const page =
+              doc?.ext === "pdf" && f.evidencePage && f.evidencePage >= 1
+                ? Math.min(f.evidencePage, doc.pageCount ?? f.evidencePage)
+                : null;
+            return {
+              id: findingIds[i],
+              evaluationId: ev.id,
+              requirementId: reqByCode.get(f.code)!.id,
+              status: f.status,
+              vendorResponse: f.vendorResponse,
+              evidenceQuote: f.evidenceQuote,
+              evidenceDocId: doc?.id ?? null,
+              evidencePage: page,
+              evidenceSection: f.evidenceSection,
+              assessment: f.assessment,
+              gap: f.gap,
+              confidence: f.confidence,
+            };
+          }),
+        )
+        .run();
+      tx.insert(analysisMeta)
+        .values(
+          aligned.map((f, i) => ({
+            itemId: findingIds[i],
+            runId: run.id,
+            kind: "finding" as const,
+            headline: f.headline ?? "",
+          })),
+        )
+        .run();
+    }
+    // Overall score over every finding of this vendor so far.
+    const all = tx.select().from(findings).where(eq(findings.evaluationId, ev.id)).all();
+    const byId = new Map(reqRows.map((r) => [r.id, r]));
+    const items = all
+      .filter((f) => byId.has(f.requirementId))
+      .map((f) => {
+        const r = byId.get(f.requirementId)!;
+        return { priority: r.priority, status: f.overrideStatus ?? f.status, category: r.category };
+      });
+    const score = computeScore(items, run.config.weights, run.config.partialCredit);
+    tx.update(evaluations)
+      .set({
         scorePct: score.scorePct,
         counts: score.counts,
         mandatoryFailures: score.mandatoryFailures,
-        categoryScores,
-        summary: analysis.summary,
-        strengths: analysis.strengths,
-        weaknesses: analysis.weaknesses,
-        commercial: {
-          ...(c.totalPrice ? { totalPrice: c.totalPrice } : {}),
-          ...(c.currency ? { currency: c.currency } : {}),
-          ...(c.paymentTerms ? { paymentTerms: c.paymentTerms } : {}),
-          ...(c.deliveryTime ? { deliveryTime: c.deliveryTime } : {}),
-          ...(c.warranty ? { warranty: c.warranty } : {}),
-          ...(c.validity ? { validity: c.validity } : {}),
-          exclusions: c.exclusions,
-        },
+        categoryScores: computeCategoryScores(items, run.config.weights, run.config.partialCredit),
+        ...(prose
+          ? {
+              summary: analysis.summary,
+              strengths: analysis.strengths,
+              weaknesses: analysis.weaknesses,
+              commercial: {
+                ...(c.totalPrice ? { totalPrice: c.totalPrice } : {}),
+                ...(c.currency ? { currency: c.currency } : {}),
+                ...(c.paymentTerms ? { paymentTerms: c.paymentTerms } : {}),
+                ...(c.deliveryTime ? { deliveryTime: c.deliveryTime } : {}),
+                ...(c.warranty ? { warranty: c.warranty } : {}),
+                ...(c.validity ? { validity: c.validity } : {}),
+                exclusions: c.exclusions,
+              },
+            }
+          : {}),
       })
-      .run();
-    tx.insert(findings)
-      .values(
-        aligned.map((f) => {
-          const doc = f.evidenceQuote ? matchEvidenceDoc(f.evidenceDocument, vendor.docs) : null;
-          const page =
-            doc?.ext === "pdf" && f.evidencePage && f.evidencePage >= 1
-              ? Math.min(f.evidencePage, doc.pageCount ?? f.evidencePage)
-              : null;
-          return {
-            id: newId("finding"),
-            evaluationId,
-            requirementId: reqByCode.get(f.code)!.id,
-            status: f.status,
-            vendorResponse: f.vendorResponse,
-            evidenceQuote: f.evidenceQuote,
-            evidenceDocId: doc?.id ?? null,
-            evidencePage: page,
-            evidenceSection: f.evidenceSection,
-            assessment: f.assessment,
-            gap: f.gap,
-            confidence: f.confidence,
-          };
-        }),
-      )
+      .where(eq(evaluations.id, ev.id))
       .run();
   });
   finishStep(db, step, "done", { output: analysis, usage });
-  return {
-    proposalId: vendor.proposalId,
-    vendor: vendor.name,
-    scorePct: score.scorePct,
-    mandatoryFailures: score.mandatoryFailures,
-    counts: score.counts,
-    categoryScores,
-    analysis,
-  };
 }
 
 export function saveComparison(db: Db, step: StepRow, data: ComparisonOutput, usage: TokenUsage) {
@@ -585,15 +693,34 @@ export function saveComparison(db: Db, step: StepRow, data: ComparisonOutput, us
 }
 
 export function saveRisks(db: Db, step: StepRow, data: RiskOutput, usage: TokenUsage) {
+  const ids = data.risks.map(() => newId("risk"));
   db.transaction((tx) => {
+    const old = tx
+      .select({ id: risks.id })
+      .from(risks)
+      .where(and(eq(risks.runId, step.runId), eq(risks.proposalId, step.proposalId!)))
+      .all()
+      .map((r) => r.id);
+    if (old.length) tx.delete(analysisMeta).where(inArray(analysisMeta.itemId, old)).run();
     tx.delete(risks)
       .where(and(eq(risks.runId, step.runId), eq(risks.proposalId, step.proposalId!)))
       .run();
     if (data.risks.length) {
+      tx.insert(analysisMeta)
+        .values(
+          data.risks.map((r, i) => ({
+            itemId: ids[i],
+            runId: step.runId,
+            kind: "risk" as const,
+            section: toSection(r.section, `${r.title} ${r.description}`),
+            headline: r.title,
+          })),
+        )
+        .run();
       tx.insert(risks)
         .values(
-          data.risks.map((r) => ({
-            id: newId("risk"),
+          data.risks.map((r, i) => ({
+            id: ids[i],
             runId: step.runId,
             proposalId: step.proposalId!,
             title: r.title,
@@ -625,23 +752,42 @@ export function matchVendor(name: string | null, vendors: { proposalId: string; 
   );
 }
 
+/**
+ * The recommendation (P8): the ranking and the pick are Marsa's (`scores`, computed from the
+ * findings and risk registers); the model only writes the reasons, conditions and negotiation
+ * points. Runs from before P8 pass no scores and keep the model's ranking.
+ */
 export function saveSummary(
   db: Db,
   step: StepRow,
   ctx: RunContext,
   data: SummaryOutput,
   usage: TokenUsage,
+  scores?: VendorScores[],
 ) {
-  const ranking = [...data.ranking]
-    .sort((a, b) => a.rank - b.rank)
-    .map((r) => ({ ...r, proposalId: matchVendor(r.vendor, ctx.vendors)?.proposalId ?? null }));
+  const rationaleOf = (proposalId: string) =>
+    data.ranking.find((r) => matchVendor(r.vendor, ctx.vendors)?.proposalId === proposalId)
+      ?.rationale ?? "";
+  const ranking = scores?.length
+    ? scores.map((s) => ({
+        vendor: s.vendor,
+        proposalId: s.proposalId,
+        rank: s.rank,
+        rationale: rationaleOf(s.proposalId),
+      }))
+    : [...data.ranking]
+        .sort((a, b) => a.rank - b.rank)
+        .map((r) => ({ ...r, proposalId: matchVendor(r.vendor, ctx.vendors)?.proposalId ?? null }));
+  const recommendedProposalId = scores?.length
+    ? (scores[0]?.proposalId ?? null)
+    : (matchVendor(data.recommendedVendor, ctx.vendors)?.proposalId ?? null);
   db.transaction((tx) => {
     tx.delete(runSummaries).where(eq(runSummaries.runId, step.runId)).run();
     tx.insert(runSummaries)
       .values({
         runId: step.runId,
         ranking,
-        recommendedProposalId: matchVendor(data.recommendedVendor, ctx.vendors)?.proposalId ?? null,
+        recommendedProposalId,
         executiveSummary: data.executiveSummary,
         conditions: data.conditions,
         negotiationPoints: data.negotiationPoints,

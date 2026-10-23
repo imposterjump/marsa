@@ -7,7 +7,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { describe, expect, it } from "vitest";
 import { buildContent, docBlocks, nativeDocsFor, type Block } from "@/server/ai/content";
 import { keywords, seeded, splitSentences } from "@/server/ai/mock";
-import { analyzeTask, checklistTask, systemPrompt } from "@/server/ai/prompts";
+import { analyzeTask, checklistTask, standardsTask, systemPrompt } from "@/server/ai/prompts";
 import { AiError, normalizeEnums, parseStepOutput } from "@/server/ai/result";
 import {
   AnalysisSchema,
@@ -18,9 +18,11 @@ import {
   OUTPUT_SCHEMA,
   fromWire,
   type AnalysisOutput,
-  ensureStandardRules,
+  normalizeAnalysis,
   normalizeChecklist,
   normalizeRisks,
+  requirementsFor,
+  withStandardRules,
   type ChecklistOutput,
 } from "@/server/ai/schemas";
 import type { AnalysisDigest, RunContext, SourceDoc } from "@/server/ai/types";
@@ -33,7 +35,8 @@ import {
 } from "@/server/runs/store";
 import { clauseText, clauseTokens, findToken, stripRunningLines } from "@/server/runs/sources";
 import { costFromUsage, etaSeconds, joinNames, planSteps } from "@/lib/plan";
-import { maxSeverity, riskSeverity } from "@/lib/scoring";
+import { maxSeverity, overallValue, riskLevel, riskScore, riskSeverity } from "@/lib/scoring";
+import { guessSection, toSection } from "@/lib/sections";
 
 const doc = (over: Partial<SourceDoc>): SourceDoc => ({
   id: "doc_1",
@@ -137,6 +140,7 @@ const checklist: ChecklistOutput = {
       sourceType: "rfp",
       sourceRef: "RFP §4",
       acceptance: "spec sheet",
+      section: "solution",
     },
     {
       code: "REQ-002",
@@ -147,9 +151,34 @@ const checklist: ChecklistOutput = {
       sourceType: "standard",
       sourceRef: "SEC-01",
       acceptance: "architecture",
+      section: "security",
     },
   ],
+  ruleSections: [],
   keyConstraints: [{ label: "Hosting", value: "On-premise" }],
+};
+
+const analysisFinding: AnalysisOutput["findings"][number] = {
+  code: "REQ-001",
+  status: "compliant",
+  headline: "Meets the resolution",
+  vendorResponse: "5 mm",
+  evidenceQuote: null,
+  evidenceDocument: null,
+  evidencePage: null,
+  evidenceSection: null,
+  assessment: "",
+  gap: null,
+  confidence: "high",
+};
+const emptyCommercial: AnalysisOutput["commercial"] = {
+  totalPrice: null,
+  currency: null,
+  paymentTerms: null,
+  deliveryTime: null,
+  warranty: null,
+  validity: null,
+  exclusions: [],
 };
 
 const cacheMarks = (blocks: Block[]) =>
@@ -207,6 +236,7 @@ describe("output schemas (P6.2)", () => {
         {
           code: "REQ-001",
           status: "Non-Compliant",
+          headline: "4 mm instead of 5 mm",
           vendorResponse: "4 mm",
           evidenceQuote: "q",
           evidenceDocument: "d",
@@ -261,40 +291,56 @@ describe("output schemas (P6.2)", () => {
           mitigation: "",
           evidence: null,
           requirementCodes: [],
+          section: "Security & Data",
         },
       ],
     });
     expect([r.risks[0].likelihood, r.risks[0].impact]).toEqual([5, 1]);
+    expect(r.risks[0].section).toBe("security");
     const c = normalizeChecklist({
       ...checklist,
       requirements: [
-        { ...checklist.requirements[0], code: "req-1" },
-        { ...checklist.requirements[1], code: "REQ-001" },
+        { ...checklist.requirements[0], code: "req-1", section: "Implementation & timeline" },
+        { ...checklist.requirements[0], code: "REQ-001", section: "nonsense" },
+        // The model must not copy standard rules: they are added one by one afterwards.
+        { ...checklist.requirements[1], code: "REQ-003" },
       ],
     });
     expect(c.requirements.map((x) => x.code)).toEqual(["REQ-001", "REQ-002"]);
+    expect(c.requirements.map((x) => x.section)).toEqual(["implementation", "solution"]);
+    const a = normalizeAnalysis({
+      findings: [{ ...analysisFinding, headline: "  a\n  long   phrase  " }],
+      summary: "",
+      strengths: [],
+      weaknesses: [],
+      commercial: emptyCommercial,
+    });
+    expect(a.findings[0].headline).toBe("a long phrase");
   });
 
-  it("appends standard rules the checklist forgot (and only those)", () => {
-    const { checklist: out, appended } = ensureStandardRules(checklist, ctx.standards);
-    expect(appended).toEqual(["SEC-02"]);
-    const added = out.requirements.at(-1)!;
-    expect(added).toMatchObject({
-      code: "REQ-003",
-      sourceType: "standard",
-      sourceRef: "SEC-02",
-      priority: "important",
-      category: "security",
-    });
-    // "SEC-01" cited inside a longer reference still counts; "SEC-010" would not.
-    const cited = ensureStandardRules(
-      {
-        ...checklist,
-        requirements: [{ ...checklist.requirements[1], sourceRef: "RFP §4.6; SEC-01" }],
-      },
-      [{ ...ctx.standards[0], rules: [ctx.standards[0].rules[0]] }],
+  it("adds every standard rule as its own requirement, filed under a section (P8)", () => {
+    const rfpOnly = { ...checklist, requirements: [checklist.requirements[0]] };
+    const out = withStandardRules(
+      { ...rfpOnly, ruleSections: [{ code: "sec-01", section: "security" }] },
+      ctx.standards,
     );
-    expect(cited.appended).toEqual([]);
+    expect(out.requirements.map((r) => r.code)).toEqual(["REQ-001", "SEC-01", "SEC-02"]);
+    expect(out.requirements[1]).toMatchObject({
+      sourceType: "standard",
+      sourceRef: "SEC-01",
+      title: "STD-1 SEC-01",
+      section: "security",
+    });
+    // Without a section from the model, the rule text decides.
+    expect(out.requirements[2].section).toBe(guessSection(ctx.standards[0].rules[1].text));
+    expect(requirementsFor(out, "standards").map((r) => r.code)).toEqual(["SEC-01", "SEC-02"]);
+    expect(requirementsFor(out, "rfp").map((r) => r.code)).toEqual(["REQ-001"]);
+    // The same rule code in a second standard gets its standard as a prefix.
+    const twice = withStandardRules(rfpOnly, [
+      ctx.standards[0],
+      { ...ctx.standards[0], code: "PCT-07" },
+    ]);
+    expect(twice.requirements.map((r) => r.code)).toContain("PCT-07-SEC-01");
   });
 });
 
@@ -383,9 +429,13 @@ describe("prompts (P6.4)", () => {
   });
 
   it("task prompts spell out allowed values and counts", () => {
-    expect(analyzeTask("Atlas", 42)).toContain("exactly 42 findings");
-    expect(analyzeTask("Atlas", 42)).toContain('"non_compliant"');
+    const codes = Array.from({ length: 42 }, (_, i) => `REQ-${String(i + 1).padStart(3, "0")}`);
+    expect(analyzeTask("Atlas", codes)).toContain("exactly 42 findings");
+    expect(analyzeTask("Atlas", codes)).toContain('"non_compliant"');
+    expect(analyzeTask("Atlas", codes)).toContain("headline");
+    expect(standardsTask("Atlas", ["SEC-01", "SEC-02"])).toContain("exactly 2 findings");
     expect(checklistTask(["SEC-01"])).toContain("SEC-01");
+    expect(checklistTask(["SEC-01"])).toContain('"security" (Security & data)');
     expect(checklistTask([])).toContain("No standards are applied");
   });
 });
@@ -393,20 +443,31 @@ describe("prompts (P6.4)", () => {
 describe("planner, ETA and cost (P6.5)", () => {
   const vendors = (n: number) =>
     Array.from({ length: n }, (_, i) => ({ proposalId: `p${i}`, name: `V${i + 1}` }));
-  it.each([1, 2, 3, 10])("plans 3N + 2 steps for N = %i", (n) => {
-    const steps = planSteps(vendors(n), 2);
+  // P8: checklist → per vendor standards, RFP and risk → recommendation.
+  it.each([1, 2, 3, 10])("plans 3N + 2 steps for N = %i with standards", (n) => {
+    const steps = planSteps(vendors(n), { standards: 2, rules: 26 });
     expect(steps).toHaveLength(3 * n + 2);
     expect(steps.map((s) => s.seq)).toEqual(steps.map((_, i) => i + 1));
-    expect(steps.filter((s) => s.skipped)).toHaveLength(n === 1 ? 1 : 0);
-    expect(steps[0].label).toContain("2 standards");
+    expect(steps.filter((s) => s.skipped)).toHaveLength(0);
+    expect(steps.map((s) => s.phase)).not.toContain("compare");
+    expect(steps[0].label).toContain("26 rules of 2 standards");
     expect(steps.at(-1)!.phase).toBe("summary");
   });
 
-  it("labels name the other vendors", () => {
-    const steps = planSteps(vendors(3), 1);
-    expect(steps.find((s) => s.phase === "compare")!.label).toBe("Comparing V1 against V2 and V3");
+  it("without standards there is no standards phase (2N + 2)", () => {
+    const steps = planSteps(vendors(3), { standards: 0, rules: 0 });
+    expect(steps).toHaveLength(8);
+    expect(steps.map((s) => s.phase)).not.toContain("standards");
+    expect(steps[0].label).toBe("Building the RFP checklist");
+  });
+
+  it("labels name the vendor and what it is checked against", () => {
+    const steps = planSteps(vendors(2), { standards: 1, rules: 12 });
+    expect(steps.find((s) => s.phase === "standards")!.label).toBe(
+      "Checking V1 against the standards: 12 rules",
+    );
+    expect(steps.find((s) => s.phase === "analyze")!.label).toBe("Checking V1 against the RFP");
     expect(joinNames(["A", "B", "C", "D"])).toBe("the other 4 vendors");
-    expect(planSteps(vendors(1), 1)[0].label).toContain("1 standard");
   });
 
   it("ETA uses measured averages and concurrency", () => {
@@ -417,9 +478,9 @@ describe("planner, ETA and cost (P6.5)", () => {
       { phase: "analyze" as const, status: "queued", durationMs: null },
       { phase: "summary" as const, status: "queued", durationMs: null },
     ];
-    // analyze: 2 queued / 3 at a time = 1 wave × 100 s; summary default 45 s.
-    expect(etaSeconds(steps, { concurrency: 3, mode: "live" })).toBe(145);
-    expect(etaSeconds(steps, { concurrency: 1, mode: "live" })).toBe(245);
+    // analyze: 2 queued / 3 at a time = 1 wave × 100 s; summary default 30 s.
+    expect(etaSeconds(steps, { concurrency: 3, mode: "live" })).toBe(130);
+    expect(etaSeconds(steps, { concurrency: 1, mode: "live" })).toBe(230);
   });
 
   it("cost from usage uses the price sheet; mock models cost nothing", () => {
@@ -452,10 +513,57 @@ describe("scoring: risk severity (P6.6)", () => {
   });
 });
 
+describe("risk score and recommendation (P8)", () => {
+  const counts = (compliant: number, partial: number, non: number, na: number) => ({
+    compliant,
+    partial,
+    non_compliant: non,
+    not_addressed: na,
+  });
+  const reg = (...li: [number, number][]) =>
+    li.map(([likelihood, impact]) => ({ likelihood, impact }));
+  // Real Sonnet runs (data/live-test): the AI rated all of these "high" or "critical".
+  it.each([
+    ["Harborline 91.6 %", 1, counts(77, 8, 0, 6), reg([3, 5], [4, 4], [4, 4]), 28, "moderate"],
+    ["Meridian 74.9 %", 2, counts(54, 20, 6, 11), reg([5, 5], [5, 5], [5, 4]), 50, "high"],
+    ["Atlas 49.4 %", 14, counts(28, 28, 9, 26), reg([5, 5], [5, 5], [5, 4]), 84, "critical"],
+    ["Qasr 96.3 %", 0, counts(29, 2, 0, 0), reg([5, 4], [3, 4], [3, 4]), 16, "low"],
+  ] as const)("%s → %i", (_n, mandatory, c, risks, score, level) => {
+    const s = riskScore({ mandatoryNotMet: mandatory, counts: c, risks: [...risks] });
+    expect(s).toBe(score);
+    expect(riskLevel(s)).toBe(level);
+  });
+
+  it("bands and the overall value", () => {
+    expect([0, 24, 25, 49, 50, 69, 70, 100].map(riskLevel)).toEqual([
+      "low",
+      "low",
+      "moderate",
+      "moderate",
+      "high",
+      "high",
+      "critical",
+      "critical",
+    ]);
+    expect(riskScore({ mandatoryNotMet: 0, counts: counts(0, 0, 0, 0), risks: [] })).toBe(0);
+    expect(overallValue(90, 80, 20)).toBe(84);
+    expect(overallValue(null, 80, 20)).toBe(80);
+  });
+
+  it("normalises proposal sections", () => {
+    expect(toSection("Security & data")).toBe("security");
+    expect(toSection("commercial")).toBe("commercial");
+    expect(toSection("", "Payment: 30 % advance against a bank guarantee")).toBe("commercial");
+    expect(guessSection("24-month warranty from acceptance")).toBe("support");
+    expect(guessSection("All lanes in operation within 8 months")).toBe("implementation");
+  });
+});
+
 describe("store helpers", () => {
   it("aligns findings to the checklist (missing → not addressed, unknown dropped)", () => {
     const f = {
       status: "compliant" as const,
+      headline: "h",
       vendorResponse: "",
       evidenceQuote: null,
       evidenceDocument: null,
@@ -535,6 +643,7 @@ describe("wire format (P6.10)", () => {
         {
           code: "REQ-001",
           status: "not_addressed",
+          headline: "Not addressed",
           vendorResponse: "",
           evidenceQuote: "",
           evidenceDocument: "",

@@ -6,7 +6,9 @@
  * - analyses: the vendor sentence that shares most keywords with each requirement is the evidence
  *   (verbatim, with its real PDF page, so the reader's quote highlight works);
  * - a proposal that relies on an external cloud service for licensing, telemetry or updates is
- *   non-compliant with hosting / data-residency requirements (the on-prem conflict).
+ *   non-compliant with hosting / data-residency requirements (the on-prem conflict);
+ * - P8: standard rules are checked in their own step; sections come from a keyword guess; the
+ *   recommendation explains Marsa's computed pick.
  * This is a keyword heuristic for demos and tests, not an evaluation.
  */
 import type { FindingStatus, Priority, RequirementCategory, RiskSeverity } from "../../lib/domain";
@@ -18,7 +20,8 @@ import type {
   RiskOutput,
   SummaryOutput,
 } from "./schemas";
-import { categoryForStandard, ensureStandardRules, normalizeChecklist } from "./schemas";
+import { normalizeChecklist, requirementsFor, withStandardRules } from "./schemas";
+import { guessSection } from "../../lib/sections";
 import { EMPTY_USAGE } from "../../lib/domain";
 import { readPdfPages } from "../documents/pdf-text";
 import type { LocalStorage } from "../storage/local";
@@ -169,28 +172,18 @@ async function checklist(input: Extract<StepInput, { phase: "checklist" }>, deps
       sourceType: "rfp",
       sourceRef: `${s.doc.name}${s.page ? ` p.${s.page}` : ""}`,
       acceptance: "The proposal states compliance and describes how it is met.",
+      section: guessSection(s.text),
     });
-  }
-  for (const std of input.ctx.standards) {
-    for (const rule of std.rules) {
-      reqs.push({
-        code: `REQ-${String(reqs.length + 1).padStart(3, "0")}`,
-        title: `${std.code} ${rule.code}`,
-        description: rule.text,
-        category: categoryForStandard(std.category),
-        priority: rule.priority,
-        sourceType: "standard",
-        sourceRef: rule.code,
-        acceptance: "The proposal states how this standard rule is met.",
-      });
-    }
   }
   const keyConstraints = reqs
     .filter((r) => /on-?premise|no later than|deadline|budget|ceiling|certif/i.test(r.description))
     .slice(0, 5)
     .map((r) => ({ label: r.title, value: r.description.slice(0, 160) }));
-  const out = normalizeChecklist({ requirements: reqs, keyConstraints });
-  return ensureStandardRules(out, input.ctx.standards).checklist;
+  const ruleSections = input.ctx.standards.flatMap((std) =>
+    std.rules.map((rule) => ({ code: rule.code, section: guessSection(rule.text) })),
+  );
+  const out = normalizeChecklist({ requirements: reqs, ruleSections, keyConstraints });
+  return withStandardRules(out, input.ctx.standards);
 }
 
 function commercialOf(sentences: Sentence[]): AnalysisOutput["commercial"] {
@@ -218,11 +211,18 @@ function commercialOf(sentences: Sentence[]): AnalysisOutput["commercial"] {
   };
 }
 
+const headlineOf = (status: FindingStatus, title: string) =>
+  `${status === "compliant" ? "Meets" : status === "partial" ? "Partly meets" : status === "non_compliant" ? "Falls short on" : "Silent on"}: ${title}`.slice(
+    0,
+    110,
+  );
+
 async function analyze(
-  input: Extract<StepInput, { phase: "analyze" }>,
+  input: Extract<StepInput, { phase: "analyze" | "standards" }>,
   deps: MockDeps,
 ): Promise<AnalysisOutput> {
   const vendor = input.vendor.name;
+  const scope = requirementsFor(input.checklist, input.phase === "standards" ? "standards" : "rfp");
   const sentences = await sentencesOf(input.vendor.docs, deps);
   // Technical documents first: they describe the architecture; negated mentions don't count.
   const conflict = [...sentences]
@@ -231,7 +231,7 @@ async function analyze(
       (s) =>
         CLOUD.test(s.text) && CLOUD_USE.test(s.text) && !/\b(no|not|without|never)\b/i.test(s.text),
     );
-  const findings: AnalysisOutput["findings"] = input.checklist.requirements.map((r) => {
+  const findings: AnalysisOutput["findings"] = scope.map((r) => {
     const reqText = `${r.title} ${r.description}`;
     const evidence = (s: Sentence) => ({
       evidenceQuote: s.text,
@@ -243,6 +243,7 @@ async function analyze(
       return {
         code: r.code,
         status: "non_compliant" as const,
+        headline: headlineOf("non_compliant", r.title),
         vendorResponse: conflict.text,
         ...evidence(conflict),
         assessment:
@@ -268,6 +269,7 @@ async function analyze(
       return {
         code: r.code,
         status: "not_addressed" as const,
+        headline: headlineOf("not_addressed", r.title),
         vendorResponse: "The proposal does not address this requirement.",
         evidenceQuote: null,
         evidenceDocument: null,
@@ -281,6 +283,7 @@ async function analyze(
     return {
       code: r.code,
       status,
+      headline: headlineOf(status, r.title),
       vendorResponse: best.text,
       ...evidence(best),
       assessment:
@@ -299,6 +302,23 @@ async function analyze(
     };
   });
   const byStatus = (st: FindingStatus) => findings.filter((f) => f.status === st);
+  if (input.phase === "standards") {
+    return {
+      findings,
+      summary: "",
+      strengths: [],
+      weaknesses: [],
+      commercial: {
+        totalPrice: null,
+        currency: null,
+        paymentTerms: null,
+        deliveryTime: null,
+        warranty: null,
+        validity: null,
+        exclusions: [],
+      },
+    };
+  }
   const reqTitle = (code: string) =>
     input.checklist.requirements.find((r) => r.code === code)?.title ?? code;
   return {
@@ -419,6 +439,7 @@ function risk(input: Extract<StepInput, { phase: "risk" }>): RiskOutput {
       mitigation: "Require written confirmation and a contractual remedy before award.",
       evidence: f.evidenceQuote,
       requirementCodes: [f.code],
+      section: r?.section ?? guessSection(r?.description ?? ""),
     };
   });
   for (const ex of input.analysis.analysis.commercial.exclusions.slice(0, 1)) {
@@ -432,6 +453,7 @@ function risk(input: Extract<StepInput, { phase: "risk" }>): RiskOutput {
       mitigation: "Ask the vendor to price the excluded items as options.",
       evidence: ex,
       requirementCodes: [],
+      section: "commercial",
     });
   }
   while (risks.length < 3) {
@@ -447,6 +469,7 @@ function risk(input: Extract<StepInput, { phase: "risk" }>): RiskOutput {
             mitigation: "Tie the final payment to completed training and acceptance.",
             evidence: null,
             requirementCodes: [],
+            section: "implementation",
           }
         : {
             title: "Delivery schedule",
@@ -458,6 +481,7 @@ function risk(input: Extract<StepInput, { phase: "risk" }>): RiskOutput {
             mitigation: "Agree milestone dates with delay penalties in the contract.",
             evidence: null,
             requirementCodes: [],
+            section: "implementation",
           },
     );
   }
@@ -470,22 +494,19 @@ function risk(input: Extract<StepInput, { phase: "risk" }>): RiskOutput {
 }
 
 function summary(input: Extract<StepInput, { phase: "summary" }>): SummaryOutput {
-  const ranked = [...input.analyses].sort(
-    (a, b) => a.mandatoryFailures - b.mandatoryFailures || b.scorePct - a.scorePct,
-  );
-  const best = ranked[0];
-  const recommended = best && best.mandatoryFailures === 0 ? best.vendor : null;
   const missing = input.missing.length ? ` Not analysed: ${input.missing.join(", ")}.` : "";
+  const top = input.scores[0];
+  const pct = (v: number | null) => (v === null ? "n/a" : `${v}%`);
   return {
-    ranking: ranked.map((a, i) => ({
-      vendor: a.vendor,
-      rank: i + 1,
-      rationale: `${a.scorePct}% compliance, ${a.mandatoryFailures} mandatory failure(s).`,
+    ranking: input.scores.map((s) => ({
+      vendor: s.vendor,
+      rank: s.rank,
+      rationale: `Standards ${pct(s.standardsPct)}, RFP ${s.rfpPct}%, risk ${s.riskScore} (${s.riskLevel}).`,
     })),
-    recommendedVendor: recommended,
-    executiveSummary: recommended
-      ? `${recommended} has the strongest compliance (${best.scorePct}%) with no mandatory failures among ${ranked.length} proposals.${missing} (Mock summary.)`
-      : `No proposal meets every mandatory requirement; clarifications are needed before an award.${missing} (Mock summary.)`,
+    recommendedVendor: input.recommended,
+    executiveSummary: top
+      ? `${top.vendor} has the best balance of standards compliance (${pct(top.standardsPct)}), RFP compliance (${top.rfpPct}%) and risk (${top.riskScore}, ${top.riskLevel}).${top.mandatoryNotMet ? ` It still misses ${top.mandatoryNotMet} mandatory requirement${top.mandatoryNotMet === 1 ? "" : "s"}, to be fixed before award.` : ""}${missing} (Demo AI.)`
+      : `No vendor could be analysed.${missing} (Demo AI.)`,
     conditions: ["Written confirmation of every partial finding before award."],
     negotiationPoints: [
       "Price of excluded and optional items.",
@@ -529,7 +550,7 @@ export function createMockEngine(deps: MockDeps): AiEngine {
       const data =
         i.phase === "checklist"
           ? await checklist(i, deps)
-          : i.phase === "analyze"
+          : i.phase === "analyze" || i.phase === "standards"
             ? await analyze(i, deps)
             : i.phase === "compare"
               ? compare(i)

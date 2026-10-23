@@ -4,37 +4,50 @@
  */
 import type { AiModel, RunPhase, TokenUsage } from "./domain";
 
+/**
+ * P8 plan: checklist (RFP requirements, rules filed by section) → per vendor: standards check,
+ * RFP check, risk register → recommendation. T = 3N + 2 with standards, 2N + 2 without.
+ * `compare` only exists in runs from before P8.
+ */
 export interface RunPlan {
-  /** Total steps: T = 3N + 2 (0 when there is nothing to analyse). */
   total: number;
-  /** Steps that will be skipped (N = 1: comparison needs at least two proposals). */
+  /** Steps that will be skipped (none since P8). */
   skipped: number;
-  phases: { checklist: number; analyze: number; compare: number; risk: number; summary: number };
+  phases: {
+    checklist: number;
+    standards: number;
+    analyze: number;
+    compare: number;
+    risk: number;
+    summary: number;
+  };
 }
 
-export function planRun(proposals: number): RunPlan {
+export function planRun(proposals: number, withStandards = true): RunPlan {
   const n = Math.max(0, Math.floor(proposals));
   if (n === 0) {
     return {
       total: 0,
       skipped: 0,
-      phases: { checklist: 0, analyze: 0, compare: 0, risk: 0, summary: 0 },
+      phases: { checklist: 0, standards: 0, analyze: 0, compare: 0, risk: 0, summary: 0 },
     };
   }
+  const std = withStandards ? n : 0;
   return {
-    total: 3 * n + 2,
-    skipped: n === 1 ? 1 : 0,
-    phases: { checklist: 1, analyze: n, compare: n, risk: n, summary: 1 },
+    total: 1 + std + 2 * n + 1,
+    skipped: 0,
+    phases: { checklist: 1, standards: std, analyze: n, compare: 0, risk: n, summary: 1 },
   };
 }
 
 /** Typical seconds per step with the live model (P6.1 re-measures these). */
 export const LIVE_SECONDS = {
   checklist: 75,
-  analyze: 120,
+  standards: 80,
+  analyze: 110,
   compare: 60,
   risk: 50,
-  summary: 45,
+  summary: 30,
 } as const;
 /** Mock mode sleeps 2–5 s per step (RDD §7.8). */
 export const MOCK_SECONDS = 3.5;
@@ -44,19 +57,22 @@ export const MOCK_SECONDS = 3.5;
  */
 export function estimateSeconds(
   proposals: number,
-  { concurrency, mode }: { concurrency: number; mode: "mock" | "live" },
+  {
+    concurrency,
+    mode,
+    withStandards = true,
+  }: { concurrency: number; mode: "mock" | "live"; withStandards?: boolean },
 ): number {
-  const plan = planRun(proposals);
+  const plan = planRun(proposals, withStandards);
   if (!plan.total) return 0;
   const c = Math.max(1, Math.floor(concurrency));
   const waves = (steps: number) => Math.ceil(steps / c);
   const per = (phase: keyof typeof LIVE_SECONDS) =>
     mode === "mock" ? MOCK_SECONDS : LIVE_SECONDS[phase];
-  const compare = plan.skipped ? 0 : plan.phases.compare;
   return Math.round(
     per("checklist") +
+      waves(plan.phases.standards) * per("standards") +
       waves(plan.phases.analyze) * per("analyze") +
-      waves(compare) * per("compare") +
       waves(plan.phases.risk) * per("risk") +
       per("summary"),
   );
@@ -186,6 +202,7 @@ export function estimateRun(
     shared.rulesCount * 12 +
     1_500;
   const estimated = input.previousRequirements == null;
+  // Checklist = RFP requirements + every standard rule as its own requirement (P8).
   const R =
     input.previousRequirements ??
     Math.min(
@@ -195,47 +212,48 @@ export function estimateRun(
         Math.round(shared.rulesCount + 3.5 * shared.rfpPageEquivalents),
       ),
     );
+  const Rstd = Math.min(shared.rulesCount, R);
+  const Rrfp = Math.max(1, R - Rstd);
   const C = TOKENS.checklistPerReq * R;
   const D = TOKENS.digestPerReq * R;
   const V = input.vendors.map((v) => docTokens(v, TOKENS.vendorPdfPage) + 300);
   const f = OUTPUT_FACTOR[model];
   const out = {
-    checklist: TOKENS.outChecklistPerReq * R * f,
-    analyze: TOKENS.outAnalyzePerReq * R * f,
-    compare: (2_000 + 30 * R) * f,
+    checklist: (TOKENS.outChecklistPerReq * Rrfp + 25 * Rstd) * f,
+    standards: TOKENS.outAnalyzePerReq * Rstd * f,
+    analyze: TOKENS.outAnalyzePerReq * Rrfp * f,
     risk: (4_800 + 30 * R) * f,
-    summary: (500 + 550 * n) * f,
+    summary: (900 + 350 * n) * f,
   };
   const c = Math.max(1, Math.floor(concurrency));
   const waves = Math.ceil(n / c);
   const secs = (tokens: number) => tokens / SPEED[model] + 8;
-  const compares = n >= 2;
+  const withStd = Rstd > 0;
 
   let usd = stepUsd(model, { uncached: 900, read: 0, write: S, out: out.checklist });
-  // Analyses share the checklist's format: the first reads ①, the others ① + ②.
-  V.forEach((v, i) => {
-    usd += stepUsd(
-      model,
-      i === 0
-        ? { uncached: 600, read: S, write: C + v, out: out.analyze }
-        : { uncached: 600, read: S + C, write: v, out: out.analyze },
-    );
-  });
-  // Comparisons use the other format: the first re-writes ① + ②.
-  if (compares) {
-    for (let i = 0; i < n; i++) {
-      usd += stepUsd(model, {
-        uncached: D * n + 500,
-        read: i === 0 ? 0 : S + C,
-        write: i === 0 ? S + C : 0,
-        out: out.compare,
-      });
+  // The first check of each vendor writes its documents (③) to the cache; the first of all also
+  // writes the checklist (②). Standards and RFP checks of a vendor share that cache.
+  const firstChecks = (outTokens: number) =>
+    V.forEach((v, i) => {
+      usd += stepUsd(
+        model,
+        i === 0
+          ? { uncached: 600, read: S, write: C + v, out: outTokens }
+          : { uncached: 600, read: S + C, write: v, out: outTokens },
+      );
+    });
+  const stdTime = withStd ? waves * secs(out.standards) : 0;
+  if (withStd) firstChecks(out.standards);
+  if (withStd && stdTime < CACHE_TTL_S) {
+    for (const v of V) {
+      usd += stepUsd(model, { uncached: 600, read: S + C + v, write: 0, out: out.analyze });
     }
+  } else {
+    firstChecks(out.analyze);
   }
-  // Risk steps reuse the analyses' cache only if it has not expired in the meantime.
   const analyzeTime = waves * secs(out.analyze);
-  const compareTime = compares ? waves * secs(out.compare) : 0;
-  const riskHit = analyzeTime + compareTime < CACHE_TTL_S;
+  // Risk steps reuse the vendors' cache only if it has not expired in the meantime.
+  const riskHit = analyzeTime < CACHE_TTL_S;
   V.forEach((v, i) => {
     usd += stepUsd(
       model,
@@ -247,25 +265,18 @@ export function estimateRun(
     );
   });
   const riskTime = waves * secs(out.risk);
-  const summaryHit = compares && riskTime + secs(out.compare) < CACHE_TTL_S;
-  usd += stepUsd(model, {
-    uncached: D * n + 2_500 * n,
-    read: summaryHit ? S + C : 0,
-    write: summaryHit ? 0 : S + C,
-    out: out.summary,
-  });
+  // Recommendation: scores + analyses only, no documents (one small uncached request).
+  usd += stepUsd(model, { uncached: C + D * n + 1_500, read: 0, write: 0, out: out.summary });
 
   const round2 = (x: number) => Math.round(x * 100) / 100;
   return {
     usd: round2(usd),
     low: round2(usd * 0.8),
     high: round2(usd * 1.25),
-    seconds: Math.round(
-      secs(out.checklist) + analyzeTime + compareTime + riskTime + secs(out.summary),
-    ),
+    seconds: Math.round(secs(out.checklist) + stdTime + analyzeTime + riskTime + secs(out.summary)),
     requirements: R,
     requirementsEstimated: estimated,
-    steps: planRun(n).total,
+    steps: planRun(n, withStd).total,
   };
 }
 
@@ -312,12 +323,15 @@ export function joinNames(names: string[]): string {
 
 export const analyzeLabel = (vendor: string, requirements?: number) =>
   requirements
-    ? `Analysing ${vendor}: checking ${requirements} requirements`
-    : `Analysing ${vendor}`;
+    ? `Checking ${vendor} against the RFP: ${requirements} requirements`
+    : `Checking ${vendor} against the RFP`;
+
+export const standardsLabel = (vendor: string, rules: number) =>
+  `Checking ${vendor} against the standards: ${rules} rule${rules === 1 ? "" : "s"}`;
 
 export function planSteps(
   vendors: { proposalId: string; name: string }[],
-  standardsCount: number,
+  { standards, rules }: { standards: number; rules: number },
 ): PlannedStep[] {
   const n = vendors.length;
   if (!n) return [];
@@ -326,34 +340,28 @@ export function planSteps(
   add({
     phase: "checklist",
     proposalId: null,
-    label: `Building the evaluation checklist from your RFP and ${standardsCount} standard${standardsCount === 1 ? "" : "s"}`,
+    label: rules
+      ? `Building the RFP checklist and filing ${rules} rules of ${standards} standard${standards === 1 ? "" : "s"} by proposal section`
+      : "Building the RFP checklist",
   });
+  if (rules) {
+    for (const v of vendors)
+      add({ phase: "standards", proposalId: v.proposalId, label: standardsLabel(v.name, rules) });
+  }
   for (const v of vendors)
     add({ phase: "analyze", proposalId: v.proposalId, label: analyzeLabel(v.name) });
-  for (const v of vendors) {
-    const others = vendors.filter((o) => o !== v).map((o) => o.name);
-    add({
-      phase: "compare",
-      proposalId: v.proposalId,
-      label:
-        n === 1
-          ? `Comparing ${v.name} with other vendors`
-          : `Comparing ${v.name} against ${joinNames(others)}`,
-      ...(n === 1 ? { skipped: "Needs at least two proposals." } : {}),
-    });
-  }
   for (const v of vendors)
     add({ phase: "risk", proposalId: v.proposalId, label: `Assessing risks for ${v.name}` });
   add({
     phase: "summary",
     proposalId: null,
-    label: "Ranking vendors and writing the executive summary",
+    label: "Scoring the vendors and writing the recommendation",
   });
   return steps;
 }
 
 // ─── Live ETA (RDD §7.7) ─────────────────────────────────────────────────────
-const PHASE_ORDER: RunPhase[] = ["checklist", "analyze", "compare", "risk", "summary"];
+const PHASE_ORDER: RunPhase[] = ["checklist", "standards", "analyze", "compare", "risk", "summary"];
 
 /**
  * Seconds left: for each phase, waves of `concurrency` steps × average step time. Averages come

@@ -1,5 +1,6 @@
 /**
- * Prompts for the five pipeline steps (RDD §7.4, P6.4). The system prompt is identical for every
+ * Prompts for the pipeline steps (RDD §7.4, P6.4; P8: standards and RFP checked separately,
+ * proposal sections, one-line summaries, Marsa's recommendation explained by the model). The system prompt is identical for every
  * step of a run (no dates or ids) so the prompt cache serves the shared prefix; only the task text
  * at the end of the user turn changes. The allowed enum values are spelled out in the task text
  * because the JSON schema sent to the API carries them as descriptions only.
@@ -7,6 +8,7 @@
  * The prompts are generic procurement guidance. They never mention a specific tender, vendor or
  * expected finding (CLAUDE.md: test documents and prompts never help the AI).
  */
+import { SECTION_LIST } from "../../lib/sections";
 import {
   CONFIDENCE_LEVELS,
   FINDING_STATUSES,
@@ -45,40 +47,53 @@ export const answerIn = (field: string) =>
 
 export function checklistTask(standardRuleCodes: string[]): string {
   const rules = standardRuleCodes.length
-    ? `- Every standard rule above (${standardRuleCodes.join(", ")}) must appear in the checklist: as its own requirement (sourceType "standard", sourceRef = the rule code), or merged into a matching RFP requirement whose sourceRef also names the rule code.`
-    : "- No standards are applied to this tender; build the checklist from the RFP documents and notes.";
-  return `Task: build the evaluation checklist for this tender (step 1 of the evaluation).
+    ? `- ruleSections: for every standard rule in Section B (${standardRuleCodes.join(", ")}), the proposal section where a vendor answers it. The rules themselves are checked one by one in a later step: do not copy them into requirements.`
+    : "- No standards are applied to this tender: ruleSections is empty.";
+  return `Task: build the evaluation checklist of the RFP (step 1 of the evaluation).
 
-Read every RFP document in Section A (main document, addenda, annexes, clarifications, draft contract) and the standards in Section B. List each distinct, verifiable obligation a vendor's proposal must meet.
-- One requirement per obligation. When the RFP and a standard state the same obligation, keep one requirement and name both sources in sourceRef.
+Read every RFP document in Section A (main document, addenda, annexes, clarifications, draft contract) and the customer's notes. List each distinct, verifiable obligation a vendor's proposal must meet.
+- One requirement per obligation, from the RFP documents and notes only (sourceType "rfp" or "notes"). Where an RFP clause only refers to a standard ("comply with X"), leave it out: the standard is checked rule by rule.
 - Addenda and clarifications override the original text: use the amended requirement and cite the addendum.
-${rules}
 - Keep numbers, units, versions, quantities and limits exactly as written.
 - Do not include instructions about how to submit the bid (envelope labels, copies, portal steps) unless they decide whether a proposal is admissible.
 - code: "REQ-001", "REQ-002", … in reading order.
 - category: one of ${list(REQUIREMENT_CATEGORIES)}.
-- priority: one of ${list(PRIORITIES)}. "mandatory" for shall/must, minimum, pass/fail and rules marked mandatory; "important" for scored or strongly preferred items; "desirable" for optional ones.
-- sourceType: one of ${list(REQUIREMENT_SOURCES)} ("notes" = the customer's evaluation notes).
-- sourceRef: where it comes from, e.g. "RFP §4.1", "Addendum 1 Q3", "Annex B row 7", or a rule code.
+- priority: one of ${list(PRIORITIES)}. "mandatory" for shall/must, minimum, pass/fail; "important" for scored or strongly preferred items; "desirable" for optional ones.
+- sourceType: "rfp" or "notes" (one of ${list(REQUIREMENT_SOURCES)}).
+- sourceRef: where it comes from, e.g. "RFP §4.1", "Addendum 1 Q3", "Annex B row 7".
 - acceptance: what evidence in a proposal shows compliance.
+- section: the proposal section where a vendor answers it, one of ${SECTION_LIST}.
+${rules}
 - keyConstraints: the 3–8 constraints that most limit which bids can win (for example a hosting or deployment restriction, the delivery deadline, a budget ceiling, mandatory certifications), as short label/value pairs.`;
 }
 
-export function analyzeTask(vendor: string, requirementCount: number): string {
-  return `Task: evaluate the proposal from ${vendor} (Section D) against every requirement in the checklist (Section C).
-
-- Return exactly ${requirementCount} findings, one per checklist requirement, in checklist order, each with the requirement's code.
+const findingRules = (
+  count: number,
+) => `- Return exactly ${count} findings, one per requirement listed above, in checklist order, each with the requirement's code.
 - status: one of ${list(FINDING_STATUSES)}.
   - "compliant": the proposal clearly meets the whole requirement.
   - "partial": it meets part of the requirement; assessment says what is met, gap says what is missing.
   - "non_compliant": what the proposal offers contradicts or falls short of the requirement, or it declines or deviates.
   - "not_addressed": the proposal says nothing relevant.
+- headline: the finding in one short phrase of at most 15 words that a committee member can scan, e.g. "Hosted in EU cloud instead of on-premise" or "Meets the 30-day battery life".
 - vendorResponse: what the vendor states or offers for this requirement, in one or two sentences.
 - evidenceQuote: one short sentence (at most about 30 words) copied character for character from the vendor document. Empty ("") only for "not_addressed".
 - evidenceDocument: the title of the document the quote is from, exactly as given in Section D.
 - evidencePage: the 1-based page of a PDF where the quote appears; 0 for other formats. evidenceSection: the nearest heading for non-PDF documents, otherwise empty.
-- assessment: why this status, briefly. gap: the shortfall for "partial" or "non_compliant", otherwise empty.
-- confidence: one of ${list(CONFIDENCE_LEVELS)}.
+- assessment: why this status, in detail. gap: the shortfall for "partial" or "non_compliant", otherwise empty.
+- confidence: one of ${list(CONFIDENCE_LEVELS)}.`;
+
+export function standardsTask(vendor: string, codes: string[]): string {
+  return `Task: check the proposal from ${vendor} (Section D) against each standard rule of the checklist (Section C: the requirements with sourceType "standard": ${codes.join(", ")}).
+
+${findingRules(codes.length)}
+- summary: "" (empty). strengths and weaknesses: empty lists. commercial: all fields empty and no exclusions. Those are written in the RFP step.`;
+}
+
+export function analyzeTask(vendor: string, codes: string[]): string {
+  return `Task: check the proposal from ${vendor} (Section D) against each RFP requirement of the checklist (Section C: the requirements with sourceType "rfp" or "notes": ${codes.join(", ")}). The standard rules are checked in another step: leave them out.
+
+${findingRules(codes.length)}
 - summary: 2–4 sentences on the proposal overall. strengths and weaknesses: 3–6 short points each.
 - commercial: the total price, currency, payment terms, delivery time, warranty and offer validity as the vendor states them (empty when not stated), and the listed exclusions. Copy values; do not compute or convert.`;
 }
@@ -98,25 +113,29 @@ export function riskTask(vendor: string): string {
   return `Task: build the risk register for awarding the contract to ${vendor}.
 
 Use the proposal (Section D) and the analysis of ${vendor} (Section E): findings that are partial, non-compliant or not addressed, the commercial terms and exclusions, the delivery plan, dependencies on third parties and anything else that could hurt the customer after award.
-- 3–10 risks, most severe first.
+- 3–10 risks, most severe first. Rate them honestly: a well-covered requirement is not a high risk.
 - category: one of ${list(RISK_CATEGORIES)}.
 - likelihood: integer 1 (rare) to 5 (almost certain). impact: integer 1 (minor) to 5 (severe).
 - consequence: what happens to the customer if this risk materialises after award.
 - mitigation: a concrete contract clause, clarification or project control.
 - evidence: a short quote or document reference, or empty. requirementCodes: related checklist codes (may be empty).
+- section: the proposal section the risk relates to, one of ${SECTION_LIST}.
 - overall: one of ${list(RISK_SEVERITIES)}, the risk of awarding to ${vendor}.`;
 }
 
-export function summaryTask(vendors: string[], missing: string[]): string {
+export function summaryTask(recommended: string | null, missing: string[]): string {
   const gaps = missing.length
-    ? `\n- These vendors could not be analysed: ${missing.join(", ")}. Say so in the executive summary and leave them out of the ranking.`
+    ? `\n- These vendors could not be analysed: ${missing.join(", ")}. Say so in the executive summary.`
     : "";
-  return `Task: rank the vendors and write the executive summary for the evaluation committee.
+  const pick = recommended
+    ? `Marsa recommends ${recommended}: the best mix of standards compliance, RFP compliance and low risk in Section E.`
+    : "No vendor could be recommended from the scores in Section E.";
+  return `Task: explain the recommendation to the evaluation committee. ${pick}
 
-The compliance scores and mandatory failures in Section E were computed by the customer's scoring rules and are final: use them as given and never restate different numbers.
-- ranking: each analysed vendor exactly once (${vendors.join(", ")}), rank 1 = best overall value, weighing mandatory failures first, then compliance score, risk and price; rationale in one or two sentences.
-- recommendedVendor: the name of the vendor to recommend, or empty when no proposal is acceptable.
-- executiveSummary: one or two short paragraphs.
+The scores, risk scores and ranking in Section E were computed by the customer's scoring rules and are final: use them as given and never restate different numbers.
+- ranking: copy the ranking from Section E (each vendor once, rank 1 = best); rationale: one sentence per vendor.
+- recommendedVendor: ${recommended ? `"${recommended}"` : '""'}.
+- executiveSummary: 2–3 sentences on why this vendor is recommended (or why none is): its decisive strengths and the main points it still has to fix.
 - conditions: conditions to attach to an award (clarifications, contract clauses, acceptance tests).
 - negotiationPoints: points to negotiate with the recommended vendor.${gaps}`;
 }

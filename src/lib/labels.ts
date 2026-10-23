@@ -1,5 +1,6 @@
 import type {
   AiModel,
+  ProposalSection,
   ProjectCategory,
   FindingStatus,
   Priority,
@@ -49,10 +50,11 @@ export const STEP_STATUS_LABEL: Record<StepStatus, string> = {
 
 export const RUN_PHASE_LABEL: Record<RunPhase, string> = {
   checklist: "Checklist",
-  analyze: "Analysis",
+  standards: "Standards",
+  analyze: "RFP",
   compare: "Comparison",
   risk: "Risk",
-  summary: "Summary",
+  summary: "Recommendation",
 };
 
 export const PROJECT_CATEGORY_LABEL: Record<ProjectCategory, string> = {
@@ -73,4 +75,14 @@ export const AI_MODEL_LABEL: Record<AiModel, string> = {
   "claude-opus-5-5": "Claude Opus 5.5",
   "claude-sonnet-5-5": "Claude Sonnet 5.5",
   "claude-haiku-5-5": "Claude Haiku 5.5",
+};
+
+export const PROPOSAL_SECTION_LABEL: Record<ProposalSection, string> = {
+  company: "Company & references",
+  solution: "Technical solution",
+  security: "Security & data",
+  implementation: "Implementation & timeline",
+  support: "Support, warranty & SLA",
+  commercial: "Commercial offer & pricing",
+  terms: "Terms & deviations",
 };

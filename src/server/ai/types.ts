@@ -78,8 +78,24 @@ export interface AnalysisDigest {
   analysis: AnalysisOutput;
 }
 
+/** Marsa's numbers for one vendor (P8): what the recommendation step explains. */
+export interface VendorScores {
+  proposalId: string;
+  vendor: string;
+  /** Null when no standards are applied. */
+  standardsPct: number | null;
+  rfpPct: number;
+  mandatoryNotMet: number;
+  riskScore: number;
+  riskLevel: RiskSeverity;
+  /** 0–100 mix of the three (scoring.ts overallValue); ranks the vendors. */
+  overall: number;
+  rank: number;
+}
+
 export type StepInput =
   | { phase: "checklist"; ctx: RunContext }
+  | { phase: "standards"; ctx: RunContext; checklist: ChecklistOutput; vendor: VendorContext }
   | { phase: "analyze"; ctx: RunContext; checklist: ChecklistOutput; vendor: VendorContext }
   | {
       phase: "compare";
@@ -100,14 +116,16 @@ export type StepInput =
       ctx: RunContext;
       checklist: ChecklistOutput;
       analyses: AnalysisDigest[];
-      comparisons: { vendor: string; data: ComparisonOutput }[];
-      risks: { vendor: string; overall: RiskSeverity; top: string[] }[];
+      /** Marsa's ranking (rank 1 first) and its pick (null when no vendor can be recommended). */
+      scores: VendorScores[];
+      recommended: string | null;
       /** Vendors whose analysis failed (the summary must say so). */
       missing: string[];
     };
 
 export interface StepOutputs {
   checklist: ChecklistOutput;
+  standards: AnalysisOutput;
   analyze: AnalysisOutput;
   compare: ComparisonOutput;
   risk: RiskOutput;
