@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,9 @@ import { AI_MODEL_LABEL } from "@/lib/labels";
 import { formatDuration } from "@/lib/plan";
 
 /**
- * Starts an analysis (POST /api/projects/:id/runs) and opens the Evaluation tab. With live AI it
- * always asks first and shows the calibrated cost estimate, because the run spends API credits;
- * demo (mock) runs start directly.
+ * Starts an analysis (POST /api/projects/:id/runs) and opens the AI analysis page (P8), where
+ * mission control shows it live. With live AI it always asks first and shows the calibrated cost
+ * estimate, because the run spends API credits; demo (mock) runs start directly.
  */
 export function StartRunButton({
   projectId,
@@ -29,7 +29,6 @@ export function StartRunButton({
   className?: string;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
   const { data: settings } = useSettings();
   const start = useStartRun(projectId);
   const estimate = useRunEstimate(projectId);
@@ -38,10 +37,10 @@ export function StartRunButton({
 
   const run = async () => {
     try {
-      await start.mutateAsync();
+      const created = await start.mutateAsync();
       toast.success("Analysis started");
-      const target = `/projects/${projectId}/evaluation`;
-      if (pathname !== target) router.push(target);
+      // Always name the run: the results page may be showing an older one (?run=).
+      router.push(`/analysis/${projectId}?run=${created.id}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't start the analysis.");
     }
@@ -57,7 +56,7 @@ export function StartRunButton({
         onClick={() => (live ? setConfirm(true) : void run())}
       >
         {again ? <RotateCcw /> : <Sparkles />}
-        {again ? "Run again" : "Analyse & process"}
+        {again ? "Run a new analysis" : "Run AI analysis"}
       </Button>
       <ConfirmDialog
         open={confirm}

@@ -1,46 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  CircleAlert,
-  CircleCheck,
-  FileText,
-  Megaphone,
-  Pencil,
-  ShieldCheck,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Plus, Rocket, SkipForward, Trash2 } from "lucide-react";
 import { cn } from "cn";
 import { DocumentRow } from "@/components/documents/document-row";
+import { VendorsEditor } from "@/components/proposals/vendors-editor";
+import { NewStandardDialog } from "@/components/standards/new-standard-dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dropzone, type UploadFn } from "@/components/ui/dropzone";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Pill } from "@/components/ui/status-pill";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { KeyValueList } from "@/components/data/key-value-list";
 import {
   useCreateProject,
   useDeleteProject,
   useDeleteProjectDocument,
-  useInvalidateProject,
+  projectKey,
+  projectsKey,
   useProject,
   useSetProjectStandards,
   useUpdateProject,
   type ProjectInput,
 } from "@/hooks/use-projects";
+import { useProposals } from "@/hooks/use-proposals";
 import { useSettings } from "@/hooks/use-settings";
 import { ApiClientError } from "@/lib/api-client";
 import type { DocumentDto, ProjectDetailDto } from "@/lib/api-types";
-import { deadlineLabel, formatYmd } from "@/lib/format";
-import { PROJECT_CATEGORY_LABEL } from "@/lib/labels";
+import { standardFitsProject } from "@/lib/domain";
 import { uploadFile } from "@/lib/upload";
 import {
   CategoryChangeNote,
@@ -53,21 +43,23 @@ import {
 import { StandardsPicker } from "./standards-picker";
 
 const STEPS = [
-  { n: 1, title: "Details", hint: "Name, category, deadline" },
-  { n: 2, title: "RFP documents", hint: "What vendors must respond to" },
-  { n: 3, title: "Standards", hint: "Rules every proposal must meet" },
-  { n: 4, title: "Review & publish", hint: "Check and send to vendors" },
+  { n: 1, title: "Project", hint: "Title, category and the RFP", optional: false },
+  { n: 2, title: "Standards", hint: "Rules every proposal must meet", optional: true },
+  { n: 3, title: "Vendors", hint: "Proposals to evaluate", optional: true },
 ] as const;
 
 /**
- * PRD FR-3 — create a project and its RFP. State lives in the URL (?id=&step=) so a refresh
- * resumes the draft. Steps fade in/out one at a time (user preference from Settings feedback).
+ * P8 guided form (user request): Project (title, category, at least one RFP file) → Standards
+ * (only those that fit the category; create one from a rules file on the spot; skippable) →
+ * Vendors (one or more, each with its commercial and technical proposal; skippable, can be added
+ * later) → Create, which publishes the project and opens it. A draft is saved as soon as the
+ * first RFP file is dropped; the URL (?id=&step=) resumes it after a refresh.
  */
 export function NewProjectWizard() {
   const params = useSearchParams();
   const router = useRouter();
   const draftId = params.get("id");
-  const step = Math.min(4, Math.max(1, Number(params.get("step")) || 1)) as 1 | 2 | 3 | 4;
+  const step = Math.min(3, Math.max(1, Number(params.get("step")) || 1)) as 1 | 2 | 3;
   const { data: project, isLoading } = useProject(draftId);
 
   const go = (s: number, id = draftId) =>
@@ -77,8 +69,8 @@ export function NewProjectWizard() {
     );
 
   const waitingForDraft = !!draftId && (isLoading || !project);
-  const reachable = (n: number) =>
-    n === 1 || (!!project && (n < 4 || project.rfpDocuments.length > 0));
+  const ready = !!project && project.rfpDocuments.length > 0;
+  const reachable = (n: number) => n === 1 || ready;
 
   return (
     <div className="flex flex-col gap-10">
@@ -89,11 +81,11 @@ export function NewProjectWizard() {
               {project.code} · Draft saved
             </span>
           ) : (
-            "New tender"
+            "New project"
           )
         }
         title="New project"
-        description="Publish an RFP to vendors. Marsa will later check every proposal against it and the standards you select."
+        description="Three short steps: the project and its RFP, the standards it must meet, and the vendors' proposals. Then run the AI analysis."
         actions={project && <DiscardDraft project={project} />}
       />
       <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10">
@@ -101,7 +93,7 @@ export function NewProjectWizard() {
           <ol className="-mx-1 flex [scrollbar-width:none] gap-1 overflow-x-auto px-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
             {STEPS.map((s) => {
               const current = s.n === step;
-              const done = s.n < step || (s.n === 1 && !!project);
+              const done = s.n < step || (s.n === 1 && ready);
               const can = reachable(s.n) && !waitingForDraft;
               return (
                 <li key={s.n} className="shrink-0">
@@ -112,7 +104,7 @@ export function NewProjectWizard() {
                     aria-current={current ? "step" : undefined}
                     className={cn(
                       "relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start transition-colors outline-none",
-                      "focus-visible:ring-3 focus-visible:ring-ring/25 disabled:cursor-not-allowed",
+                      "focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed",
                       current
                         ? "text-ink"
                         : can
@@ -123,7 +115,7 @@ export function NewProjectWizard() {
                     {current && (
                       <motion.span
                         layoutId="wizard-step"
-                        className="absolute inset-0 rounded-lg border border-border bg-surface shadow-xs"
+                        className="absolute inset-0 rounded-lg border border-border bg-surface shadow-sm"
                         transition={{ type: "spring", stiffness: 420, damping: 36 }}
                       />
                     )}
@@ -131,7 +123,7 @@ export function NewProjectWizard() {
                       className={cn(
                         "relative flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums transition-colors",
                         current
-                          ? "border-brand bg-brand text-on-brand"
+                          ? "border-transparent bg-rta text-white"
                           : done
                             ? "border-brand/40 bg-brand-soft text-brand-ink"
                             : "border-border-strong bg-surface text-ink-muted",
@@ -144,7 +136,14 @@ export function NewProjectWizard() {
                       )}
                     </span>
                     <span className="relative flex flex-col leading-tight">
-                      <span className="text-sm font-medium">{s.title}</span>
+                      <span className="text-sm font-medium">
+                        {s.title}
+                        {s.optional && (
+                          <span className="ms-1.5 text-2xs font-normal text-ink-muted">
+                            optional
+                          </span>
+                        )}
+                      </span>
                       <span className="hidden text-xs text-ink-muted lg:block">{s.hint}</span>
                     </span>
                   </button>
@@ -154,7 +153,7 @@ export function NewProjectWizard() {
           </ol>
         </nav>
 
-        <div className="max-w-3xl min-w-0">
+        <div className="max-w-4xl min-w-0">
           {waitingForDraft ? (
             <Skeleton className="h-96 rounded-xl" />
           ) : (
@@ -166,12 +165,10 @@ export function NewProjectWizard() {
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 aria-labelledby="step-title"
-                className="flex flex-col rounded-xl border border-border bg-surface shadow-xs"
+                className="flex flex-col rounded-xl border border-border bg-surface shadow-sm"
               >
                 <header className="flex flex-col gap-1 border-b border-border/70 px-6 py-5">
-                  <span className="text-2xs font-semibold tracking-[0.08em] text-ink-muted uppercase">
-                    Step {step} of 4
-                  </span>
+                  <span className="caption-caps text-ink-muted">Step {step} of 3</span>
                   <h2
                     id="step-title"
                     className="font-heading text-lg font-semibold tracking-tight text-ink"
@@ -180,19 +177,12 @@ export function NewProjectWizard() {
                   </h2>
                 </header>
                 {step === 1 && (
-                  <DetailsStep
-                    key={project?.id ?? "new"}
-                    project={project}
-                    onSaved={(id) => go(2, id)}
-                  />
+                  <ProjectStep project={project} onDraft={(id) => go(1, id)} onNext={(id) => go(2, id)} />
                 )}
                 {step === 2 && project && (
-                  <DocumentsStep project={project} onBack={() => go(1)} onNext={() => go(3)} />
+                  <StandardsStep project={project} onBack={() => go(1)} onNext={() => go(3)} />
                 )}
-                {step === 3 && project && (
-                  <StandardsStep project={project} onBack={() => go(2)} onNext={() => go(4)} />
-                )}
-                {step === 4 && project && <ReviewStep project={project} onEdit={(n) => go(n)} />}
+                {step === 3 && project && <VendorsStep project={project} onBack={() => go(2)} />}
               </motion.section>
             </AnimatePresence>
           )}
@@ -210,16 +200,22 @@ function StepFooter({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ───────────────────────── Step 1 · Details ───────────────────────── */
-function DetailsStep({
+/* ───────────────────────── Step 1 · Project ───────────────────────── */
+function ProjectStep({
   project,
-  onSaved,
+  onDraft,
+  onNext,
 }: {
   project?: ProjectDetailDto;
-  onSaved: (id: string) => void;
+  /** The draft was created (first RFP file): keep its id in the URL. */
+  onDraft: (id: string) => void;
+  onNext: (id: string) => void;
 }) {
+  const { data: settings } = useSettings();
   const create = useCreateProject();
   const update = useUpdateProject(project?.id ?? "");
+  const qc = useQueryClient();
+  const remove = useDeleteProjectDocument(project?.id ?? "");
   const [value, setValue] = useState<ProjectInput>(
     project
       ? {
@@ -233,35 +229,65 @@ function DetailsStep({
   );
   const [touched, setTouched] = useState(false);
   const [serverErrors, setServerErrors] = useState<ProjectErrors>({});
+  const [uploadedHere, setUploadedHere] = useState(0);
+  const draft = useRef<Promise<string> | null>(project ? Promise.resolve(project.id) : null);
+  // Uploads read the latest fields (a drop can start before the next render).
+  const valueRef = useRef(value);
+  const change = (v: ProjectInput) => {
+    valueRef.current = v;
+    setValue(v);
+  };
+
   const local = validateProject(value, {
     allowPastDeadline: !!project?.deadline && value.deadline === project.deadline,
   });
   const errors: ProjectErrors = touched
     ? { ...local, ...Object.fromEntries(Object.entries(serverErrors).filter(([, v]) => v)) }
     : {};
+  const docs = project?.rfpDocuments ?? [];
+  const docCount = Math.max(docs.length, uploadedHere);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const payload = () => {
+    const v = valueRef.current;
+    return { ...v, name: v.name.trim(), description: v.description.trim(), notes: v.notes.trim() };
+  };
+
+  /** The draft exists once (several files dropped together share one creation). */
+  const ensureDraft = () => {
+    if (!draft.current) {
+      setTouched(true);
+      const check = validateProject(valueRef.current, { allowPastDeadline: false });
+      if (hasErrors(check)) {
+        return Promise.reject(new Error("Fill in the title and category first."));
+      }
+      draft.current = create.mutateAsync(payload()).then((created) => {
+        toast.success(`Draft ${created.code} saved`);
+        onDraft(created.id);
+        return created.id;
+      });
+      draft.current.catch(() => (draft.current = null));
+    }
+    return draft.current;
+  };
+
+  const upload: UploadFn = async (file, onProgress) => {
+    const id = await ensureDraft();
+    await uploadFile<DocumentDto>(`/api/projects/${id}/documents`, file, onProgress);
+    setUploadedHere((n) => n + 1);
+    // By the id, not `project`: the first drop starts before the draft exists.
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: projectsKey, exact: true }),
+      qc.invalidateQueries({ queryKey: projectKey(id) }),
+    ]);
+  };
+
+  const next = async () => {
     setTouched(true);
     setServerErrors({});
-    if (hasErrors(local)) return;
-    const payload = {
-      ...value,
-      name: value.name.trim(),
-      description: value.description.trim(),
-      notes: value.notes.trim(),
-    };
+    if (hasErrors(local) || !project || docs.length === 0) return;
     try {
-      if (project) {
-        await update.mutateAsync(payload);
-        onSaved(project.id);
-      } else {
-        const created = await create.mutateAsync(payload);
-        toast.success(`Draft ${created.code} created`, {
-          description: "Now add the RFP documents.",
-        });
-        onSaved(created.id);
-      }
+      await update.mutateAsync(payload());
+      onNext(project.id);
     } catch (err) {
       if (err instanceof ApiClientError && Array.isArray(err.details)) {
         setServerErrors(
@@ -276,114 +302,72 @@ function DetailsStep({
   };
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col">
-      <div className="px-6 py-6">
+    <div className="flex flex-col">
+      <div className="flex flex-col gap-8 px-6 py-6">
         <ProjectDetailsForm
           value={value}
-          onChange={setValue}
+          onChange={change}
           errors={errors}
           autoFocus={!project}
           categoryNote={
             project && <CategoryChangeNote applied={project.standards} category={value.category} />
           }
         />
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-sm font-semibold text-ink">RFP documents</h3>
+            <p className="text-[13px] text-ink-muted">
+              The main RFP and any annexes or addenda, at least one file. The AI builds the
+              evaluation checklist from them.
+            </p>
+          </div>
+          {docs.length > 0 && (
+            <ul className="flex flex-col gap-2" aria-label="Uploaded RFP documents">
+              {docs.map((d) => (
+                <DocumentRow
+                  key={d.id}
+                  doc={d}
+                  nameMax={56}
+                  onDelete={() =>
+                    remove.mutateAsync(d.id).then(() => {
+                      setUploadedHere((n) => Math.max(0, n - 1));
+                      toast.success("Document removed.");
+                    })
+                  }
+                  deleteDescription={`“${d.originalName}” will be removed from this project.`}
+                />
+              ))}
+            </ul>
+          )}
+          <Dropzone
+            label={docs.length ? "Add more RFP documents" : "RFP documents"}
+            description="Drag and drop, or browse · PDF preferred"
+            maxSizeMb={settings?.runtime.maxUploadMb ?? 50}
+            upload={upload}
+            removeOnDone
+          />
+          {touched && docCount === 0 && (
+            <p className="text-xs text-fail">Add at least one RFP document.</p>
+          )}
+        </div>
       </div>
       <StepFooter>
         <span className="text-xs text-ink-muted">
-          {project
-            ? "Changes are saved when you continue."
-            : "Continuing creates a draft that only you can see."}
+          {project ? "Saved as a draft until you create the project." : "Only you can see the draft."}
         </span>
-        <Button type="submit" loading={create.isPending || update.isPending}>
+        <Button
+          onClick={() => void next()}
+          loading={update.isPending}
+          disabled={!project || docs.length === 0}
+        >
           Continue <ArrowRight />
         </Button>
-      </StepFooter>
-    </form>
-  );
-}
-
-/* ───────────────────────── Step 2 · Documents ───────────────────────── */
-function DocumentsStep({
-  project,
-  onBack,
-  onNext,
-}: {
-  project: ProjectDetailDto;
-  onBack: () => void;
-  onNext: () => void;
-}) {
-  const { data: settings } = useSettings();
-  const invalidate = useInvalidateProject(project.id);
-  const remove = useDeleteProjectDocument(project.id);
-  const maxMb = settings?.runtime.maxUploadMb ?? 50;
-
-  const upload: UploadFn = async (file, onProgress) => {
-    await uploadFile<DocumentDto>(`/api/projects/${project.id}/documents`, file, onProgress);
-    await invalidate(); // the new row in the list is the confirmation (toasts would cover Continue)
-  };
-  const docs = project.rfpDocuments;
-
-  return (
-    <div className="flex flex-col">
-      <div className="flex flex-col gap-6 px-6 py-6">
-        <p className="leading-relaxed text-ink-2">
-          Upload the RFP: the main document and any annexes, specifications or addenda. Vendors
-          respond to these files, and the AI reads them to build the evaluation checklist. Any
-          format is accepted; PDF is preferred.
-        </p>
-        {docs.length > 0 && (
-          <ul className="flex flex-col gap-2" aria-label="Uploaded RFP documents">
-            {docs.map((d) => (
-              <DocumentRow
-                key={d.id}
-                doc={d}
-                nameMax={56}
-                onDelete={() =>
-                  remove.mutateAsync(d.id).then(() => toast.success("Document removed."))
-                }
-                deleteDescription={`“${d.originalName}” will be removed from this project.`}
-              />
-            ))}
-          </ul>
-        )}
-        <Dropzone
-          label={docs.length ? "Add more documents" : "RFP documents"}
-          maxSizeMb={maxMb}
-          upload={upload}
-          removeOnDone
-        />
-      </div>
-      <StepFooter>
-        <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft /> Back
-        </Button>
-        <span className="flex items-center gap-3">
-          <span className="text-xs text-ink-muted tabular-nums">
-            {docs.length} document{docs.length === 1 ? "" : "s"}
-          </span>
-          {docs.length === 0 ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>
-                  <Button disabled>
-                    Continue <ArrowRight />
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Upload at least one RFP document</TooltipContent>
-            </Tooltip>
-          ) : (
-            <Button onClick={onNext}>
-              Continue <ArrowRight />
-            </Button>
-          )}
-        </span>
       </StepFooter>
     </div>
   );
 }
 
-/* ───────────────────────── Step 3 · Standards ───────────────────────── */
+/* ───────────────────────── Step 2 · Standards ───────────────────────── */
 function StandardsStep({
   project,
   onBack,
@@ -395,181 +379,102 @@ function StandardsStep({
 }) {
   const save = useSetProjectStandards(project.id);
   const [selected, setSelected] = useState<string[]>(project.standards.map((s) => s.id));
+  const [creating, setCreating] = useState(false);
+
+  const persist = async (ids: string[]) => {
+    try {
+      await save.mutateAsync(ids);
+      onNext();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't save the standards.");
+    }
+  };
 
   return (
     <div className="flex flex-col">
       <div className="flex flex-col gap-6 px-6 py-6">
-        <p className="leading-relaxed text-ink-2">
-          Choose the standards this tender must comply with. Active standards are pre-selected.
-          Their rules join the RFP requirements in the evaluation checklist.{" "}
-          {project.category === "General"
-            ? "This is a General project, so every standard can apply."
-            : `This is a “${project.category}” project, so only “${project.category}” and “General” standards can apply.`}
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <p className="max-w-2xl leading-relaxed text-ink-2">
+            Pick the standards this project must comply with. Marsa checks every proposal against
+            each of their rules, separately from the RFP.{" "}
+            {project.category === "General"
+              ? "This is a General project, so every standard can apply."
+              : `Only “${project.category}” and “General” standards are shown.`}
+          </p>
+          <Button variant="brand" onClick={() => setCreating(true)} className="shrink-0">
+            <Plus /> New standard
+          </Button>
+        </div>
         <StandardsPicker value={selected} onChange={setSelected} category={project.category} />
       </div>
       <StepFooter>
         <Button variant="ghost" onClick={onBack}>
           <ArrowLeft /> Back
         </Button>
-        <Button
-          loading={save.isPending}
-          onClick={async () => {
-            await save.mutateAsync(selected);
-            onNext();
-          }}
-        >
-          Continue <ArrowRight />
-        </Button>
+        <span className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-ink-muted tabular-nums">{selected.length} selected</span>
+          <Button variant="secondary" onClick={() => void persist([])} disabled={save.isPending}>
+            <SkipForward /> Skip
+          </Button>
+          <Button loading={save.isPending} onClick={() => void persist(selected)}>
+            Continue <ArrowRight />
+          </Button>
+        </span>
       </StepFooter>
+      <NewStandardDialog
+        open={creating}
+        onOpenChange={setCreating}
+        defaultCategory={project.category}
+        onCreated={(std) => {
+          if (standardFitsProject(std.category, project.category))
+            setSelected((s) => [...s, std.id]);
+          else toast.info(`${std.code} is a “${std.category}” standard: it doesn't fit this project.`);
+        }}
+      />
     </div>
   );
 }
 
-/* ───────────────────────── Step 4 · Review ───────────────────────── */
-function ReviewStep({
-  project,
-  onEdit,
-}: {
-  project: ProjectDetailDto;
-  onEdit: (step: number) => void;
-}) {
+/* ───────────────────────── Step 3 · Vendors ───────────────────────── */
+function VendorsStep({ project, onBack }: { project: ProjectDetailDto; onBack: () => void }) {
   const router = useRouter();
   const publish = useUpdateProject(project.id);
-  const docs = project.rfpDocuments;
-  const unreadable = docs.filter((d) => !d.aiReadable).length;
-  const checks = [
-    { ok: project.name.trim().length >= 3, label: "Project name" },
-    {
-      ok: docs.length > 0,
-      label: `${docs.length} RFP document${docs.length === 1 ? "" : "s"} uploaded`,
-    },
-    {
-      ok: unreadable === 0,
-      warn: true,
-      label: unreadable
-        ? `${unreadable} document${unreadable === 1 ? "" : "s"} the AI can't read (legacy format)`
-        : "All documents readable by the AI",
-    },
-    {
-      ok: project.standards.length > 0,
-      warn: true,
-      label: project.standards.length
-        ? `${project.standards.length} standard${project.standards.length === 1 ? "" : "s"} applied`
-        : "No standards: proposals are checked against the RFP only",
-    },
-    {
-      ok: !!project.deadline,
-      warn: true,
-      label: project.deadline ? deadlineLabel(project.deadline) : "No submission deadline set",
-    },
-  ];
+  const { data: proposals } = useProposals(project.id);
+  const n = proposals?.length ?? 0;
+
+  const createProject = async () => {
+    try {
+      if (project.status === "draft") await publish.mutateAsync({ status: "open" });
+      toast.success(`${project.code} created`, {
+        description: n
+          ? `${n} vendor${n === 1 ? "" : "s"} ready for the AI analysis.`
+          : "Add vendors from the project's Proposals tab when you have them.",
+      });
+      router.push(`/projects/${project.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't create the project.");
+    }
+  };
 
   return (
     <div className="flex flex-col">
       <div className="flex flex-col gap-6 px-6 py-6">
-        <ReviewBlock title="Details" icon={<Pencil />} onEdit={() => onEdit(1)}>
-          <KeyValueList
-            items={[
-              { label: "Name", value: <span dir="auto">{project.name}</span> },
-              { label: "Reference", value: <span className="font-mono">{project.code}</span> },
-              { label: "Category", value: PROJECT_CATEGORY_LABEL[project.category] },
-              {
-                label: "Submission deadline",
-                value: project.deadline ? formatYmd(project.deadline) : "—",
-              },
-            ]}
-          />
-          {project.description && (
-            <p className="mt-3 text-[13px] leading-relaxed text-ink-muted">{project.description}</p>
-          )}
-        </ReviewBlock>
-        <ReviewBlock
-          title={`RFP documents (${docs.length})`}
-          icon={<FileText />}
-          onEdit={() => onEdit(2)}
-        >
-          <ul className="flex flex-col gap-1.5 text-[13px] text-ink-2">
-            {docs.map((d) => (
-              <li key={d.id} className="flex items-center gap-2" dir="auto">
-                <FileText className="size-3.5 shrink-0 text-ink-faint" aria-hidden />
-                <span className="truncate">{d.originalName}</span>
-                {d.pageCount != null && (
-                  <span className="shrink-0 text-ink-muted">· {d.pageCount} p.</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </ReviewBlock>
-        <ReviewBlock
-          title={`Standards (${project.standards.length})`}
-          icon={<ShieldCheck />}
-          onEdit={() => onEdit(3)}
-        >
-          {project.standards.length ? (
-            <div className="flex flex-wrap gap-2">
-              {project.standards.map((s) => (
-                <Pill key={s.id} tone="neutral">
-                  <span className="font-mono">{s.code}</span> · {s.title}
-                </Pill>
-              ))}
-            </div>
-          ) : (
-            <p className="text-[13px] text-ink-muted">None selected.</p>
-          )}
-        </ReviewBlock>
-        <div
-          className="flex flex-col gap-2 rounded-xl border border-border bg-surface-muted/40 p-4"
-          aria-label="Readiness"
-        >
-          {checks.map((c) => (
-            <p
-              key={c.label}
-              className={cn(
-                "flex items-center gap-2 text-[13px]",
-                c.ok ? "text-ink-2" : c.warn ? "text-partial" : "text-fail",
-              )}
-            >
-              {c.ok ? (
-                <CircleCheck className="size-4 text-ok" aria-hidden />
-              ) : (
-                <CircleAlert className="size-4" aria-hidden />
-              )}
-              {c.label}
-            </p>
-          ))}
-        </div>
+        <p className="max-w-2xl leading-relaxed text-ink-2">
+          Add each vendor with its two proposals: the commercial (financial) one and the technical
+          one. You can skip this and add vendors later, even after an analysis, then run it again.
+        </p>
+        <VendorsEditor projectId={project.id} />
       </div>
       <StepFooter>
-        <Button variant="ghost" onClick={() => onEdit(3)}>
+        <Button variant="ghost" onClick={onBack}>
           <ArrowLeft /> Back
         </Button>
-        <span className="flex flex-wrap gap-3">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              toast.success(`${project.code} saved as draft.`);
-              router.push(`/projects/${project.id}`);
-            }}
-          >
-            Save as draft
-          </Button>
-          <Button
-            loading={publish.isPending}
-            disabled={docs.length === 0}
-            onClick={async () => {
-              try {
-                await publish.mutateAsync({ status: "open" });
-                toast.success("Published to vendors", {
-                  description: `${project.code} is now open for proposals.`,
-                });
-                router.push(`/projects/${project.id}`);
-              } catch (err) {
-                toast.error(err instanceof Error ? err.message : "Couldn't publish.");
-              }
-            }}
-          >
-            <Megaphone /> Publish to vendors
+        <span className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-ink-muted tabular-nums">
+            {n} vendor{n === 1 ? "" : "s"}
+          </span>
+          <Button size="lg" loading={publish.isPending} onClick={() => void createProject()}>
+            <Rocket /> {n ? "Create project" : "Skip and create project"}
           </Button>
         </span>
       </StepFooter>
@@ -577,37 +482,11 @@ function ReviewStep({
   );
 }
 
-function ReviewBlock({
-  title,
-  icon,
-  onEdit,
-  children,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  onEdit: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-3 border-b border-border/70 pb-6 last-of-type:border-b-0 last-of-type:pb-0">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 font-semibold text-ink [&_svg]:size-4 [&_svg]:text-ink-faint">
-          {icon}
-          {title}
-        </h3>
-        <Button variant="ghost" size="xs" onClick={onEdit} aria-label={`Edit ${title}`}>
-          Edit
-        </Button>
-      </div>
-      {children}
-    </section>
-  );
-}
-
 function DiscardDraft({ project }: { project: ProjectDetailDto }) {
   const router = useRouter();
   const remove = useDeleteProject();
   const [open, setOpen] = useState(false);
+  if (project.status !== "draft") return null;
   return (
     <>
       <Button variant="ghost" onClick={() => setOpen(true)}>
@@ -617,7 +496,7 @@ function DiscardDraft({ project }: { project: ProjectDetailDto }) {
         open={open}
         onOpenChange={setOpen}
         title="Discard this draft?"
-        description={`${project.code} and its ${project.rfpDocuments.length} uploaded document(s) will be deleted.`}
+        description={`${project.code}, its RFP documents and any vendors added will be deleted.`}
         confirmLabel="Discard draft"
         onConfirm={async () => {
           await remove.mutateAsync(project.id);

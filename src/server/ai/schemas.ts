@@ -336,6 +336,16 @@ export function categoryForStandard(standardCategory: string): RequirementCatego
  * vendor is checked against the standards rule by rule, separately from the RFP. A rule code used
  * by two standards gets its standard's code as a prefix.
  */
+/** A rule's own words as its title (the code is shown beside it): first sentence, ≤ 90 chars. */
+export function ruleTitle(text: string): string {
+  const t = text.trim().replace(/\s+/g, " ");
+  const first = t.match(/^.+?[.;:](?=\s|$)/)?.[0] ?? t;
+  const s = first.replace(/[.;:]$/, "");
+  if (s.length <= 90) return s;
+  const cut = s.slice(0, 88);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 60))}…`;
+}
+
 export function withStandardRules(
   out: ChecklistOutput,
   standards: {
@@ -356,7 +366,7 @@ export function withStandardRules(
       taken.add(code);
       requirements.push({
         code,
-        title: `${s.code} ${rule.code}`,
+        title: ruleTitle(rule.text),
         description: rule.text,
         category: categoryForStandard(s.category),
         priority: rule.priority,

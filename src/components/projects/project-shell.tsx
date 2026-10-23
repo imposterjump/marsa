@@ -9,12 +9,11 @@ import {
   Archive,
   ArchiveRestore,
   ArrowLeft,
+  ArrowRight,
   CalendarClock,
-  ClipboardCheck,
   Info,
   LayoutDashboard,
-  Lock,
-  Megaphone,
+  Loader2,
   MoreHorizontal,
   Pencil,
   PencilLine,
@@ -23,6 +22,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "cn";
+import { StartRunButton } from "@/components/evaluation/start-run-button";
 import { SetBreadcrumbs } from "@/components/shell/breadcrumbs";
 import { ProjectsArt } from "@/components/illustrations";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Pill, ProjectStatusPill } from "@/components/ui/status-pill";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDeleteProject, useProject, useUpdateProject } from "@/hooks/use-projects";
+import { useLatestResultsRun } from "@/hooks/use-runs";
 import { ApiClientError } from "@/lib/api-client";
 import type { ProjectDetailDto } from "@/lib/api-types";
 import { deadlineLabel } from "@/lib/format";
@@ -105,11 +106,10 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
   }
 
   const base = `/projects/${p.id}`;
+  // P8: the AI analysis has its own full-width page (/analysis/[id]), opened from the header.
   const tabs = [
     { href: base, label: "Overview", icon: LayoutDashboard },
     { href: `${base}/proposals`, label: "Proposals", icon: Users, count: p.proposalCount },
-    { href: `${base}/evaluation`, label: "Evaluation", icon: p.proposalCount ? Sparkles : Lock },
-    { href: `${base}/ai-review`, label: "AI review", icon: ClipboardCheck },
   ];
 
   // On a single proposal (/proposals/[id]) the header shrinks to one line (P5.3): the vendor's
@@ -223,9 +223,14 @@ function StatusBanner({ project: p }: { project: ProjectDetailDto }) {
       <Info className="mt-0.5 size-4 shrink-0 text-ink-muted" aria-hidden />
       {p.status === "draft" ? (
         <span>
-          This tender is a <strong className="font-semibold text-ink">draft</strong>. Vendors
-          can&apos;t see it until you publish it.
-          {p.rfpDocuments.length === 0 && " Upload at least one RFP document first."}
+          This project is still being set up.{" "}
+          <Link
+            href={`/projects/new?id=${p.id}&step=${p.rfpDocuments.length ? 2 : 1}`}
+            className="font-medium text-brand-ink underline-offset-2 hover:underline"
+          >
+            Continue the setup
+          </Link>
+          {p.rfpDocuments.length === 0 && " (it needs at least one RFP document)."}
         </span>
       ) : (
         <span>
@@ -235,6 +240,52 @@ function StatusBanner({ project: p }: { project: ProjectDetailDto }) {
       )}
     </div>
   );
+}
+
+/**
+ * The way into the AI analysis (P8): run it when there is none yet, open it when there is (with
+ * "Run a new analysis" for after vendors were added), follow it while it runs.
+ */
+function AiAnalysisAction({ project: p }: { project: ProjectDetailDto }) {
+  const latest = useLatestResultsRun(p.id);
+  const href = `/analysis/${p.id}`;
+  if (p.status === "draft" || p.status === "archived") return null;
+  if (p.status === "evaluating") {
+    return (
+      <Button asChild>
+        <Link href={href}>
+          <Loader2 className="motion-safe:animate-spin" /> AI analysis running
+        </Link>
+      </Button>
+    );
+  }
+  if (!p.proposalCount) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span tabIndex={0} className="inline-flex rounded-lg">
+            <Button disabled>
+              <Sparkles /> Run AI analysis
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>Add at least one vendor in the Proposals tab</TooltipContent>
+      </Tooltip>
+    );
+  }
+  if (latest) {
+    return (
+      <>
+        <StartRunButton projectId={p.id} again size="default" />
+        <Button asChild>
+          <Link href={href}>
+            <Sparkles /> Open AI analysis
+          </Link>
+        </Button>
+      </>
+    );
+  }
+  return <StartRunButton projectId={p.id} size="default" />;
 }
 
 function HeaderActions({ project: p }: { project: ProjectDetailDto }) {
@@ -258,26 +309,14 @@ function HeaderActions({ project: p }: { project: ProjectDetailDto }) {
 
   return (
     <>
-      {p.status === "draft" &&
-        (p.rfpDocuments.length === 0 ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span tabIndex={0} className="inline-flex rounded-lg">
-                <Button disabled>
-                  <Megaphone /> Publish to vendors
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>Upload at least one RFP document first</TooltipContent>
-          </Tooltip>
-        ) : (
-          <Button
-            loading={update.isPending}
-            onClick={() => transition("open", `${p.code} is now open for proposals.`)}
-          >
-            <Megaphone /> Publish to vendors
-          </Button>
-        ))}
+      {p.status === "draft" && (
+        <Button asChild>
+          <Link href={`/projects/new?id=${p.id}&step=${p.rfpDocuments.length ? 2 : 1}`}>
+            Continue setup <ArrowRight />
+          </Link>
+        </Button>
+      )}
+      <AiAnalysisAction project={p} />
       {p.status === "archived" && (
         <Button
           loading={update.isPending}

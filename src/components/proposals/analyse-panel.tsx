@@ -15,10 +15,10 @@ import { AI_MODEL_LABEL } from "@/lib/labels";
 import { estimateSeconds, formatDuration, planRun } from "@/lib/plan";
 
 /**
- * PRD FR-5.3: the "Analyse & process" action bar under the proposals table. Shows what the run
- * will cover (proposals, standards, T = 3N + 2 steps) with a time and cost estimate calibrated on
- * real runs (estimateRun).
- * The button starts the pipeline (P6); with live AI it confirms the estimated cost first.
+ * PRD FR-5.3: the analysis summary under the proposals table. Shows what the run will cover
+ * (P8: each vendor against the standards, then the RFP, then its risks, then a recommendation;
+ * T = 3N + 2 steps, 2N + 2 without standards) with a time and cost estimate calibrated on real
+ * runs (estimateRun). With live AI the button confirms the estimated cost first.
  */
 export function AnalysePanel({
   project,
@@ -29,25 +29,24 @@ export function AnalysePanel({
 }) {
   const { data: settings } = useSettings();
   const n = proposals.length;
-  const plan = planRun(n);
+  const plan = planRun(n, project.standards.length > 0);
   const mode = settings?.runtime.aiMode ?? "mock";
   const model = settings?.aiModel ?? DEFAULT_AI_MODEL;
   const estimate = useRunEstimate(project.id);
   const seconds =
     mode === "live" && estimate
       ? estimate.seconds
-      : estimateSeconds(n, { concurrency: settings?.concurrency ?? DEFAULT_CONCURRENCY, mode });
+      : estimateSeconds(n, {
+          concurrency: settings?.concurrency ?? DEFAULT_CONCURRENCY,
+          mode,
+          withStandards: project.standards.length > 0,
+        });
   const rules = project.standards.reduce((s, x) => s + x.rulesCount, 0);
   const incomplete = proposals.filter(
     (p) => !p.documentCounts.commercial || !p.documentCounts.technical,
   );
 
   const notes: { tone: "warn" | "info"; text: string }[] = [];
-  if (n === 1)
-    notes.push({
-      tone: "warn",
-      text: "Only one proposal: the vendor comparison step will be skipped.",
-    });
   if (incomplete.length) {
     notes.push({
       tone: "warn",
@@ -63,10 +62,10 @@ export function AnalysePanel({
 
   const steps: [string, number][] = [
     ["Checklist", plan.phases.checklist],
-    ["Analyse", plan.phases.analyze],
-    ["Compare", plan.phases.compare],
+    ...(plan.phases.standards ? ([["Standards", plan.phases.standards]] as [string, number][]) : []),
+    ["RFP", plan.phases.analyze],
     ["Risk", plan.phases.risk],
-    ["Summary", plan.phases.summary],
+    ["Recommendation", plan.phases.summary],
   ];
 
   return (
@@ -74,10 +73,7 @@ export function AnalysePanel({
       aria-labelledby="analyse-title"
       className="relative overflow-hidden rounded-xl border border-border bg-surface shadow-xs"
     >
-      <span
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand via-brand/60 to-info/60"
-      />
+      <span aria-hidden className="absolute inset-x-0 top-0 h-0.5 bg-rta" />
       <div className="flex flex-col gap-6 p-6 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
         <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-col gap-1">
@@ -86,16 +82,16 @@ export function AnalysePanel({
               className="flex items-center gap-2 font-heading text-base font-semibold tracking-tight text-ink"
             >
               <Sparkles className="size-4 text-brand" aria-hidden />
-              Analyse &amp; process
+              AI analysis
             </h3>
             <p className="max-w-2xl text-[13px] leading-relaxed text-ink-muted">
               {n === 0
-                ? "Once vendors have submitted, Marsa checks every proposal against the RFP and the applied standards, compares vendors and builds a risk register."
-                : `Marsa will check ${n === 1 ? "the proposal" : `all ${n} proposals`} against the RFP${
+                ? "Once vendors are added, Marsa checks every proposal against the standards and, separately, the RFP, assesses its risks and recommends a vendor."
+                : `Marsa will check ${n === 1 ? "the proposal" : `each of the ${n} proposals`} against ${
                     project.standards.length
-                      ? ` and ${project.standards.length} standard${project.standards.length === 1 ? "" : "s"} (${rules} rules)`
-                      : ""
-                  }, ${n > 1 ? "compare each vendor with the others, " : ""}assess risks and write an executive summary.`}
+                      ? `${project.standards.length} standard${project.standards.length === 1 ? "" : "s"} (${rules} rules) and, separately, the RFP`
+                      : "the RFP"
+                  }, assess its risks and recommend a vendor.`}
             </p>
           </div>
 
@@ -127,11 +123,12 @@ export function AnalysePanel({
                         tabIndex={0}
                         className="cursor-help underline decoration-dotted underline-offset-4"
                       >
-                        {plan.total} (3 × {n} + 2)
+                        {plan.total} ({plan.phases.standards ? 3 : 2} × {n} + 2)
                       </span>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
-                      1 checklist, then per vendor: analyse, compare and risk, then 1 summary.
+                      1 checklist, then per vendor: {plan.phases.standards ? "standards, " : ""}RFP and
+                      risk, then 1 recommendation.
                     </TooltipContent>
                   </Tooltip>
                 }
@@ -176,12 +173,7 @@ export function AnalysePanel({
               {steps.map(([label, count], i) => (
                 <li key={label} className="flex items-center gap-1.5">
                   <span
-                    className={cn(
-                      "rounded-md border px-2 py-0.5 tabular-nums",
-                      label === "Compare" && plan.skipped
-                        ? "border-dashed border-border text-ink-faint line-through"
-                        : "border-border bg-surface-muted/60",
-                    )}
+                    className="rounded-md border border-border bg-surface-muted/60 px-2 py-0.5 tabular-nums"
                   >
                     {count} × {label}
                   </span>
@@ -218,7 +210,7 @@ export function AnalysePanel({
         <div className="flex shrink-0 flex-col items-stretch gap-2 lg:items-end">
           {project.status === "evaluating" ? (
             <Button asChild size="lg" className="w-full lg:w-auto">
-              <Link href={`/projects/${project.id}/evaluation`}>
+              <Link href={`/analysis/${project.id}`}>
                 <Loader2 className="motion-safe:animate-spin" /> View progress
               </Link>
             </Button>
@@ -254,7 +246,7 @@ export function AnalysePanel({
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <dt className="text-2xs font-semibold tracking-[0.06em] text-ink-muted uppercase">{label}</dt>
+      <dt className="caption-caps text-ink-muted">{label}</dt>
       <dd className="font-medium text-ink tabular-nums">{value}</dd>
     </div>
   );

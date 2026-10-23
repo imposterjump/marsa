@@ -2,7 +2,13 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
-import type { ProposalResultDto, RunDto, RunResultsDto, RunStatusDto } from "@/lib/api-types";
+import type {
+  AnalysisResultsDto,
+  ProposalResultDto,
+  RunDto,
+  RunResultsDto,
+  RunStatusDto,
+} from "@/lib/api-types";
 import type { RunStatus } from "@/lib/domain";
 import { useHydrationSafe } from "./hydration-safe";
 import { projectKey, projectsKey } from "./use-projects";
@@ -47,6 +53,17 @@ export function useRunResults(runId: string | null, enabled = true) {
     useQuery({
       queryKey: runResultsKey(runId ?? "none"),
       queryFn: () => api<RunResultsDto>(`/api/runs/${runId}/results`),
+      enabled: !!runId && enabled,
+    }),
+  );
+}
+
+/** Everything the AI analysis results page shows (P8). */
+export function useAnalysisResults(runId: string | null, enabled = true) {
+  return useHydrationSafe(
+    useQuery({
+      queryKey: ["runs", runId ?? "none", "analysis"],
+      queryFn: () => api<AnalysisResultsDto>(`/api/runs/${runId}/analysis`),
       enabled: !!runId && enabled,
     }),
   );

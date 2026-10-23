@@ -156,15 +156,18 @@ export function getProposal(db: Db, id: string) {
 }
 
 /** Vendors can only respond to a published tender (and not while it is being evaluated). */
+/**
+ * P8: the customer enters vendors themselves, so proposals can be added while the project is a
+ * draft (the guided form's vendor step) and after an evaluation (then re-run the analysis with
+ * the new vendors). Not while an analysis is running, nor on an archived project.
+ */
 function assertAcceptsProposals(db: Db, projectId: string) {
   const p = requireProject(db, projectId);
-  if (p.status !== "open") {
+  if (p.status === "evaluating" || p.status === "archived") {
     const why =
-      p.status === "draft"
-        ? "This tender isn't published yet, so vendors can't see it."
-        : p.status === "archived"
-          ? "This tender is archived."
-          : "This tender is being evaluated or already evaluated; it no longer accepts proposals.";
+      p.status === "archived"
+        ? "This project is archived."
+        : "An analysis is running; add vendors when it has finished.";
     throw new ApiError(409, "not_accepting_proposals", why);
   }
   return p;

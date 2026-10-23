@@ -33,12 +33,13 @@ export function applyTheme(pref: Theme): "light" | "dark" {
   return resolved;
 }
 
-export function setSidebarCollapsed(collapsed: boolean) {
+/** `persist: false` for a page that collapses the sidebar only while it is open (AI analysis). */
+export function setSidebarCollapsed(collapsed: boolean, persist = true) {
   const root = document.documentElement;
   if (collapsed) root.dataset.sidebar = "collapsed";
   else delete root.dataset.sidebar;
   try {
-    localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? "collapsed" : "expanded");
+    if (persist) localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? "collapsed" : "expanded");
   } catch {
     /* storage unavailable */
   }

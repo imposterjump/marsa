@@ -91,10 +91,13 @@ describe("vendors", () => {
 });
 
 describe("proposals", () => {
-  it("only an open tender accepts proposals", async () => {
+  it("drafts and open tenders accept vendors; archived ones don't (P8 guided form)", async () => {
     const v = vendor("Meridian Scan Technologies");
     const draft = createProject(db, projectInputSchema.parse({ name: "Draft tender" }));
-    await expect(submitProposal(db, storage, draft.id, v.id)).rejects.toThrow(/isn't published/);
+    // The guided form adds vendors before the project is created (published).
+    expect((await submitProposal(db, storage, draft.id, v.id)).proposal.status).toBe("submitted");
+    updateProject(db, draft.id, { status: "archived" });
+    await expect(submitProposal(db, storage, draft.id, v.id)).rejects.toThrow(/archived/);
     const p = await openProject();
     const { proposal, replaced } = await submitProposal(db, storage, p.id, v.id);
     expect(replaced).toBe(false);

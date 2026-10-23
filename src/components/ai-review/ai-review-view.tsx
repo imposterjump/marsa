@@ -1,34 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   CircleCheck,
   CircleMinus,
   CircleX,
-  ClipboardCheck,
   Contrast,
-  Download,
   FileStack,
   FileCheck2,
   Gauge,
   HelpCircle,
   Repeat,
-  Star,
   Timer,
 } from "lucide-react";
 import { cn } from "cn";
 import { useProjectContext } from "@/components/projects/project-shell";
 import { RunIcon } from "@/components/evaluation/run-parts";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { reviewSummaryKey, useReviewSummary, useRunQuality } from "@/hooks/use-ai-review";
+import { reviewSummaryKey, useRunQuality } from "@/hooks/use-ai-review";
 import type { RunQualityDto } from "@/lib/api-types";
 import type { AiModel, RunStatus } from "@/lib/domain";
-import { formatDateTime } from "@/lib/format";
 import { AI_MODEL_LABEL, STEP_STATUS_LABEL } from "@/lib/labels";
 import { formatDuration } from "@/lib/plan";
 import { Meter, StackedBar, StatTile, severityOf } from "./charts";
@@ -48,130 +42,13 @@ const STATUS_TEXT: Record<RunStatus, string> = {
 
 const modelName = (m: string) => AI_MODEL_LABEL[m as AiModel] ?? m;
 
-/**
- * AI review (user request after P7): one dashboard per analysis run (files scanned and processed,
- * calls and retries, outcome, findings, evidence check, confidence score) plus a human review that
- * is stored for improving the system. Everything is computed from stored results; no AI calls.
- */
-export function AiReviewView() {
+/** One run's report and the human rating: the AI quality tab of the analysis results page (P8). */
+export function RunQuality({ runId }: { runId: string }) {
   const p = useProjectContext();
-  const { data: runs, isLoading } = useReviewSummary(p.id);
-  const [picked, setPicked] = useState<string | null>(null);
-
-  if (isLoading) return <Skeleton className="h-64 w-full rounded-xl" />;
-  if (!runs?.length) {
-    return (
-      <div className={cn(card, "border-dashed")}>
-        <EmptyState
-          size="lg"
-          art={<ClipboardCheck className="size-12 text-ink-faint" strokeWidth={1.25} />}
-          title="No analysis to review yet"
-          description="Each run of Analyse & process gets a report here: files scanned, AI calls, outcome, evidence check and a confidence score, and you can rate the AI's work."
-        />
-      </div>
-    );
-  }
-  const selected = runs.find((r) => r.run.id === picked) ?? runs[0];
-
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h2 className="font-heading text-lg font-semibold tracking-tight text-ink">AI review</h2>
-          <p className="max-w-2xl text-[13px] text-ink-muted">
-            How each analysis went, how far its output can be relied on, and your rating of it.
-          </p>
-        </div>
-        <Button asChild variant="secondary" size="sm">
-          <a href="/api/reviews/export" download>
-            <Download /> Export all reviews (JSON)
-          </a>
-        </Button>
-      </div>
-
-      <section aria-label="Analysis runs" className={cn(card, "overflow-x-auto")}>
-        <table className="w-full min-w-[640px] text-[13px]">
-          <thead>
-            <tr className="border-b border-border text-2xs tracking-[0.06em] text-ink-muted uppercase">
-              <th scope="col" className="px-4 py-2.5 text-start font-semibold">
-                Run
-              </th>
-              <th scope="col" className="px-4 py-2.5 text-start font-semibold">
-                Model
-              </th>
-              <th scope="col" className="px-4 py-2.5 text-start font-semibold">
-                Outcome
-              </th>
-              <th scope="col" className="px-4 py-2.5 text-end font-semibold">
-                Cost
-              </th>
-              <th scope="col" className="px-4 py-2.5 text-end font-semibold">
-                Confidence
-              </th>
-              <th scope="col" className="px-4 py-2.5 text-end font-semibold">
-                Your rating
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {runs.map((r) => {
-              const active = r.run.id === selected.run.id;
-              return (
-                <tr
-                  key={r.run.id}
-                  aria-selected={active}
-                  className={cn(
-                    "cursor-pointer border-b border-border/60 last:border-0 hover:bg-surface-muted/50",
-                    active && "bg-brand-soft/40 hover:bg-brand-soft/50",
-                  )}
-                  onClick={() => setPicked(r.run.id)}
-                >
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      className="text-start font-medium text-ink outline-none focus-visible:underline"
-                      onClick={() => setPicked(r.run.id)}
-                    >
-                      {formatDateTime(r.run.createdAt)}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-ink-2">
-                    {r.run.mode === "mock" ? "Demo AI" : modelName(r.run.model)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="flex items-center gap-1.5 text-ink-2">
-                      <RunIcon status={r.run.status} /> {STATUS_TEXT[r.run.status]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-end text-ink-2 tabular-nums">
-                    {r.run.mode === "mock" ? "Free" : `$${r.run.costUsd.toFixed(2)}`}
-                  </td>
-                  <td className="px-4 py-3 text-end font-medium text-ink tabular-nums">
-                    {r.confidence ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-end text-ink-2 tabular-nums">
-                    {r.rating ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Star className="size-3.5 fill-brand text-brand" aria-hidden />
-                        {r.rating} <span className="text-ink-muted">({r.reviews})</span>
-                      </span>
-                    ) : (
-                      "Not reviewed"
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </section>
-
-      <RunReport
-        key={selected.run.id}
-        runId={selected.run.id}
-        needsRefresh={selected.confidence === null}
-      />
-      <ReviewPanel key={`review-${selected.run.id}`} projectId={p.id} runId={selected.run.id} />
+      <RunReport runId={runId} needsRefresh />
+      <ReviewPanel projectId={p.id} runId={runId} />
     </div>
   );
 }

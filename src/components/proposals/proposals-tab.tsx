@@ -3,19 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import {
-  Eye,
-  FileStack,
-  Megaphone,
-  MoreHorizontal,
-  Send,
-  Trash2,
-  Users,
-  Wand2,
-} from "lucide-react";
+import { Eye, FileStack, Megaphone, MoreHorizontal, Trash2, UserPlus, Users, Wand2 } from "lucide-react";
 import { DataTable, type Column } from "@/components/data/data-table";
 import { useProjectContext } from "@/components/projects/project-shell";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { VendorsEditor } from "./vendors-editor";
 import { GenerateProposalsDialog } from "./generate-proposals-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -35,25 +35,29 @@ import { PROPOSAL_SOURCE_LABEL } from "@/lib/labels";
 
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
-/** PRD FR-5: one row per vendor (name, submission date, files) with a View action. */
+/**
+ * PRD FR-5: one row per vendor (name, date, files) with a View action. P8: the customer enters
+ * vendors here too ("Add vendor": same form as the guided project form), also after an analysis,
+ * then runs the analysis again with them.
+ */
 export function ProposalsTab() {
   const p = useProjectContext();
   const { data, isLoading, isError, refetch } = useProposals(p.id);
   const [removing, setRemoving] = useState<ProposalSummaryDto | null>(null);
   const remove = useDeleteProposal(p.id);
   const base = `/projects/${p.id}/proposals`;
-  const canSimulate = p.status === "open";
-  const canRemove = p.status === "open";
+  const canAdd = p.status === "open" || p.status === "evaluated" || p.status === "draft";
+  const canSimulate = canAdd;
+  const canRemove = canAdd;
 
   const [generating, setGenerating] = useState(false);
-  const simulate = canSimulate && (
+  const [adding, setAdding] = useState(false);
+  const simulate = canAdd && (
     <span className="flex flex-wrap gap-2">
-      <Button asChild variant="secondary">
-        <Link href={`/vendor-portal?project=${p.id}`}>
-          <Send /> Simulate a vendor submission
-        </Link>
+      <Button onClick={() => setAdding(true)}>
+        <UserPlus /> Add vendor
       </Button>
-      <Button variant="soft" onClick={() => setGenerating(true)}>
+      <Button variant="brand" onClick={() => setGenerating(true)}>
         <Wand2 /> Generate with AI
       </Button>
     </span>
@@ -61,7 +65,23 @@ export function ProposalsTab() {
   // Rendered once, outside both layouts below: the first generated proposal switches the tab from
   // the empty state to the table, which would otherwise remount the dialog and lose its progress.
   const generateDialog = canSimulate && (
-    <GenerateProposalsDialog project={p} open={generating} onOpenChange={setGenerating} />
+    <>
+      <GenerateProposalsDialog project={p} open={generating} onOpenChange={setGenerating} />
+      <Dialog open={adding} onOpenChange={setAdding}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Add vendor</DialogTitle>
+            <DialogDescription>
+              The vendor and its two proposals: the commercial (financial) and the technical one.
+              {p.status === "evaluated" && " Run the AI analysis again afterwards to include it."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            <VendorsEditor projectId={p.id} compact onSaved={() => setAdding(false)} />
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 
   if (!isLoading && !isError && data?.length === 0) {
@@ -79,26 +99,18 @@ export function ProposalsTab() {
                   <Megaphone className="size-12 text-ink-faint" strokeWidth={1.25} />
                 )
               }
-              title={
-                canSimulate
-                  ? "Waiting for proposals"
-                  : p.status === "draft"
-                    ? "Not published yet"
-                    : "No proposals"
-              }
+              title={canAdd ? "No vendors yet" : "No proposals"}
               description={
-                canSimulate
-                  ? `Vendors can download the RFP and submit a commercial and a technical proposal${
-                      p.deadline ? ` until ${formatDate(`${p.deadline}T00:00:00`)}` : ""
-                    }. Each submission is listed here with its date and documents.`
-                  : p.status === "draft"
-                    ? "Publish the tender to vendors from the header above. Their proposals will be listed here."
-                    : "This tender received no proposals."
+                canAdd
+                  ? `Add each vendor with its commercial and technical proposal${
+                      p.deadline ? ` (submission deadline ${formatDate(`${p.deadline}T00:00:00`)})` : ""
+                    }. Then run the AI analysis from the header.`
+                  : "This project has no proposals."
               }
               actions={simulate}
             />
           </div>
-          {canSimulate && <AnalysePanel project={p} proposals={[]} />}
+          {canAdd && <AnalysePanel project={p} proposals={[]} />}
         </div>
       </>
     );
@@ -229,8 +241,8 @@ export function ProposalsTab() {
               {data && <span className="text-ink-muted tabular-nums">({data.length})</span>}
             </h2>
             <p className="text-[13px] text-ink-muted">
-              Each vendor submits a commercial (financial) and a technical proposal. Open one to
-              read its documents.
+              Each vendor has a commercial (financial) and a technical proposal. Open one to read
+              its documents.
             </p>
           </div>
           {simulate}

@@ -94,7 +94,7 @@ const STEP_COLUMNS = {
   usage: analysisSteps.usage,
 };
 
-function proposalVendors(db: Db, proposalIds: string[]) {
+export function proposalVendors(db: Db, proposalIds: string[]) {
   if (!proposalIds.length) return new Map<string, typeof vendors.$inferSelect>();
   return new Map(
     db
@@ -180,7 +180,7 @@ export function getActiveRuns(db: Db): ActiveRunDto[] {
   });
 }
 
-function requirementDtos(db: Db, runId: string): RequirementDto[] {
+export function requirementDtos(db: Db, runId: string): RequirementDto[] {
   return db
     .select()
     .from(requirements)
@@ -201,7 +201,7 @@ function requirementDtos(db: Db, runId: string): RequirementDto[] {
     }));
 }
 
-function evaluationDtos(db: Db, run: RunRow, proposalIds?: string[]): EvaluationDto[] {
+export function evaluationDtos(db: Db, run: RunRow, proposalIds?: string[]): EvaluationDto[] {
   const rows = db
     .select()
     .from(evaluations)

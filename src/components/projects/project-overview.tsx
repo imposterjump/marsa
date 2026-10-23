@@ -152,8 +152,10 @@ function Details({ project: p }: { project: ProjectDetailDto }) {
               "—"
             ),
           },
-          { label: "Created", value: formatDateTime(p.createdAt) },
-          { label: "Published", value: p.publishedAt ? formatDateTime(p.publishedAt) : "Not yet" },
+          // "Create project" publishes; the draft before it is not the project's creation.
+          p.publishedAt
+            ? { label: "Created", value: formatDateTime(p.publishedAt) }
+            : { label: "Draft started", value: formatDateTime(p.createdAt) },
           { label: "Last activity", value: formatDateTime(p.updatedAt) },
         ]}
       />
@@ -221,25 +223,24 @@ function Standards({ project: p }: { project: ProjectDetailDto }) {
 
 function Timeline({ project: p }: { project: ProjectDetailDto }) {
   const steps = [
-    { label: "Draft created", done: true, detail: formatDateTime(p.createdAt) },
     {
-      label: "Published to vendors",
+      label: "Project created",
       done: !!p.publishedAt,
-      detail: p.publishedAt ? formatDateTime(p.publishedAt) : "Waiting for you to publish",
+      detail: p.publishedAt ? formatDateTime(p.publishedAt) : "Setup not finished",
     },
     {
-      label: "Proposals received",
+      label: "Vendors added",
       done: p.proposalCount > 0,
       detail: p.proposalCount
-        ? `${p.proposalCount} proposal${p.proposalCount === 1 ? "" : "s"}`
+        ? `${p.proposalCount} vendor${p.proposalCount === 1 ? "" : "s"}`
         : p.deadline
-          ? `Vendors respond until ${formatYmd(p.deadline)}`
-          : "No proposals yet",
+          ? `Submission deadline ${formatYmd(p.deadline)}`
+          : "Add them in the Proposals tab",
     },
     {
-      label: "Evaluation completed",
+      label: "AI analysis done",
       done: p.status === "evaluated",
-      detail: p.status === "evaluated" ? "Results ready" : "Runs once proposals are in",
+      detail: p.status === "evaluated" ? "Results ready" : "Run it once vendors are added",
     },
   ];
   const current = steps.findIndex((s) => !s.done);

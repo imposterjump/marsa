@@ -22,6 +22,7 @@ import {
   normalizeChecklist,
   normalizeRisks,
   requirementsFor,
+  ruleTitle,
   withStandardRules,
   type ChecklistOutput,
 } from "@/server/ai/schemas";
@@ -328,9 +329,13 @@ describe("output schemas (P6.2)", () => {
     expect(out.requirements[1]).toMatchObject({
       sourceType: "standard",
       sourceRef: "SEC-01",
-      title: "STD-1 SEC-01",
+      title: ruleTitle(ctx.standards[0].rules[0].text),
       section: "security",
     });
+    expect(ruleTitle("Seals shall log every opening. Logs are kept 5 years.")).toBe(
+      "Seals shall log every opening",
+    );
+    expect(ruleTitle("x ".repeat(80)).length).toBeLessThanOrEqual(90);
     // Without a section from the model, the rule text decides.
     expect(out.requirements[2].section).toBe(guessSection(ctx.standards[0].rules[1].text));
     expect(requirementsFor(out, "standards").map((r) => r.code)).toEqual(["SEC-01", "SEC-02"]);

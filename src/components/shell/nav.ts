@@ -19,6 +19,7 @@ export const NAV_ITEMS: NavItem[] = [
 export const PAGE_TITLES: { prefix: string; title: string }[] = [
   { prefix: "/projects/new", title: "New project" },
   { prefix: "/projects", title: "Projects" },
+  { prefix: "/analysis", title: "AI analysis" },
   { prefix: "/standards", title: "Standards" },
   { prefix: "/settings", title: "Settings" },
   { prefix: "/vendor-portal", title: "Vendor simulator" },
@@ -33,5 +34,7 @@ export function pageTitleFor(pathname: string): string {
 }
 
 export function isActive(pathname: string, href: string): boolean {
+  // The AI analysis results page belongs to a project (P8).
+  if (href === "/projects" && pathname.startsWith("/analysis/")) return true;
   return pathname === href || pathname.startsWith(`${href}/`);
 }

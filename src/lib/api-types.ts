@@ -19,6 +19,7 @@ import type {
   TokenUsage,
   ProjectCategory,
   ProjectStatus,
+  ProposalSection,
   ProposalSource,
   ProposalStatus,
   ReportLanguage,
@@ -467,4 +468,69 @@ export interface RunReviewDto {
   verdict: "trust" | "trust_with_edits" | "do_not_trust";
   comment: string;
   createdAt: string;
+}
+
+// ─── AI analysis results page (P8) ───────────────────────────────────────────
+/** A finding with its one-line summary (the details open with "View more"). */
+export interface FindingResultDto extends FindingDto {
+  headline: string;
+}
+
+export interface RequirementResultDto extends RequirementDto {
+  /** Proposal section it is answered in (null for runs from before P8). */
+  section: ProposalSection | null;
+  scope: "standard" | "rfp";
+}
+
+export interface RiskResultDto extends RiskDto {
+  section: ProposalSection | null;
+}
+
+export interface VendorScoresDto {
+  standardsPct: number | null;
+  rfpPct: number;
+  mandatoryNotMet: number;
+  riskScore: number;
+  riskLevel: RiskSeverity;
+  overall: number;
+  rank: number;
+}
+
+export interface VendorResultDto {
+  proposalId: string;
+  vendor: VendorDto;
+  analysed: boolean;
+  scores: VendorScoresDto | null;
+  standardsCounts: StatusCounts;
+  rfpCounts: StatusCounts;
+  riskCounts: Record<RiskSeverity, number>;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  commercial: CommercialSnapshot;
+  findings: FindingResultDto[];
+  risks: RiskResultDto[];
+  commercialDocuments: DocumentDto[];
+  technicalDocuments: DocumentDto[];
+}
+
+export interface AnalysisResultsDto {
+  run: RunDto;
+  project: { id: string; code: string; name: string };
+  weights: Weights;
+  partialCredit: number;
+  hasStandards: boolean;
+  standards: { id: string; code: string; title: string }[];
+  requirements: RequirementResultDto[];
+  /** Requirement id → where it comes from (RFP clause with page, standard rule). */
+  sources: Record<string, RequirementSourceDto[]>;
+  /** Analysed vendors by rank (1 = recommended), then the ones whose analysis failed. */
+  vendors: VendorResultDto[];
+  recommendation: {
+    proposalId: string | null;
+    summary: string;
+    conditions: string[];
+    negotiationPoints: string[];
+  } | null;
+  keyConstraints: { label: string; value: string }[];
 }

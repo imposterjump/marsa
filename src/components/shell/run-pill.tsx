@@ -47,7 +47,7 @@ export function RunPill() {
         const status = s?.run.status;
         const view = {
           label: "View results",
-          onClick: () => router.push(`/projects/${r.projectId}/evaluation`),
+          onClick: () => router.push(`/analysis/${r.projectId}`),
         };
         if (status === "completed") {
           toast.success(`Analysis complete · ${r.projectCode}`, { action: view, duration: 10_000 });
@@ -82,7 +82,7 @@ export function RunPill() {
           transition={{ duration: 0.25, ease: EASE_OUT_QUINT }}
         >
           <Link
-            href={`/projects/${run.projectId}/evaluation`}
+            href={`/analysis/${run.projectId}`}
             className="flex h-9 items-center gap-2 rounded-full border border-brand/30 bg-brand-soft ps-2 pe-3 text-[13px] font-medium text-brand-ink transition-colors hover:border-brand/50 focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
             title={run.currentLabel ?? undefined}
           >

@@ -12,7 +12,12 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pdfjs-dist", "mammoth", "exceljs", "playwright-core"],
   // PRD FR-1.1: the app opens on Projects. A config redirect (not a page-level redirect())
   // keeps Next 16 instant-navigation validation happy.
-  redirects: async () => [{ source: "/", destination: "/projects", permanent: false }],
+  // P8: evaluation and AI review moved to the AI analysis results page.
+  redirects: async () => [
+    { source: "/", destination: "/projects", permanent: false },
+    { source: "/projects/:id/evaluation", destination: "/analysis/:id", permanent: false },
+    { source: "/projects/:id/ai-review", destination: "/analysis/:id?tab=quality", permanent: false },
+  ],
   // Next 16 defaults. NOTE: with cacheComponents, GET route handlers and server components are
   // prerendered unless they hit request-time data. better-sqlite3 is synchronous, so every
   // request-time DB read must call `await connection()` first (see docs/HANDOFF.md).

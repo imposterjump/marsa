@@ -65,6 +65,8 @@ export function MissionControl({ data }: { data: RunStatusDto }) {
   const pct = run.totalSteps ? Math.round((run.doneSteps / run.totalSteps) * 100) : 0;
   const k = Math.min(run.totalSteps, run.doneSteps + (running.length ? 1 : 0)) || 1;
   const phases = phaseStates(steps);
+  // Only the phases this run has (no Standards without applied standards; old runs had Compare).
+  const railPhases = RUN_PHASES.filter((ph) => steps.some((s) => s.phase === ph));
 
   // Elapsed clock ticks locally between polls.
   const [now, setNow] = useState(() => Date.now());
@@ -172,8 +174,12 @@ export function MissionControl({ data }: { data: RunStatusDto }) {
           </div>
         </div>
 
-        <ol aria-label="Phases" className="grid grid-cols-5 gap-2">
-          {RUN_PHASES.map((phase) => {
+        <ol
+          aria-label="Phases"
+          className="grid gap-2"
+          style={{ gridTemplateColumns: `repeat(${railPhases.length}, minmax(0, 1fr))` }}
+        >
+          {railPhases.map((phase) => {
             const state = phases[phase];
             return (
               <li key={phase} className="flex flex-col gap-2">

@@ -191,7 +191,7 @@ function commercialOf(sentences: Sentence[]): AnalysisOutput["commercial"] {
   const all = sentences.map((s) => s.text).join(" ");
   const price =
     all.match(
-      /(?:grand total|total (?:contract |bid |offer )?price|total amount|total)[^.]{0,80}?((?:USD|AED|EUR|SAR|US\$|\$)\s?[\d,]+(?:\.\d+)?(?:\s?million)?)/i,
+      /(?:grand total|total (?:contract |bid |offer )?price|total amount|total)[^.]{0,80}?((?:USD|AED|EUR|SAR|US\$|\$)\s?\d(?:[\d,]*\d)?(?:\.\d+)?(?:\s?million)?)/i,
     )?.[1] ?? null;
   return {
     totalPrice: price,
