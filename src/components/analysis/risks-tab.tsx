@@ -11,7 +11,6 @@ import { RiskPill } from "@/components/ui/status-pill";
 import type { AnalysisResultsDto, RiskResultDto, VendorResultDto } from "@/lib/api-types";
 import type { ProposalSection, RiskSeverity } from "@/lib/domain";
 import {
-  MeterBar,
   type OpenEvidence,
   type Scope,
   RISK_FILL,
@@ -100,7 +99,8 @@ function VendorRiskCard({
   const none = shownSections(d).filter((x) => x !== null && !sections.includes(x));
   return (
     <section id={`risks-${v.proposalId}`} aria-label={v.vendor.name} className={cn(card, "scroll-mt-24")}>
-      <header className="grid grid-cols-1 items-center gap-x-6 gap-y-3 border-b border-border/70 px-5 py-5 md:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)_1.25rem]">
+      {/* The vendor's summary: a tinted band with one big number, unlike the section rows below. */}
+      <header className="flex flex-wrap items-center justify-between gap-x-10 gap-y-4 rounded-t-xl border-b border-border bg-surface-muted/70 px-5 py-5">
         <span className="flex min-w-0 flex-col gap-1">
           <VendorLabel v={v} color={color} size="md" />
           <span className="ps-[4.75rem] text-xs text-ink-muted">
@@ -114,20 +114,23 @@ function VendorRiskCard({
             )}
           </span>
         </span>
-        <span className="flex flex-col gap-2">
-          <span className="flex items-center gap-3">
-            <MeterBar value={s.riskScore} fill={RISK_FILL[s.riskLevel]} label={`${v.vendor.name} risk score`} className="flex-1" />
-            <span className="flex w-28 items-baseline justify-end gap-1">
-              <span className="kpi text-3xl text-ink">{s.riskScore}</span>
-              <span className="text-xs text-ink-muted">/100</span>
+        <span className="flex items-center gap-4">
+          <RiskPill severity={s.riskLevel} size="sm" />
+          <span className="flex flex-col items-end">
+            <span className="caption-caps text-ink-muted">Overall risk score</span>
+            <span className="flex items-baseline gap-1">
+              <span className="kpi text-4xl text-ink">{s.riskScore}</span>
+              <span className="text-sm text-ink-muted">/100</span>
             </span>
           </span>
-          <span>
-            <RiskPill severity={s.riskLevel} size="sm" />
-          </span>
         </span>
-        <span aria-hidden />
       </header>
+      {sections.length > 0 && (
+        <div className="flex items-center justify-between border-b border-border/70 px-5 py-2.5">
+          <span className="caption-caps text-ink-muted">By proposal section</span>
+          <span className="caption-caps text-ink-faint">Risks per section</span>
+        </div>
+      )}
       {sections.length === 0 ? (
         <p className="px-5 py-4 text-[13px] text-ink-muted">No risks raised for this vendor.</p>
       ) : (

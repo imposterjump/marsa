@@ -192,30 +192,34 @@ function VendorCard({
       aria-label={v.vendor.name}
       className={cn(card, "scroll-mt-24")}
     >
-      <header className="grid grid-cols-1 items-center gap-x-6 gap-y-3 border-b border-border/70 px-5 py-5 md:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)_1.25rem]">
+      {/* The vendor's summary is a tinted band with one big number and no bar, so it never reads
+          like one more section row (user, 2026-10-23: "no contrast between the general score and
+          each section score"). */}
+      <header className="flex flex-wrap items-center justify-between gap-x-10 gap-y-4 rounded-t-xl border-b border-border bg-surface-muted/70 px-5 py-5">
         <span className="flex min-w-0 flex-col gap-1">
           <VendorLabel v={v} color={color} size="md" />
           <span className="ps-[4.75rem] text-xs text-ink-muted">
-            {short ? `${short} point${short === 1 ? "" : "s"} short` : "Everything met"}
+            {st.total} {scope === "rfp" ? "RFP requirements" : "standard rules"} ·{" "}
+            {short ? `${short} short` : "everything met"}
             {st.mandatoryNotMet > 0 && (
               <span className="text-fail"> · {st.mandatoryNotMet} mandatory not met</span>
             )}
           </span>
         </span>
-        <span className="flex flex-col gap-2">
-          <span className="flex items-center gap-3">
-            <MeterBar
-              value={st.total ? st.pct : null}
-              fill={COMPLIANCE_FILL}
-              label={`${v.vendor.name} compliance`}
-              className="flex-1"
-            />
-            <span className="w-20 text-end text-3xl kpi text-ink">{pctText(st.pct)}</span>
+        <span className="flex flex-wrap items-center gap-x-8 gap-y-3">
+          <CountsLegend counts={st.counts} label={`${v.vendor.name}: all points`} className="max-w-xs" />
+          <span className="flex flex-col items-end">
+            <span className="caption-caps text-ink-muted">
+              Overall {scope === "rfp" ? "RFP" : "standards"} compliance
+            </span>
+            <span className="kpi text-4xl text-ink">{pctText(st.pct)}</span>
           </span>
-          <CountsLegend counts={st.counts} label={`${v.vendor.name}: all points`} />
         </span>
-        <span aria-hidden />
       </header>
+      <div className="flex items-center justify-between border-b border-border/70 px-5 py-2.5">
+        <span className="caption-caps text-ink-muted">By proposal section</span>
+        <span className="caption-caps text-ink-faint">Score per section</span>
+      </div>
       <ul
         aria-label={`${v.vendor.name} by section`}
         className="flex flex-col divide-y divide-border/70"
