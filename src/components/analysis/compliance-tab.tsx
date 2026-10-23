@@ -6,9 +6,10 @@ import { ChevronDown, FileText, ShieldCheck } from "lucide-react";
 import { cn } from "cn";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { FindingCard } from "@/components/results/finding-card";
-import { GapBar } from "@/components/results/gap-bar";
+import { STATUS_FILL } from "@/components/results/gap-bar";
 import type { AnalysisResultsDto, FindingResultDto, VendorResultDto } from "@/lib/api-types";
 import type { FindingStatus, ProposalSection } from "@/lib/domain";
+import { FINDING_STATUS_LABEL } from "@/lib/labels";
 import {
   COMPLIANCE_FILL,
   CountsLegend,
@@ -25,6 +26,8 @@ import {
 } from "./shared";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
+/** The status pills in a vendor's dropdown, worst first. */
+const STATUS_PILLS: FindingStatus[] = ["non_compliant", "partial", "not_addressed", "compliant"];
 const SHORT_FIRST: Record<FindingStatus, number> = {
   non_compliant: 0,
   not_addressed: 1,
@@ -74,7 +77,6 @@ export function ComplianceTab({
   focus?: ComplianceFocus | null;
 }) {
   const reduce = useReducedMotion();
-  const [shortOnly, setShortOnly] = useState(false);
   const vendors = d.vendors.filter((v) => v.scores);
   const inScope = d.requirements.filter((r) => r.scope === scope);
   const withData = SECTION_ORDER.filter((s) => inScope.some((r) => r.section === s));
@@ -100,26 +102,6 @@ export function ComplianceTab({
           {scope === "standard" && d.standards.length > 0 && ` from ${d.standards.map((s) => s.code).join(", ")}`}, by
           proposal section
         </p>
-        <div role="radiogroup" aria-label="Points shown" className="flex rounded-full border border-border bg-surface p-1 text-[13px]">
-          {[
-            [false, "All points"],
-            [true, "Shortfalls only"],
-          ].map(([v, label]) => (
-            <button
-              key={String(v)}
-              type="button"
-              role="radio"
-              aria-checked={shortOnly === v}
-              onClick={() => setShortOnly(v as boolean)}
-              className={cn(
-                "rounded-full px-3 py-1 font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                shortOnly === v ? "bg-ink text-surface" : "text-ink-muted hover:text-ink",
-              )}
-            >
-              {label as string}
-            </button>
-          ))}
-        </div>
       </div>
 
       {withData.length > 1 && (
@@ -144,7 +126,6 @@ export function ComplianceTab({
           section={s}
           vendors={vendors}
           colors={colors}
-          shortOnly={shortOnly}
           onEvidence={onEvidence}
           pulse={focus?.section === s && focus.scope === scope}
         />
@@ -173,7 +154,6 @@ function SectionCard({
   section,
   vendors,
   colors,
-  shortOnly,
   onEvidence,
   pulse,
 }: {
@@ -182,7 +162,6 @@ function SectionCard({
   section: ProposalSection | null;
   vendors: VendorResultDto[];
   colors: Map<string, string>;
-  shortOnly: boolean;
   onEvidence: OpenEvidence;
   pulse?: boolean;
 }) {
@@ -209,8 +188,7 @@ function SectionCard({
             scope={scope}
             section={section}
             color={colors.get(v.proposalId)}
-            shortOnly={shortOnly}
-            onEvidence={onEvidence}
+              onEvidence={onEvidence}
           />
         ))}
       </ul>
@@ -224,7 +202,6 @@ function VendorRow({
   scope,
   section,
   color,
-  shortOnly,
   onEvidence,
 }: {
   d: AnalysisResultsDto;
@@ -232,7 +209,6 @@ function VendorRow({
   scope: Scope;
   section: ProposalSection | null;
   color?: string;
-  shortOnly: boolean;
   onEvidence: OpenEvidence;
 }) {
   const reduce = useReducedMotion();
@@ -245,8 +221,13 @@ function VendorRow({
       const r = reqs.get(f.requirementId);
       return r?.section === section && r.scope === scope;
     })
-    .filter((f) => !shortOnly || f.status !== "compliant")
     .sort((a, b) => SHORT_FIRST[a.status] - SHORT_FIRST[b.status]);
+  // One status at a time (user, 2026-10-23: "3 pills to choose which one to display so if there
+  // is 77 rules i dont have to scroll"). Opens on the worst status that has points.
+  const [picked, setPicked] = useState<FindingStatus | null>(null);
+  const byStatus = (s: FindingStatus) => points.filter((f) => f.status === s);
+  const active = picked ?? STATUS_PILLS.find((s) => byStatus(s).length > 0) ?? "compliant";
+  const shown = byStatus(active);
 
   return (
     <li>
@@ -290,12 +271,44 @@ function VendorRow({
             className="overflow-hidden"
           >
             <div className="flex flex-col gap-3 bg-surface-muted/40 px-5 pt-1 pb-5">
-              <GapBar counts={st.counts} className="max-w-md" />
-              {points.length === 0 ? (
-                <p className="text-[13px] text-ink-muted">Nothing short in this section.</p>
+              <div role="radiogroup" aria-label={`${v.vendor.name}: show points`} className="flex flex-wrap gap-2">
+                {STATUS_PILLS.map((s) => {
+                  const n = byStatus(s).length;
+                  const on = s === active;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      disabled={n === 0}
+                      onClick={() => setPicked(s)}
+                      className={cn(
+                        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-45",
+                        on
+                          ? "border-ink bg-ink text-surface"
+                          : "border-border bg-surface text-ink-2 enabled:hover:border-border-strong",
+                      )}
+                    >
+                      <span aria-hidden className={cn("size-2 rounded-full", STATUS_FILL[s])} />
+                      {FINDING_STATUS_LABEL[s]}
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 tabular-nums",
+                          on ? "bg-surface/20 text-surface" : "bg-surface-muted text-ink-muted",
+                        )}
+                      >
+                        {n}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {shown.length === 0 ? (
+                <p className="text-[13px] text-ink-muted">No points in this section.</p>
               ) : (
                 <ol className="flex flex-col gap-3">
-                  {points.map((f) => (
+                  {shown.map((f) => (
                     <PointCard key={f.id} d={d} v={v} f={f} onEvidence={onEvidence} />
                   ))}
                 </ol>

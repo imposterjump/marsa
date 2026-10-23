@@ -385,3 +385,4 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
   - `?tab=rfp|standards`; the old `?tab=compliance` opens RFP.
   - With no standards applied there is no Standards tab.
   - `ComplianceTab` takes a fixed `scope`; a risk's "see its points" opens the tab of its requirement.
+- **Status pills (same day):** each vendor dropdown in the RFP and Standards tabs groups its points by status. The pills, worst first, are Non-compliant · Partially compliant · Not addressed · Compliant, each with a count. One group shows at a time, the dropdown opens on the worst group that has points, and empty groups are disabled. They replace the tab-level "All points / Shortfalls only" switch (user: "if there is 77 rules i dont have to scroll").

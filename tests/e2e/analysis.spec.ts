@@ -82,6 +82,10 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
       hasText: "Meridian Scan Technologies",
     });
     for (let i = 0; i < (await meridian.count()); i++) await meridian.nth(i).click();
+    // Each dropdown groups the points by status: one pill per status, one group shown at a time
+    const pills = page.getByRole("radiogroup", { name: "Meridian Scan Technologies: show points" }).first();
+    await expect(pills.getByRole("radio")).toHaveCount(4);
+    await expect(pills.getByRole("radio", { checked: true })).toHaveCount(1);
     // An RFP clause opens the reader on the RFP
     await page
       .getByRole("button", { name: /01-RFP-NGPA-T-2026-014\.pdf/ })
