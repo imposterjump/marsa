@@ -381,3 +381,7 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
     - Still computed from the saved analysis, no AI call: the user had noticed it was instant.
   - **Mission control:** every vendor box has a second line ("No mandatory fails" or the fail count) and `min-h-24`, so the boxes match.
   - **Checks:** 178 unit ✔, analysis E2E ✔. Screens checked on the real Haiku data in a mock-mode viewer (port 3400, `data/haiku-check`). The :3000 app was rebuilt (`.next-design`) after checking that no run was active.
+- **Third round (same day):** the user didn't want two views inside Compliance: "remove the compliances tab and replace them with rfp and standards each one has its own tab". The tabs are now **Overview · RFP · Standards · Risks · Comparison · AI quality**.
+  - `?tab=rfp|standards`; the old `?tab=compliance` opens RFP.
+  - With no standards applied there is no Standards tab.
+  - `ComplianceTab` takes a fixed `scope`; a risk's "see its points" opens the tab of its requirement.

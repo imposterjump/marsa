@@ -348,7 +348,7 @@ function RiskCard({ r, v, links }: { r: RiskResultDto; v: VendorResultDto; links
               onClick={() => onSection(r.section, reqs[0]?.scope)}
               className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink-2 transition-colors outline-none hover:border-brand/50 hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
             >
-              {sectionLabel(r.section)}: see its points in Compliance
+              {sectionLabel(r.section)}: see its points
               <ArrowUpRight className="size-3 text-ink-faint" aria-hidden />
             </button>
           </dd>

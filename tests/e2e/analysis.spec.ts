@@ -71,12 +71,11 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
       "compliant",
     );
 
-    // Compliance: an RFP view and a Standards view, each with its own section cards (sections
-    // without points listed once at the end); one row per vendor, points behind the dropdown
-    await page.getByRole("tab", { name: "Compliance" }).click();
-    await expect(page).toHaveURL(/tab=compliance/);
-    const views = page.getByRole("radiogroup", { name: "Checked against" });
-    await expect(views.getByRole("radio", { name: /RFP/ })).toHaveAttribute("aria-checked", "true");
+    // RFP and Standards tabs, each with its own section cards (sections without points listed
+    // once at the end); one row per vendor, points behind the dropdown
+    await expect(page.getByRole("tab", { name: "Compliance" })).toHaveCount(0);
+    await page.getByRole("tab", { name: "RFP" }).click();
+    await expect(page).toHaveURL(/tab=rfp/);
     const sections = page.locator("section[id^=sec-]");
     await expect(sections.first()).toBeVisible();
     const meridian = page.locator("section[id^=sec-] li > button", {
@@ -94,8 +93,9 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     });
     await page.keyboard.press("Escape");
     await expect(page).not.toHaveURL(/reader=/);
-    // The Standards view: a standard rule links to the rule in its standard
-    await views.getByRole("radio", { name: /Standards/ }).click();
+    // The Standards tab: a standard rule links to the rule in its standard
+    await page.getByRole("tab", { name: "Standards" }).click();
+    await expect(page).toHaveURL(/tab=standards/);
     for (let i = 0; i < (await meridian.count()); i++) await meridian.nth(i).click();
     const rule = page.getByRole("link", { name: /CITS-2026 SEC-\d+/ }).first();
     const ruleCode = ((await rule.textContent()) ?? "").match(/SEC-\d+/)![0];
@@ -111,7 +111,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     };
     const annexB = detail.rfpDocuments.find((d) => d.originalName.endsWith(".xlsx"))!;
     await page.goto(
-      `/analysis/${xray.id}?tab=compliance&reader=${annexB.id}&q=${encodeURIComponent(
+      `/analysis/${xray.id}?tab=rfp&reader=${annexB.id}&q=${encodeURIComponent(
         "TB-24 Software Hosting of all components (incl. licensing, telemetry, updates)",
       )}`,
     );
@@ -142,8 +142,8 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     const riskRow = page.locator("section[id^=risk-] li > button[aria-expanded]").first();
     await riskRow.click();
     await page.getByRole("button", { name: "View more" }).first().click();
-    await page.getByRole("button", { name: /see its points in Compliance/ }).first().click();
-    await expect(page).toHaveURL(/tab=compliance/);
+    await page.getByRole("button", { name: /see its points/ }).first().click();
+    await expect(page).toHaveURL(/tab=(rfp|standards)/);
     await page.getByRole("tab", { name: "Risks" }).click();
 
     // Comparison (pricing-page table): one column per picked vendor, one row per aspect

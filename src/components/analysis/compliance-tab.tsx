@@ -54,73 +54,52 @@ export interface ComplianceFocus {
 }
 
 /**
- * Compliance (user's design, refined 2026-10-23): the RFP and the standards are two views, each
- * with its own section cards, so a section never shows an empty half. Sections with points come
- * first in template order; sections the view has nothing about are listed once at the end. In a
- * card every vendor has its % for that section and a dropdown of its points, shortfalls first.
+ * The RFP tab and the Standards tab (user's design, 2026-10-23): the same section cards, one tab
+ * per kind of point, so a section never shows an empty half. Sections with points come first in
+ * template order; the sections this tab has nothing about are listed once at the end. In a card
+ * every vendor has its % for that section and a dropdown of its points, shortfalls first.
  */
 export function ComplianceTab({
+  scope,
   d,
   colors,
   onEvidence,
   focus,
 }: {
+  scope: Scope;
   d: AnalysisResultsDto;
   colors: Map<string, string>;
   onEvidence: OpenEvidence;
-  /** A section to bring into view (from a risk's "see its points in Compliance"). */
+  /** A section to bring into view (from a risk's "see its points"). */
   focus?: ComplianceFocus | null;
 }) {
   const reduce = useReducedMotion();
-  const [scope, setScope] = useState<Scope>(focus?.scope ?? "rfp");
   const [shortOnly, setShortOnly] = useState(false);
   const vendors = d.vendors.filter((v) => v.scores);
   const inScope = d.requirements.filter((r) => r.scope === scope);
   const withData = SECTION_ORDER.filter((s) => inScope.some((r) => r.section === s));
   const empty = SECTION_ORDER.filter((s) => s !== null && !withData.includes(s));
-  const scopes: Scope[] = d.hasStandards ? ["rfp", "standard"] : ["rfp"];
+  const Icon = SCOPE_TEXT[scope].icon;
+  const [one, many] = SCOPE_TEXT[scope].unit;
 
   useEffect(() => {
-    if (!focus) return;
+    if (!focus || focus.scope !== scope) return;
     const el = document.getElementById(`sec-${focus.section ?? "none"}`);
     const raf = requestAnimationFrame(() =>
       el?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }),
     );
     return () => cancelAnimationFrame(raf);
-  }, [focus, reduce]);
+  }, [focus, reduce, scope]);
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {scopes.length > 1 ? (
-          <div role="radiogroup" aria-label="Checked against" className="flex rounded-xl border border-border bg-surface p-1">
-            {scopes.map((s) => {
-              const n = d.requirements.filter((r) => r.scope === s).length;
-              const Icon = SCOPE_TEXT[s].icon;
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  role="radio"
-                  aria-checked={scope === s}
-                  onClick={() => setScope(s)}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-                    scope === s ? "bg-ink text-surface" : "text-ink-muted hover:text-ink",
-                  )}
-                >
-                  <Icon className="size-4" aria-hidden />
-                  {SCOPE_TEXT[s].tab}
-                  <span className={cn("text-xs tabular-nums", scope === s ? "text-surface/70" : "text-ink-faint")}>
-                    {n} {n === 1 ? SCOPE_TEXT[s].unit[0] : SCOPE_TEXT[s].unit[1]}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <span />
-        )}
+        <p className="flex items-center gap-2 text-[13px] text-ink-muted">
+          <Icon className="size-4" aria-hidden />
+          {inScope.length} {inScope.length === 1 ? one : many}
+          {scope === "standard" && d.standards.length > 0 && ` from ${d.standards.map((s) => s.code).join(", ")}`}, by
+          proposal section
+        </p>
         <div role="radiogroup" aria-label="Points shown" className="flex rounded-full border border-border bg-surface p-1 text-[13px]">
           {[
             [false, "All points"],

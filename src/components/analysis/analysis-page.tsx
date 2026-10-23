@@ -10,13 +10,14 @@ import {
   ChevronDown,
   CircleAlert,
   ClipboardCheck,
+  FileText,
   Columns3,
   History,
   LayoutDashboard,
-  ListChecks,
   Lock,
   Play,
   ShieldAlert,
+  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import { cn } from "cn";
@@ -60,9 +61,12 @@ import { type OpenEvidence, type Scope, vendorColors } from "./shared";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
 
+// RFP and Standards are separate tabs (user, 2026-10-23: "remove the compliances tab and replace
+// them with rfp and standards each one has its own tab").
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "compliance", label: "Compliance", icon: ListChecks },
+  { id: "rfp", label: "RFP", icon: FileText },
+  { id: "standards", label: "Standards", icon: ShieldCheck },
   { id: "risks", label: "Risks", icon: ShieldAlert },
   { id: "comparison", label: "Comparison", icon: Columns3 },
   { id: "quality", label: "AI quality", icon: ClipboardCheck },
@@ -354,11 +358,13 @@ function Results({ d }: { d: AnalysisResultsDto }) {
   const colors = useMemo(() => vendorColors(d.vendors), [d.vendors]);
   const { data: status } = useRunStatus(d.run.id);
 
-  // A risk's "see its points in Compliance": switch tab, then scroll to and pulse that section.
+  // A risk's "see its points": switch to the RFP or Standards tab, scroll to and pulse the section.
   const [focus, setFocus] = useState<ComplianceFocus | null>(null);
 
-  const tabParam = params.get("tab");
-  const tab: TabId = TABS.some((t) => t.id === tabParam) ? (tabParam as TabId) : "overview";
+  // Old links said ?tab=compliance: that is the RFP tab now. No standards applied: no Standards tab.
+  const tabs = TABS.filter((t) => t.id !== "standards" || d.hasStandards);
+  const tabParam = params.get("tab") === "compliance" ? "rfp" : params.get("tab");
+  const tab: TabId = tabs.some((t) => t.id === tabParam) ? (tabParam as TabId) : "overview";
   const setQuery = (next: Record<string, string | null>) => {
     const q = new URLSearchParams(params);
     for (const [k, v] of Object.entries(next)) {
@@ -388,8 +394,9 @@ function Results({ d }: { d: AnalysisResultsDto }) {
   const readerOpen = !!readerId && groups.some((g) => g.docs.some((x) => x.id === readerId));
   const onSection = (section: ProposalSection | null, scope?: Scope) => {
     const has = (s: Scope) => d.requirements.some((r) => r.section === section && r.scope === s);
-    setFocus({ section, scope: scope ?? (has("rfp") || !has("standard") ? "rfp" : "standard"), at: Date.now() });
-    setQuery({ tab: "compliance" });
+    const view: Scope = scope ?? (has("rfp") || !has("standard") ? "rfp" : "standard");
+    setFocus({ section, scope: view, at: Date.now() });
+    setQuery({ tab: view === "standard" && d.hasStandards ? "standards" : "rfp" });
   };
   const onEvidence: OpenEvidence = (docId, page, quote, vendorId) =>
     setQuery({
@@ -403,7 +410,7 @@ function Results({ d }: { d: AnalysisResultsDto }) {
     <>
       <Tabs value={tab} onValueChange={(v) => setQuery({ tab: v === "overview" ? null : v })} className="gap-6">
         <TabsList variant="line" className="w-full justify-start overflow-x-auto border-b border-border">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <TabsTrigger key={t.id} value={t.id}>
               <t.icon aria-hidden /> {t.label}
             </TabsTrigger>
@@ -412,9 +419,21 @@ function Results({ d }: { d: AnalysisResultsDto }) {
         <TabsContent value="overview">
           <OverviewTab d={d} colors={colors} />
         </TabsContent>
-        <TabsContent value="compliance">
-          <ComplianceTab key={focus?.at ?? 0} d={d} colors={colors} onEvidence={onEvidence} focus={focus} />
+        <TabsContent value="rfp">
+          <ComplianceTab key={focus?.at ?? 0} scope="rfp" d={d} colors={colors} onEvidence={onEvidence} focus={focus} />
         </TabsContent>
+        {d.hasStandards && (
+          <TabsContent value="standards">
+            <ComplianceTab
+              key={focus?.at ?? 0}
+              scope="standard"
+              d={d}
+              colors={colors}
+              onEvidence={onEvidence}
+              focus={focus}
+            />
+          </TabsContent>
+        )}
         <TabsContent value="risks">
           <RisksTab d={d} colors={colors} onEvidence={onEvidence} onSection={onSection} />
         </TabsContent>
