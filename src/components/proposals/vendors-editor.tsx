@@ -43,10 +43,13 @@ const EMPTY: VendorInput = { name: "", country: "", contactName: "", contactEmai
  */
 export function VendorsEditor({
   projectId,
+  ensureProject,
   onSaved,
   compact = false,
 }: {
-  projectId: string;
+  /** null: the guided form has no draft yet; `ensureProject` creates it when a vendor is saved. */
+  projectId: string | null;
+  ensureProject?: () => Promise<string>;
   onSaved?: (p: { vendorName: string }) => void;
   /** Dialog use: only the form, no list of saved vendors. */
   compact?: boolean;
@@ -57,7 +60,7 @@ export function VendorsEditor({
 
   return (
     <div className="flex flex-col gap-4">
-      {!compact && list.length > 0 && (
+      {!compact && projectId && list.length > 0 && (
         <ul aria-label="Vendors added" className="flex flex-col gap-2">
           {list.map((p) => (
             <SavedVendor key={p.id} p={p} projectId={projectId} />
@@ -75,6 +78,7 @@ export function VendorsEditor({
           >
             <VendorForm
               projectId={projectId}
+              ensureProject={ensureProject}
               taken={list.map((p) => p.vendorId)}
               onSaved={(name) => {
                 onSaved?.({ vendorName: name });
@@ -143,11 +147,13 @@ function SavedVendor({ p, projectId }: { p: ProposalSummaryDto; projectId: strin
 
 function VendorForm({
   projectId,
+  ensureProject,
   taken,
   onSaved,
   onCancel,
 }: {
-  projectId: string;
+  projectId: string | null;
+  ensureProject?: () => Promise<string>;
   taken: string[];
   onSaved: (vendorName: string) => void;
   onCancel?: () => void;
@@ -199,6 +205,9 @@ function VendorForm({
     if (errors.vendor || errors.files) return;
     setBusy(true);
     try {
+      // The guided form may have no draft yet: create it now (it needs the project name first).
+      const target = projectId ?? (await ensureProject?.()) ?? null;
+      if (!target) throw new Error("Save the project first.");
       let v: VendorDto | undefined = mode === "new" ? match : chosen;
       if (mode === "new" && !v) {
         try {
@@ -213,6 +222,7 @@ function VendorForm({
       }
       if (!v) return;
       const res = await submit.mutateAsync({
+        projectId: target,
         vendorId: v.id,
         files: [
           ...commercial.map((i) => ({ file: i.file, kind: "commercial" as const })),

@@ -41,13 +41,15 @@ export function useCreateVendor() {
   });
 }
 
-export function useProposals(projectId: string) {
+/** `null`: no project yet (the guided form before its draft exists), nothing to load. */
+export function useProposals(projectId: string | null) {
   return useHydrationSafe(useProposalsQuery(projectId));
 }
-function useProposalsQuery(projectId: string) {
+function useProposalsQuery(projectId: string | null) {
   return useQuery({
-    queryKey: proposalsKey(projectId),
+    queryKey: proposalsKey(projectId ?? "none"),
     queryFn: () => api<ProposalSummaryDto[]>(`/api/projects/${projectId}/proposals`),
+    enabled: !!projectId,
   });
 }
 
@@ -82,20 +84,24 @@ export interface SubmissionFile {
  * Vendor-side submission (simulator): open/reset the proposal, then upload each file with its
  * own progress (one file per request, G-39). Resolves with the proposal and upload errors.
  */
-export function useSubmitProposal(projectId: string) {
+export function useSubmitProposal(projectId: string | null) {
   const invalidate = useInvalidateProposals();
   return useMutation({
     mutationFn: async ({
       vendorId,
       files,
       onFileProgress,
+      projectId: target = projectId,
     }: {
       vendorId: string;
       files: SubmissionFile[];
       onFileProgress?: (index: number, pct: number) => void;
+      /** A project created at save time (guided form: the draft may not exist before). */
+      projectId?: string | null;
     }) => {
+      if (!target) throw new Error("Save the project first.");
       const proposal = await api<ProposalDto & { replaced: boolean }>(
-        `/api/projects/${projectId}/proposals`,
+        `/api/projects/${target}/proposals`,
         { method: "POST", body: JSON.stringify({ vendorId }) },
       );
       const uploaded: DocumentDto[] = [];
@@ -119,7 +125,10 @@ export function useSubmitProposal(projectId: string) {
       }
       return { proposal, uploaded, failed };
     },
-    onSettled: () => invalidate(projectId),
+    onSettled: (_d, _e, vars) => {
+      const target = vars.projectId ?? projectId;
+      if (target) void invalidate(target);
+    },
   });
 }
 

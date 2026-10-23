@@ -59,9 +59,28 @@ test.describe("projects (P3.3–P3.6, P8 guided form)", () => {
     await page.getByRole("link", { name: "New project" }).first().click();
     await expect(page).toHaveURL(/\/projects\/new/);
 
-    // Step 1 · Project — Continue waits for an RFP; the first upload saves the draft
-    await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
+    // Every step opens before anything is filled in (to show the steps); nothing is saved
+    await page.getByRole("button", { name: "Continue" }).click();
+    await expect(page).toHaveURL(/\/projects\/new\?step=2$/);
+    await page.getByRole("button", { name: /Vendors/ }).click(); // the stepper itself
+    await expect(page).toHaveURL(/step=3$/);
+    await expect(page.getByRole("region", { name: "Add a vendor" })).toBeVisible();
+    // Create checks what is required and sends us back to the exact field
+    await page.getByRole("button", { name: /create project/i }).click();
+    await expect(page).toHaveURL(/step=1$/);
+    await expect(page.getByText(/at least 3 characters/)).toBeVisible();
+    await expect(page.getByLabel("Project name")).toBeFocused();
+    expect((await (await page.request.get("/api/projects")).json()) as unknown[]).toHaveLength(0);
+
+    // Step 1 · Project — a name alone is not enough: Create then asks for the RFP
     await page.getByLabel("Project name").fill(NAME);
+    await page.getByRole("button", { name: /Vendors/ }).click();
+    await page.getByRole("button", { name: /create project/i }).click();
+    await expect(page).toHaveURL(/step=1$/);
+    await expect(page.getByText("Add at least one RFP document.").last()).toBeVisible();
+    await expect(page.getByLabel("Project name")).toHaveValue(NAME); // kept across the steps
+
+    // The first RFP upload saves the draft
     await page
       .getByLabel("Description")
       .fill("Four drive-through cargo scanners. Tender NGPA/T/2026/014.");

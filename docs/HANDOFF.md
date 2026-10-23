@@ -389,3 +389,9 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 - **Vendor first (same day):** in RFP, Standards and Risks, cards are now **per vendor** (ranking order). The card heads show the vendor's result for the tab: compliance %, or risk score and level. Underneath is one row per proposal section: score, counts and a dropdown with the status pills or the risk cards. Vendor chips at the top jump to a card.
   - A risk's "see its points" opens that vendor's section row in the RFP or Standards tab, already expanded.
   - The previous section-first layout is tagged **`before-vendor-first-layout`** (`33d7755`) in case the user wants it back.
+- **Open stepper (same day):** every step of the guided form can be opened at any time, even empty (user: to show the steps without creating anything).
+  - **State:** the wizard keeps the step-1 fields, plus the standards chosen before a draft exists (`pendingStandards`), across steps.
+  - **Draft:** saved only when something must be stored. `ensureDraft(stayOn)` runs on the first RFP drop, a saved vendor (`VendorsEditor` `ensureProject`), or Create. It needs a valid name, else it rejects with "Add the project name in step 1 first".
+  - **Create:** checks the fields and then at least one RFP. If one is missing it goes to step 1, shows the errors and focuses the first `aria-invalid` field, or scrolls to and pulses the RFP drop zone. It then PATCHes the fields, applies the pending standards (after the category) and publishes.
+  - **Hooks:** `useProposals(null)` loads nothing; `useSubmitProposal` takes a `projectId` per call.
+  - **Checks:** E2E covers the empty walk-through, the Create redirects, and that no project is created along the way.

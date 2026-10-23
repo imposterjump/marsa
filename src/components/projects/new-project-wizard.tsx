@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
@@ -22,15 +22,15 @@ import {
   projectKey,
   projectsKey,
   useProject,
-  useSetProjectStandards,
   useUpdateProject,
   type ProjectInput,
 } from "@/hooks/use-projects";
-import { useProposals } from "@/hooks/use-proposals";
+import { proposalsKey, useProposals } from "@/hooks/use-proposals";
 import { useSettings } from "@/hooks/use-settings";
-import { ApiClientError } from "@/lib/api-client";
+import { useStandards } from "@/hooks/use-standards";
+import { api } from "@/lib/api-client";
 import type { DocumentDto, ProjectDetailDto } from "@/lib/api-types";
-import { standardFitsProject } from "@/lib/domain";
+import { standardFitsProject, type ProjectCategory } from "@/lib/domain";
 import { uploadFile } from "@/lib/upload";
 import {
   CategoryChangeNote,
@@ -48,19 +48,56 @@ const STEPS = [
   { n: 3, title: "Vendors", hint: "Proposals to evaluate", optional: true },
 ] as const;
 
+/** What step 1 must show and focus when Create finds something missing. */
+type Missing = { field: "fields" | "rfp"; at: number };
+
+const fromProject = (p: ProjectDetailDto): ProjectInput => ({
+  name: p.name,
+  description: p.description,
+  category: p.category,
+  deadline: p.deadline,
+  notes: p.notes,
+});
+const trimmed = (v: ProjectInput) => ({
+  ...v,
+  name: v.name.trim(),
+  description: v.description.trim(),
+  notes: v.notes.trim(),
+});
+
 /**
  * P8 guided form (user request): Project (title, category, at least one RFP file) → Standards
  * (only those that fit the category; create one from a rules file on the spot; skippable) →
  * Vendors (one or more, each with its commercial and technical proposal; skippable, can be added
- * later) → Create, which publishes the project and opens it. A draft is saved as soon as the
- * first RFP file is dropped; the URL (?id=&step=) resumes it after a refresh.
+ * later) → Create, which publishes the project and opens it.
+ *
+ * Every step can be opened at any time, even before anything is filled in (user, 2026-10-23: to
+ * show the steps without creating anything). The form keeps its values across steps; a draft is
+ * saved only when something must be stored: the first RFP file, a vendor, or Create. Create checks
+ * the required items and, if one is missing, goes back to step 1 and focuses exactly that field.
+ * The URL (?id=&step=) resumes a saved draft after a refresh.
  */
 export function NewProjectWizard() {
   const params = useSearchParams();
   const router = useRouter();
+  const qc = useQueryClient();
   const draftId = params.get("id");
   const step = Math.min(3, Math.max(1, Number(params.get("step")) || 1)) as 1 | 2 | 3;
   const { data: project, isLoading } = useProject(draftId);
+  const create = useCreateProject();
+
+  // The step-1 fields live here so they survive moving between steps with no draft yet.
+  const [edited, setEdited] = useState<ProjectInput | null>(null);
+  const fields = edited ?? (project ? fromProject(project) : EMPTY_PROJECT);
+  const fieldsRef = useRef<ProjectInput>(EMPTY_PROJECT);
+  const setFields = (v: ProjectInput) => {
+    fieldsRef.current = v;
+    setEdited(v);
+  };
+  // Standards picked before a draft exists: applied when the draft is created.
+  const [pendingStandards, setPendingStandards] = useState<string[] | null>(null);
+  const [missing, setMissing] = useState<Missing | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const go = (s: number, id = draftId) =>
     router.replace(
@@ -68,9 +105,72 @@ export function NewProjectWizard() {
       { scroll: false },
     );
 
+  /** The draft, created once (several files dropped together share one creation). */
+  const draft = useRef<Promise<string> | null>(null);
+  const ensureDraft = (stayOn: number): Promise<string> => {
+    if (draftId) return Promise.resolve(draftId);
+    if (!draft.current) {
+      const v = edited ?? fieldsRef.current;
+      if (hasErrors(validateProject(v))) {
+        return Promise.reject(new Error("Add the project name in step 1 first (at least 3 characters)."));
+      }
+      draft.current = create.mutateAsync(trimmed(v)).then(async (created) => {
+        if (pendingStandards !== null) await putStandards(created.id, pendingStandards);
+        toast.success(`Draft ${created.code} saved`);
+        go(stayOn, created.id);
+        return created.id;
+      });
+      draft.current.catch(() => (draft.current = null));
+    }
+    return draft.current;
+  };
+
+  const putStandards = async (id: string, ids: string[]) => {
+    await api(`/api/projects/${id}/standards`, { method: "PUT", body: JSON.stringify({ standardIds: ids }) });
+    await qc.invalidateQueries({ queryKey: projectKey(id) });
+  };
+
+  /** Back to step 1, with its errors shown and the missing item focused. */
+  const requireStep1 = (field: Missing["field"], message: string) => {
+    setMissing({ field, at: Date.now() });
+    toast.error(message);
+    go(1);
+  };
+
+  const createProject = async () => {
+    const check = validateProject(fields, {
+      allowPastDeadline: !!project?.deadline && fields.deadline === project.deadline,
+    });
+    if (hasErrors(check)) {
+      return requireStep1("fields", Object.values(check).find(Boolean) ?? "Fill in the project details.");
+    }
+    if (!project || project.rfpDocuments.length === 0) {
+      return requireStep1("rfp", "Add at least one RFP document.");
+    }
+    setCreating(true);
+    try {
+      await api(`/api/projects/${project.id}`, { method: "PATCH", body: JSON.stringify(trimmed(fields)) });
+      if (pendingStandards !== null) await putStandards(project.id, pendingStandards);
+      if (project.status === "draft") {
+        await api(`/api/projects/${project.id}`, { method: "PATCH", body: JSON.stringify({ status: "open" }) });
+      }
+      await qc.invalidateQueries({ queryKey: projectsKey });
+      const n = qc.getQueryData<unknown[]>(proposalsKey(project.id))?.length ?? 0;
+      toast.success(`${project.code} created`, {
+        description: n
+          ? `${n} vendor${n === 1 ? "" : "s"} ready for the AI analysis.`
+          : "Add vendors from the project's Proposals tab when you have them.",
+      });
+      router.push(`/projects/${project.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't create the project.");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const waitingForDraft = !!draftId && (isLoading || !project);
-  const ready = !!project && project.rfpDocuments.length > 0;
-  const reachable = (n: number) => n === 1 || ready;
+  const ready = !!project && project.rfpDocuments.length > 0 && !hasErrors(validateProject(fields));
 
   return (
     <div className="flex flex-col gap-10">
@@ -94,22 +194,17 @@ export function NewProjectWizard() {
             {STEPS.map((s) => {
               const current = s.n === step;
               const done = s.n < step || (s.n === 1 && ready);
-              const can = reachable(s.n) && !waitingForDraft;
               return (
                 <li key={s.n} className="shrink-0">
                   <button
                     type="button"
-                    disabled={!can}
+                    disabled={waitingForDraft}
                     onClick={() => go(s.n)}
                     aria-current={current ? "step" : undefined}
                     className={cn(
                       "relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start transition-colors outline-none",
                       "focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed",
-                      current
-                        ? "text-ink"
-                        : can
-                          ? "text-ink-2 hover:bg-surface-muted"
-                          : "text-ink-faint",
+                      current ? "text-ink" : "text-ink-2 hover:bg-surface-muted",
                     )}
                   >
                     {current && (
@@ -129,19 +224,13 @@ export function NewProjectWizard() {
                             : "border-border-strong bg-surface text-ink-muted",
                       )}
                     >
-                      {done && !current ? (
-                        <Check className="size-3.5" strokeWidth={3} aria-hidden />
-                      ) : (
-                        s.n
-                      )}
+                      {done && !current ? <Check className="size-3.5" strokeWidth={3} aria-hidden /> : s.n}
                     </span>
                     <span className="relative flex flex-col leading-tight">
                       <span className="text-sm font-medium">
                         {s.title}
                         {s.optional && (
-                          <span className="ms-1.5 text-2xs font-normal text-ink-muted">
-                            optional
-                          </span>
+                          <span className="ms-1.5 text-2xs font-normal text-ink-muted">optional</span>
                         )}
                       </span>
                       <span className="hidden text-xs text-ink-muted lg:block">{s.hint}</span>
@@ -169,20 +258,40 @@ export function NewProjectWizard() {
               >
                 <header className="flex flex-col gap-1 border-b border-border/70 px-6 py-5">
                   <span className="caption-caps text-ink-muted">Step {step} of 3</span>
-                  <h2
-                    id="step-title"
-                    className="font-heading text-lg font-semibold tracking-tight text-ink"
-                  >
+                  <h2 id="step-title" className="font-heading text-lg font-semibold tracking-tight text-ink">
                     {STEPS[step - 1].title}
                   </h2>
                 </header>
                 {step === 1 && (
-                  <ProjectStep project={project} onDraft={(id) => go(1, id)} onNext={(id) => go(2, id)} />
+                  <ProjectStep
+                    key={missing?.at ?? 0}
+                    project={project}
+                    fields={fields}
+                    onFields={setFields}
+                    ensureDraft={() => ensureDraft(1)}
+                    missing={missing}
+                    onNext={() => go(2)}
+                  />
                 )}
-                {step === 2 && project && (
-                  <StandardsStep project={project} onBack={() => go(1)} onNext={() => go(3)} />
+                {step === 2 && (
+                  <StandardsStep
+                    project={project}
+                    category={fields.category}
+                    pending={pendingStandards}
+                    onPending={setPendingStandards}
+                    onBack={() => go(1)}
+                    onNext={() => go(3)}
+                  />
                 )}
-                {step === 3 && project && <VendorsStep project={project} onBack={() => go(2)} />}
+                {step === 3 && (
+                  <VendorsStep
+                    project={project}
+                    ensureDraft={() => ensureDraft(3)}
+                    creating={creating}
+                    onCreate={() => void createProject()}
+                    onBack={() => go(2)}
+                  />
+                )}
               </motion.section>
             </AnimatePresence>
           )}
@@ -203,75 +312,59 @@ function StepFooter({ children }: { children: React.ReactNode }) {
 /* ───────────────────────── Step 1 · Project ───────────────────────── */
 function ProjectStep({
   project,
-  onDraft,
+  fields,
+  onFields,
+  ensureDraft,
+  missing,
   onNext,
 }: {
   project?: ProjectDetailDto;
-  /** The draft was created (first RFP file): keep its id in the URL. */
-  onDraft: (id: string) => void;
-  onNext: (id: string) => void;
+  fields: ProjectInput;
+  onFields: (v: ProjectInput) => void;
+  /** Creates the draft (first RFP file) and keeps its id in the URL. */
+  ensureDraft: () => Promise<string>;
+  /** Set when Create found something missing: show the errors and focus that item. */
+  missing: Missing | null;
+  onNext: () => void;
 }) {
   const { data: settings } = useSettings();
-  const create = useCreateProject();
   const update = useUpdateProject(project?.id ?? "");
   const qc = useQueryClient();
   const remove = useDeleteProjectDocument(project?.id ?? "");
-  const [value, setValue] = useState<ProjectInput>(
-    project
-      ? {
-          name: project.name,
-          description: project.description,
-          category: project.category,
-          deadline: project.deadline,
-          notes: project.notes,
-        }
-      : EMPTY_PROJECT,
-  );
-  const [touched, setTouched] = useState(false);
-  const [serverErrors, setServerErrors] = useState<ProjectErrors>({});
+  const [touched, setTouched] = useState(!!missing);
   const [uploadedHere, setUploadedHere] = useState(0);
-  const draft = useRef<Promise<string> | null>(project ? Promise.resolve(project.id) : null);
-  // Uploads read the latest fields (a drop can start before the next render).
-  const valueRef = useRef(value);
-  const change = (v: ProjectInput) => {
-    valueRef.current = v;
-    setValue(v);
-  };
+  const formRef = useRef<HTMLDivElement>(null);
+  const rfpRef = useRef<HTMLDivElement>(null);
 
-  const local = validateProject(value, {
-    allowPastDeadline: !!project?.deadline && value.deadline === project.deadline,
+  const local = validateProject(fields, {
+    allowPastDeadline: !!project?.deadline && fields.deadline === project.deadline,
   });
-  const errors: ProjectErrors = touched
-    ? { ...local, ...Object.fromEntries(Object.entries(serverErrors).filter(([, v]) => v)) }
-    : {};
+  const errors: ProjectErrors = touched ? local : {};
   const docs = project?.rfpDocuments ?? [];
   const docCount = Math.max(docs.length, uploadedHere);
 
-  const payload = () => {
-    const v = valueRef.current;
-    return { ...v, name: v.name.trim(), description: v.description.trim(), notes: v.notes.trim() };
-  };
-
-  /** The draft exists once (several files dropped together share one creation). */
-  const ensureDraft = () => {
-    if (!draft.current) {
-      setTouched(true);
-      const check = validateProject(valueRef.current, { allowPastDeadline: false });
-      if (hasErrors(check)) {
-        return Promise.reject(new Error("Fill in the title and category first."));
+  // Create sent us back here: focus the first invalid field, or bring the RFP drop zone into view.
+  useEffect(() => {
+    if (!missing) return;
+    const raf = requestAnimationFrame(() => {
+      if (missing.field === "rfp") {
+        rfpRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        rfpRef.current?.querySelector<HTMLElement>("button, input")?.focus({ preventScroll: true });
+      } else {
+        formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
       }
-      draft.current = create.mutateAsync(payload()).then((created) => {
-        toast.success(`Draft ${created.code} saved`);
-        onDraft(created.id);
-        return created.id;
-      });
-      draft.current.catch(() => (draft.current = null));
-    }
-    return draft.current;
-  };
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [missing]);
 
   const upload: UploadFn = async (file, onProgress) => {
-    const id = await ensureDraft();
+    let id: string;
+    try {
+      id = await ensureDraft();
+    } catch (err) {
+      setTouched(true);
+      throw err;
+    }
     await uploadFile<DocumentDto>(`/api/projects/${id}/documents`, file, onProgress);
     setUploadedHere((n) => n + 1);
     // By the id, not `project`: the first drop starts before the draft exists.
@@ -281,44 +374,44 @@ function ProjectStep({
     ]);
   };
 
+  // Continue always moves on (nothing is required to look at the next steps); a saved draft gets
+  // the edited fields when they are valid. Create checks everything at the end.
   const next = async () => {
-    setTouched(true);
-    setServerErrors({});
-    if (hasErrors(local) || !project || docs.length === 0) return;
-    try {
-      await update.mutateAsync(payload());
-      onNext(project.id);
-    } catch (err) {
-      if (err instanceof ApiClientError && Array.isArray(err.details)) {
-        setServerErrors(
-          Object.fromEntries(
-            (err.details as { path: string; message: string }[]).map((d) => [d.path, d.message]),
-          ),
-        );
-      } else {
+    if (project && !hasErrors(local)) {
+      try {
+        await update.mutateAsync(trimmed(fields));
+      } catch (err) {
         toast.error(err instanceof Error ? err.message : "Couldn't save the project.");
+        return;
       }
     }
+    onNext();
   };
 
   return (
     <div className="flex flex-col">
       <div className="flex flex-col gap-8 px-6 py-6">
-        <ProjectDetailsForm
-          value={value}
-          onChange={change}
-          errors={errors}
-          autoFocus={!project}
-          categoryNote={
-            project && <CategoryChangeNote applied={project.standards} category={value.category} />
-          }
-        />
-        <div className="flex flex-col gap-3">
+        <div ref={formRef}>
+          <ProjectDetailsForm
+            value={fields}
+            onChange={onFields}
+            errors={errors}
+            autoFocus={!project && !missing}
+            categoryNote={project && <CategoryChangeNote applied={project.standards} category={fields.category} />}
+          />
+        </div>
+        <div
+          ref={rfpRef}
+          className={cn(
+            "flex scroll-mt-24 flex-col gap-3 rounded-xl",
+            missing?.field === "rfp" && docCount === 0 && "marsa-pulse",
+          )}
+        >
           <div className="flex flex-col gap-1">
             <h3 className="text-sm font-semibold text-ink">RFP documents</h3>
             <p className="text-[13px] text-ink-muted">
-              The main RFP and any annexes or addenda, at least one file. The AI builds the
-              evaluation checklist from them.
+              The main RFP and any annexes or addenda, at least one file. The AI builds the evaluation checklist from
+              them.
             </p>
           </div>
           {docs.length > 0 && (
@@ -346,20 +439,16 @@ function ProjectStep({
             upload={upload}
             removeOnDone
           />
-          {touched && docCount === 0 && (
-            <p className="text-xs text-fail">Add at least one RFP document.</p>
-          )}
+          {touched && docCount === 0 && <p className="text-xs text-fail">Add at least one RFP document.</p>}
         </div>
       </div>
       <StepFooter>
         <span className="text-xs text-ink-muted">
-          {project ? "Saved as a draft until you create the project." : "Only you can see the draft."}
+          {project
+            ? "Saved as a draft until you create the project."
+            : "Nothing is saved until you drop the RFP or create the project."}
         </span>
-        <Button
-          onClick={() => void next()}
-          loading={update.isPending}
-          disabled={!project || docs.length === 0}
-        >
+        <Button onClick={() => void next()} loading={update.isPending}>
           Continue <ArrowRight />
         </Button>
       </StepFooter>
@@ -370,23 +459,53 @@ function ProjectStep({
 /* ───────────────────────── Step 2 · Standards ───────────────────────── */
 function StandardsStep({
   project,
+  category,
+  pending,
+  onPending,
   onBack,
   onNext,
 }: {
-  project: ProjectDetailDto;
+  project?: ProjectDetailDto;
+  category: ProjectCategory;
+  /** The choice made before a draft exists (null: none made yet). */
+  pending: string[] | null;
+  onPending: (ids: string[]) => void;
   onBack: () => void;
   onNext: () => void;
 }) {
-  const save = useSetProjectStandards(project.id);
-  const [selected, setSelected] = useState<string[]>(project.standards.map((s) => s.id));
+  const qc = useQueryClient();
+  const { data: standards } = useStandards();
+  const [picked, setPicked] = useState<string[] | null>(null);
   const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // Like a new project on the server: the active standards that fit the category come ticked.
+  const defaults = (standards ?? [])
+    .filter((s) => s.isActive && standardFitsProject(s.category, category))
+    .map((s) => s.id);
+  const selected = picked ?? pending ?? (project ? project.standards.map((s) => s.id) : defaults);
 
-  const persist = async (ids: string[]) => {
+  const done = async (ids: string[], skip = false) => {
+    // No draft yet, or the category was changed and not saved yet: keep the choice, it is applied
+    // when the draft is created or at Create (after the category). Left untouched, nothing is
+    // recorded and the project keeps the standard default (active standards of its category).
+    if (!project || project.category !== category) {
+      if (skip || picked !== null) onPending(ids);
+      onNext();
+      return;
+    }
+    setSaving(true);
     try {
-      await save.mutateAsync(ids);
+      await api(`/api/projects/${project.id}/standards`, {
+        method: "PUT",
+        body: JSON.stringify({ standardIds: ids }),
+      });
+      await qc.invalidateQueries({ queryKey: projectKey(project.id) });
+      onPending(ids);
       onNext();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't save the standards.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -395,17 +514,17 @@ function StandardsStep({
       <div className="flex flex-col gap-6 px-6 py-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <p className="max-w-2xl leading-relaxed text-ink-2">
-            Pick the standards this project must comply with. Marsa checks every proposal against
-            each of their rules, separately from the RFP.{" "}
-            {project.category === "General"
+            Pick the standards this project must comply with. Marsa checks every proposal against each of their rules,
+            separately from the RFP.{" "}
+            {category === "General"
               ? "This is a General project, so every standard can apply."
-              : `Only “${project.category}” and “General” standards are shown.`}
+              : `Only “${category}” and “General” standards are shown.`}
           </p>
           <Button variant="brand" onClick={() => setCreating(true)} className="shrink-0">
             <Plus /> New standard
           </Button>
         </div>
-        <StandardsPicker value={selected} onChange={setSelected} category={project.category} />
+        <StandardsPicker value={selected} onChange={setPicked} category={category} />
       </div>
       <StepFooter>
         <Button variant="ghost" onClick={onBack}>
@@ -413,10 +532,10 @@ function StandardsStep({
         </Button>
         <span className="flex flex-wrap items-center gap-3">
           <span className="text-xs text-ink-muted tabular-nums">{selected.length} selected</span>
-          <Button variant="secondary" onClick={() => void persist([])} disabled={save.isPending}>
+          <Button variant="secondary" onClick={() => void done([], true)} disabled={saving}>
             <SkipForward /> Skip
           </Button>
-          <Button loading={save.isPending} onClick={() => void persist(selected)}>
+          <Button loading={saving} onClick={() => void done(selected)}>
             Continue <ArrowRight />
           </Button>
         </span>
@@ -424,10 +543,9 @@ function StandardsStep({
       <NewStandardDialog
         open={creating}
         onOpenChange={setCreating}
-        defaultCategory={project.category}
+        defaultCategory={category}
         onCreated={(std) => {
-          if (standardFitsProject(std.category, project.category))
-            setSelected((s) => [...s, std.id]);
+          if (standardFitsProject(std.category, category)) setPicked([...selected, std.id]);
           else toast.info(`${std.code} is a “${std.category}” standard: it doesn't fit this project.`);
         }}
       />
@@ -436,34 +554,30 @@ function StandardsStep({
 }
 
 /* ───────────────────────── Step 3 · Vendors ───────────────────────── */
-function VendorsStep({ project, onBack }: { project: ProjectDetailDto; onBack: () => void }) {
-  const router = useRouter();
-  const publish = useUpdateProject(project.id);
-  const { data: proposals } = useProposals(project.id);
+function VendorsStep({
+  project,
+  ensureDraft,
+  creating,
+  onCreate,
+  onBack,
+}: {
+  project?: ProjectDetailDto;
+  ensureDraft: () => Promise<string>;
+  creating: boolean;
+  onCreate: () => void;
+  onBack: () => void;
+}) {
+  const { data: proposals } = useProposals(project?.id ?? null);
   const n = proposals?.length ?? 0;
-
-  const createProject = async () => {
-    try {
-      if (project.status === "draft") await publish.mutateAsync({ status: "open" });
-      toast.success(`${project.code} created`, {
-        description: n
-          ? `${n} vendor${n === 1 ? "" : "s"} ready for the AI analysis.`
-          : "Add vendors from the project's Proposals tab when you have them.",
-      });
-      router.push(`/projects/${project.id}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't create the project.");
-    }
-  };
 
   return (
     <div className="flex flex-col">
       <div className="flex flex-col gap-6 px-6 py-6">
         <p className="max-w-2xl leading-relaxed text-ink-2">
-          Add each vendor with its two proposals: the commercial (financial) one and the technical
-          one. You can skip this and add vendors later, even after an analysis, then run it again.
+          Add each vendor with its two proposals: the commercial (financial) one and the technical one. You can skip
+          this and add vendors later, even after an analysis, then run it again.
         </p>
-        <VendorsEditor projectId={project.id} />
+        <VendorsEditor projectId={project?.id ?? null} ensureProject={ensureDraft} />
       </div>
       <StepFooter>
         <Button variant="ghost" onClick={onBack}>
@@ -473,7 +587,7 @@ function VendorsStep({ project, onBack }: { project: ProjectDetailDto; onBack: (
           <span className="text-xs text-ink-muted tabular-nums">
             {n} vendor{n === 1 ? "" : "s"}
           </span>
-          <Button size="lg" loading={publish.isPending} onClick={() => void createProject()}>
+          <Button size="lg" loading={creating} onClick={onCreate}>
             <Rocket /> {n ? "Create project" : "Skip and create project"}
           </Button>
         </span>
