@@ -117,5 +117,28 @@ for (const [label, vars] of [
   }
 }
 
+/** The Projects welcome band: a `dark` token island on the rail ink, in both themes. */
+const HERO: [string, number, string][] = [
+  ["ink", 4.5, "greeting and KPI numbers"],
+  ["ink-2", 4.5, "intro sentence"],
+  ["ink-muted", 4.5, "captions, units, details"],
+  ["brand-ink", 4.5, "step numbers"],
+];
+console.log("\nHERO BAND (dark tokens on rail)");
+for (const [label, vars] of [
+  ["light", light],
+  ["dark", dark],
+] as const) {
+  const bg = parseHex(resolve(vars, "rail"));
+  for (const [fg, min, note] of HERO) {
+    const r = ratio(over(parseHex(resolve(dark, fg)), bg), bg);
+    const ok = r >= min;
+    if (!ok) failures++;
+    console.log(
+      `  ${ok ? "✔" : "✘"} ${r.toFixed(2).padStart(5)}:1 (min ${min})  ${fg} on ${label} rail  — ${note}`,
+    );
+  }
+}
+
 console.log(failures ? `\n✘ ${failures} pair(s) below minimum` : "\n✔ All pairs pass");
 process.exit(failures ? 1 : 0);

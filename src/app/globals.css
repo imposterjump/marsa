@@ -386,6 +386,13 @@
   clip-path: polygon(0 0, 100% 0, 92% 100%, 0 100%);
   border-radius: 2px;
 }
+/* Clipped bottom-end corner: the RTA dark hero band (one per app, the Projects welcome). */
+@utility rta-clip {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 22px), calc(100% - 120px) 100%, 0 100%);
+  &:where([dir="rtl"], [dir="rtl"] *) {
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 120px 100%, 0 calc(100% - 22px));
+  }
+}
 /* Big light numbers: KPI and score figures. */
 @utility kpi {
   font-weight: 300;
