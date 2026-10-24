@@ -957,7 +957,7 @@ function MotionSection() {
             <div className="relative flex h-full flex-col justify-end p-6">
               <Reveal key={replay} immediate>
                 <p className="font-heading text-xl font-semibold text-ink">
-                  Layers: grid (d0) · glow (d1) · harbour art (d2)
+                  Layers: grid (d0) · glow (d1)
                 </p>
               </Reveal>
             </div>

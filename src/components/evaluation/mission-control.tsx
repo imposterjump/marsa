@@ -93,7 +93,7 @@ export function MissionControl({ data }: { data: RunStatusDto }) {
       aria-labelledby="mission-title"
       className="relative overflow-hidden rounded-3xl border border-border bg-surface shadow-xs"
     >
-      <DepthBackdrop art={false} />
+      <DepthBackdrop />
       <div className="relative flex flex-col gap-8 px-6 py-7 sm:px-9 sm:py-9">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1">

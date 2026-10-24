@@ -28,6 +28,7 @@
 ## Decision log
 | Date | Decision | By |
 |---|---|---|
+| 2026-10-24 | **Projects hero = a general welcome + overview**: never about one project or recommendation. Workflow KPI band (RFP → standards → bids → AI analysis) with workspace totals; port drawing removed (also from the empty-state art) | You |
 | 2026-10-23 | **Product name shown to users: Mizan** (procurement name; "Marsa" meant harbour). Only the UI changes: code, database and docs keep the codename Marsa | You |
 | 2026-10-23 | **Logo: the Sharjah emblem** replaces the RTA logo (the RTA colours and fonts stay) | You |
 | 2026-10-23 | POC set 4 with three vendors (customs laboratory LIMS, category Quality) | You |

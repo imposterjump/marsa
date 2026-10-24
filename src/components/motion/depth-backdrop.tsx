@@ -6,13 +6,14 @@ import { cn } from "cn";
 
 /**
  * M3 Depth layers (epic-design depth-system), adapted for app UI:
- *   depth-0  port-grid + contour lines (static, faded at the edges)
- *   depth-1  two soft teal glows drifting on 14 s / 19 s loops
- *   depth-2  harbour line art (cranes + container stacks), optional
- * Pointer parallax (≤ 6 px) only on fine pointers; everything static under reduced motion.
+ *   depth-0  grid lines (static, faded at the edges)
+ *   depth-1  two soft brand glows drifting on 14 s / 19 s loops
+ * The harbour line art (cranes + containers) that was depth-2 was removed on 2026-10-24: the
+ * product is about procurement, not ports (user feedback on the Projects hero).
+ * Pointer parallax (≤ 3 px) only on fine pointers; everything static under reduced motion.
  * Purely decorative: aria-hidden, pointer-events none.
  */
-export function DepthBackdrop({ art = true, className }: { art?: boolean; className?: string }) {
+export function DepthBackdrop({ className }: { className?: string }) {
   const reduce = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
   const px = useMotionValue(0);
@@ -23,8 +24,6 @@ export function DepthBackdrop({ art = true, className }: { art?: boolean; classN
   const d0y = useTransform(sy, (v) => v * 1.5);
   const d1x = useTransform(sx, (v) => v * 3);
   const d1y = useTransform(sy, (v) => v * 3);
-  const d2x = useTransform(sx, (v) => v * 6);
-  const d2y = useTransform(sy, (v) => v * 4);
 
   useEffect(() => {
     if (reduce || !window.matchMedia("(pointer: fine)").matches) return;
@@ -95,65 +94,6 @@ export function DepthBackdrop({ art = true, className }: { art?: boolean; classN
           transition={{ duration: 19, repeat: Infinity, ease: "easeInOut" }}
         />
       </motion.div>
-
-      {/* depth-2: harbour line art */}
-      {art && (
-        <motion.div
-          data-depth="2"
-          className="absolute end-0 bottom-0 hidden w-[min(560px,55%)] text-navy opacity-[0.16] md:block dark:opacity-[0.22]"
-          style={reduce ? undefined : { x: d2x, y: d2y }}
-        >
-          <HarbourArt />
-        </motion.div>
-      )}
     </div>
-  );
-}
-
-/** Ship-to-shore cranes over container stacks, drawn in 1.25 px strokes. */
-function HarbourArt() {
-  const stacks: [number, number, number][] = [
-    // x, width, number of tiers
-    [16, 46, 3],
-    [66, 46, 5],
-    [116, 46, 2],
-    [166, 46, 4],
-    [326, 46, 3],
-    [376, 46, 6],
-    [426, 46, 2],
-  ];
-  return (
-    <svg
-      viewBox="0 0 520 230"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.25"
-      strokeLinejoin="round"
-    >
-      <line x1="0" y1="226" x2="520" y2="226" />
-      {stacks.map(([x, w, tiers]) =>
-        Array.from({ length: tiers }, (_, t) => (
-          <g key={`${x}-${t}`}>
-            <rect x={x} y={226 - (t + 1) * 16} width={w} height={16} rx="1.5" />
-            <line x1={x + w / 3} y1={226 - (t + 1) * 16} x2={x + w / 3} y2={226 - t * 16} />
-            <line
-              x1={x + (2 * w) / 3}
-              y1={226 - (t + 1) * 16}
-              x2={x + (2 * w) / 3}
-              y2={226 - t * 16}
-            />
-          </g>
-        )),
-      )}
-      {/* crane 1 */}
-      <path d="M232 226V70M286 226V70M226 70h66M232 110h54M232 110l54-40M286 110l-54-40" />
-      <path d="M200 52h168M250 52V30h18v22M222 52l40-22 40 22" />
-      <path d="M318 52v28M314 80h8v10h-8z" />
-      {/* crane 2 (further back, smaller) */}
-      <g opacity="0.6">
-        <path d="M478 226V112M512 226V112M474 112h42M478 140h34M478 140l34-28M512 140l-34-28" />
-        <path d="M456 98h64M486 98V84h12v14" />
-      </g>
-    </svg>
   );
 }

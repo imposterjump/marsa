@@ -11,22 +11,27 @@ const stroke = {
   strokeLinejoin: "round" as const,
 };
 
-/** Projects: an RFP document with a container ship passing behind. */
+/** Projects: an RFP document with two vendor bids stacked behind it (was a container ship). */
 export function ProjectsArt({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 200 140" width="200" height="140" className={className} aria-hidden>
       <ellipse cx="100" cy="128" rx="78" ry="6" fill="var(--brand-soft)" />
-      <path
-        {...stroke}
-        opacity="0.35"
-        d="M20 104c8-5 16-5 24 0s16 5 24 0 16-5 24 0 16 5 24 0 16-5 24 0 16 5 24 0 16-5 24 0"
-      />
-      <g opacity="0.45">
-        <path {...stroke} d="M24 96h60l-6 10H30z" />
-        <rect {...stroke} x="34" y="84" width="12" height="12" rx="1" />
-        <rect {...stroke} x="46" y="84" width="12" height="12" rx="1" />
-        <rect {...stroke} x="40" y="72" width="12" height="12" rx="1" />
-        <rect {...stroke} x="58" y="84" width="12" height="12" rx="1" />
+      <g opacity="0.35" transform="rotate(-9 64 76)">
+        <rect {...stroke} x="30" y="30" width="64" height="88" rx="7" />
+        <path {...stroke} d="M42 50h36M42 60h28M42 70h36" />
+      </g>
+      <g opacity="0.55" transform="rotate(-4 80 72)">
+        <rect
+          x="52"
+          y="24"
+          width="66"
+          height="92"
+          rx="7"
+          fill="var(--surface)"
+          stroke="var(--navy)"
+          strokeWidth="1.5"
+        />
+        <path {...stroke} d="M64 44h40M64 54h30M64 64h40M64 74h22" />
       </g>
       <rect
         x="88"

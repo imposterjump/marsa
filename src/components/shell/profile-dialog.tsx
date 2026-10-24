@@ -114,7 +114,7 @@ function ProfileForm({
     <form onSubmit={submit} noValidate>
       {welcome && (
         <div className="relative overflow-hidden border-b border-border bg-background px-7 pt-7 pb-6">
-          <DepthBackdrop art={false} />
+          <DepthBackdrop />
           <div className="relative flex flex-col gap-4">
             <BrandMark size={40} />
             <MaskedText
