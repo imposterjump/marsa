@@ -214,6 +214,7 @@
 | 2026-10-21 | PCS + Phase 6 bids, 3 vendors, 11 steps | Sonnet 5.5 | $1.17 | Completed; cache reads 262k vs writes 90k |
 | 2026-10-21 | P7.5 generate 2 bids | Sonnet 5.5 | $0.19 | Strong + risky bids, DOCX + PDF |
 | 2026-10-26 | Token count of the two real tenders (`scripts/count-tokens.ts`) | count_tokens | $0.00 | Free endpoint; exact sizes for the estimate |
+| 2026-10-26 | The user's run on PRJ-2026-004 (Amiri Diwan), 6 bids, 21 steps | Sonnet 5.5 (+ Haiku Translator) | $3.96 | The user's run: 20/21 done; the Translator failed (a stuck batch, fixed), retry pending |
 | | **Total (my runs)** | | **≈ $6.17** | |
 | 2026-10-23 | Balance check | — | — | You: "about 1 dollar left" (your own runs on :3001 are not logged here). P8 used **no** credits: everything was verified with the free demo AI |
 | 2026-10-23 | You added $5 | — | — | ≈ $6 available |

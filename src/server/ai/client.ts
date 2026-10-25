@@ -53,6 +53,7 @@ export async function callStructured<S extends z.ZodType>({
   signal,
   onStarted,
   effort = EFFORT,
+  maxTokens = MAX_TOKENS,
 }: {
   model: string;
   system: string;
@@ -63,6 +64,8 @@ export async function callStructured<S extends z.ZodType>({
   onStarted?: () => void;
   /** Keep one value per workload (the pipeline uses EFFORT for every step). */
   effort?: "low" | "medium" | "high";
+  /** A smaller cap for answers whose size is known (the Translator's batches). */
+  maxTokens?: number;
 }): Promise<CallResult<z.infer<S>>> {
   const client = getAnthropic();
   // Plain format object (no SDK auto-parse): we normalise and validate ourselves.
@@ -70,7 +73,7 @@ export async function callStructured<S extends z.ZodType>({
   const stream = client.beta.messages.stream(
     {
       model,
-      max_tokens: MAX_TOKENS,
+      max_tokens: maxTokens,
       thinking: { type: "adaptive" },
       system: [{ type: "text", text: system }],
       messages: [{ role: "user", content }],

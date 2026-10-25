@@ -32,7 +32,8 @@ export function usageOfError(err: unknown): TokenUsage | undefined {
   return u && typeof u.outputTokens === "number" ? u : undefined;
 }
 
-function withUsage(err: unknown, spent: TokenUsage): unknown {
+/** The error with the tokens spent before it added to its own (the step records them). */
+export function withUsage(err: unknown, spent: TokenUsage): unknown {
   if (!spent.requests) return err;
   const own = usageOfError(err);
   const usage = own ? addUsage(spent, own) : spent;

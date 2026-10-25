@@ -14,6 +14,7 @@ import { checkInParts, splitCodes, usageOfError } from "@/server/ai/parts";
 import { AiError, type CallResult } from "@/server/ai/result";
 import type { AnalysisOutput } from "@/server/ai/schemas";
 import type { CheckPart } from "@/server/ai/types";
+import { answerCap, translateTexts, type TranslateCall } from "@/server/ai/translate";
 import { addUsage, checkParts, costFromUsage } from "@/lib/plan";
 
 const codes = (n: number) =>
@@ -193,5 +194,62 @@ describe("database copy after a paid run", () => {
     copy.$client.close();
     db.$client.close();
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("the Translator when the model gets stuck on a batch", () => {
+  const texts = Array.from({ length: 10 }, (_, i) => ({
+    key: `finding:f${i}:assessment`,
+    text: i === 6 ? "LOOP" : `Text ${i}`,
+  }));
+  const one = { inputTokens: 500, outputTokens: 900, cacheReadTokens: 0, cacheWriteTokens: 0 };
+
+  it("asks a cut-off batch again in halves; a text that still fails keeps its wording", async () => {
+    const calls: string[][] = [];
+    const call: TranslateCall = async (batch, maxTokens) => {
+      calls.push(batch.map((b) => b.text));
+      expect(maxTokens).toBe(answerCap(batch));
+      if (batch.length > 3 || batch.some((b) => b.text === "LOOP"))
+        throw new AiError("truncated", "cut off", undefined, { ...one, requests: 1 });
+      return {
+        data: { items: batch.map((b) => ({ id: b.id, text: `AR ${b.text}` })) },
+        usage: { ...one, requests: 1 },
+        model: "claude-haiku-5-5",
+        stopReason: "end_turn",
+      };
+    };
+    const res = await translateTexts(texts, { source: "en", target: "ar", call });
+    const out = res.data.texts;
+    expect(Object.keys(out)).toHaveLength(9);
+    expect(out["finding:f0:assessment"]).toBe("AR Text 0");
+    expect(out["finding:f6:assessment"]).toBeUndefined(); // stays in English
+    // "LOOP" was asked once on its own, and not again in the pass for missing texts.
+    expect(calls.filter((c) => c.length === 1 && c[0] === "LOOP")).toHaveLength(1);
+    expect(res.usage.requests).toBe(calls.length); // the cut-off answers are counted too
+  });
+
+  it("caps each answer near what its batch needs", () => {
+    expect(answerCap([{ id: "1", text: "x".repeat(9_000) }])).toBe(19_500);
+    expect(answerCap([{ id: "1", text: "short" }])).toBe(6_008);
+  });
+
+  it("keeps the spent tokens when the run pauses mid-translation", async () => {
+    let n = 0;
+    const call: TranslateCall = async (batch) => {
+      if (++n === 2) throw new Anthropic.APIConnectionError({ message: "Connection error." });
+      return {
+        data: { items: batch.map((b) => ({ id: b.id, text: `AR ${b.text}` })) },
+        usage: { ...one, requests: 1 },
+        model: "claude-haiku-5-5",
+        stopReason: "end_turn",
+      };
+    };
+    const many = Array.from({ length: 300 }, (_, i) => ({
+      key: `k${i}`,
+      text: `Text number ${i}`,
+    }));
+    const err = await translateTexts(many, { source: "en", target: "ar", call }).catch((e) => e);
+    expect(pauseReason(err)).toMatch(/^Could not reach/);
+    expect(usageOfError(err)?.requests).toBeGreaterThanOrEqual(1);
   });
 });

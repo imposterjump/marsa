@@ -4,13 +4,20 @@
  * easy task; it keeps the cost to a few cents whatever model ran the analysis). Identical texts
  * are translated once; texts go in batches, a few at a time; a batch that leaves items out is
  * asked once more for them, and anything still missing keeps its original text.
+ *
+ * A batch the model gets stuck on (2026-10-26: one batch of the first Sonnet run on a real tender
+ * repeated itself up to the 128k answer limit and failed the whole step) can't sink the others:
+ * each answer is capped near what its batch needs, and a batch that is cut off, malformed or
+ * declined is asked again as two halves, down to single texts; a single text that still fails
+ * keeps its original wording and is not asked again.
  */
 import "server-only";
 import { z } from "zod";
 import { addUsage, TRANSLATOR_MODEL } from "../../lib/plan";
 import { EMPTY_USAGE, type ReportLanguage, type TokenUsage } from "../../lib/domain";
-import { callStructured } from "./client";
-import type { CallResult } from "./result";
+import { MAX_TOKENS, callStructured } from "./client";
+import { withUsage } from "./parts";
+import { AiError, type CallResult } from "./result";
 import type { RunText } from "../runs/texts";
 
 export const TranslationSchema = z.object({
@@ -26,6 +33,21 @@ export interface TranslationOutput {
 const BATCH_CHARS = 9_000;
 const BATCH_ITEMS = 120;
 const PARALLEL = 4;
+
+type Item = { id: string; text: string };
+
+/** Room for a batch's answer: about twice what its translation takes, plus the thinking. */
+export const answerCap = (batch: Item[]) =>
+  Math.min(MAX_TOKENS, 6_000 + Math.ceil(1.5 * batch.reduce((n, b) => n + b.text.length, 0)));
+
+/** One request: a batch in, its translations out. Replaced by a fake in tests. */
+export type TranslateCall = (
+  batch: Item[],
+  maxTokens: number,
+) => Promise<CallResult<z.infer<typeof TranslationSchema>>>;
+
+/** Errors that belong to one batch (asked again in halves), not to the account or connection. */
+const BATCH_ERRORS = new Set(["truncated", "invalid_output", "refusal"]);
 
 const NAME: Record<ReportLanguage, string> = { en: "English", ar: "Modern Standard Arabic" };
 
@@ -111,29 +133,51 @@ export async function translateTexts(
     target,
     signal,
     onStarted,
+    call,
   }: {
     source: ReportLanguage;
     target: ReportLanguage;
     signal?: AbortSignal;
     onStarted?: () => void;
+    call?: TranslateCall;
   },
 ): Promise<CallResult<TranslationOutput>> {
   const { unique, keysOf } = dedupeTexts(texts);
   const done = new Map<string, string>();
+  const gaveUp = new Set<string>();
   let usage: TokenUsage = EMPTY_USAGE;
   let model: string = TRANSLATOR_MODEL;
   const system = translatorPrompt(source, target);
+  const ask: TranslateCall =
+    call ??
+    ((batch, maxTokens) =>
+      callStructured({
+        model: TRANSLATOR_MODEL,
+        system,
+        content: [{ type: "text", text: JSON.stringify({ items: batch }) }],
+        schema: TranslationSchema,
+        effort: "low",
+        maxTokens,
+        signal,
+        onStarted,
+      }));
 
-  const translate = async (batch: { id: string; text: string }[]) => {
-    const res = await callStructured({
-      model: TRANSLATOR_MODEL,
-      system,
-      content: [{ type: "text", text: JSON.stringify({ items: batch }) }],
-      schema: TranslationSchema,
-      effort: "low",
-      signal,
-      onStarted,
-    });
+  const translate = async (batch: Item[]): Promise<void> => {
+    let res: Awaited<ReturnType<TranslateCall>>;
+    try {
+      res = await ask(batch, answerCap(batch));
+    } catch (err) {
+      if (!(err instanceof AiError) || !BATCH_ERRORS.has(err.code)) throw err;
+      if (err.usage) usage = addUsage(usage, err.usage);
+      if (batch.length === 1) {
+        gaveUp.add(batch[0].id);
+        return;
+      }
+      const half = Math.ceil(batch.length / 2);
+      await translate(batch.slice(0, half));
+      await translate(batch.slice(half));
+      return;
+    }
     usage = addUsage(usage, res.usage);
     model = res.model;
     const wanted = new Set(batch.map((b) => b.id));
@@ -142,7 +186,7 @@ export async function translateTexts(
     }
   };
 
-  const pool = async (list: { id: string; text: string }[][]) => {
+  const pool = async (list: Item[][]) => {
     let next = 0;
     await Promise.all(
       Array.from({ length: Math.min(PARALLEL, list.length) }, async () => {
@@ -151,10 +195,15 @@ export async function translateTexts(
     );
   };
 
-  await pool(batches(unique));
-  // One more pass for anything a batch left out.
-  const missing = unique.filter((u) => !done.has(u.id));
-  if (missing.length) await pool(batches(missing));
+  try {
+    await pool(batches(unique));
+    // One more pass for anything a batch left out (not the texts the model got stuck on).
+    const missing = unique.filter((u) => !done.has(u.id) && !gaveUp.has(u.id));
+    if (missing.length) await pool(batches(missing));
+  } catch (err) {
+    // The run pauses (account or connection): the tokens already spent stay recorded.
+    throw withUsage(err, usage);
+  }
 
   const out: Record<string, string> = {};
   for (const [id, translation] of done)
