@@ -15,7 +15,7 @@ import { reportFooter, reportHtml, type ReportAssets, type ReportView } from "./
 import { buildReportView } from "./view";
 
 /** Bump when the layout changes, so cached PDFs are laid out again. */
-const LAYOUT_VERSION = "v1";
+const LAYOUT_VERSION = "v2";
 const MAX_PAGES = 2;
 const SCALES = [1, 0.94, 0.88, 0.82];
 

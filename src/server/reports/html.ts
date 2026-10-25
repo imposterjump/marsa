@@ -253,6 +253,9 @@ h2 { font-size: 10.6pt; margin: 0 0 4pt; display: flex; align-items: center; gap
 h2::after { content: ""; flex: 1; height: 1px; background: #e8ecf2; }
 h3 { font-size: 7.2pt; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #5d6673; margin: 2pt 0 3pt; }
 .block { margin-bottom: 9pt; }
+/* A heading never ends a page; the short sections (balance, concerns, advice) stay whole. */
+h2 { break-after: avoid; }
+.keep { break-inside: avoid; }
 .chip { font-size: 7pt; font-weight: 700; padding: 1.5pt 6pt; border-radius: 999px; letter-spacing: .02em; }
 .ok { background: #e3f5ee; color: #0f7553; }
 .warn { background: #fcf1de; color: #9a5b00; }
@@ -314,7 +317,7 @@ h3 { font-size: 7.2pt; font-weight: 700; letter-spacing: .08em; text-transform: 
 ${aspect(t.technical, r.technical, t)}
 ${aspect(t.commercial, r.commercial, t)}
 
-<section class="block">
+<section class="block keep">
   <h2>${esc(t.balance)}</h2>
   <div class="card">
     <div class="pair">
@@ -326,7 +329,7 @@ ${aspect(t.commercial, r.commercial, t)}
   </div>
 </section>
 
-<section class="block">
+<section class="block keep">
   <h2>${esc(t.concerns)}</h2>
   ${
     r.concerns.length
@@ -335,7 +338,7 @@ ${aspect(t.commercial, r.commercial, t)}
   }
 </section>
 
-<section class="block">
+<section class="block keep">
   <h2>${esc(t.recommendation)}</h2>
   <div class="advice">
     <p dir="auto">${esc(r.recommendation.opinion)}</p>
