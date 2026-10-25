@@ -24,11 +24,11 @@ A tender goes through it like this:
 
 | In git | Not in git (create it yourself) |
 |---|---|
-| All code, docs, DB migrations (`drizzle/`) | `data/`: the database (`app.db`) and uploaded files. **A fresh clone starts with an empty app.** |
-| `test-inputs/`: documents to test with (see below) | `.env`, `.env.local`: your settings and API key |
+| All code, docs, DB migrations (`drizzle/`) | `data/`: the database (`app.db`) and uploaded files. **A fresh clone starts with an empty app**, until you load the demo data (one command, below). |
+| `test-inputs/`: documents to test with, and **`test-inputs/demo-data/`**: a snapshot of the team's app with real AI results | `.env`, `.env.local`: your settings and API key |
 | `rta standard/`: the design reference | `node_modules/`, build folders (`.next*`) |
 
-To move your own projects to another machine, stop the app and copy the whole `data/` folder.
+To move your own projects to another machine, stop the app and copy the whole `data/` folder (or `npm run demo:save`, see below).
 
 ## Setup
 
@@ -40,6 +40,7 @@ git clone https://github.com/imposterjump/marsa.git
 cd marsa
 npm install
 npx playwright install chromium   # once: the report PDFs and the E2E tests need it
+npm run demo:load                  # optional: the team's projects with real AI results
 npm run dev                        # → http://localhost:3000
 ```
 
@@ -70,7 +71,27 @@ A run started in demo mode stays demo, and a live run stays live, even if you ch
 
 ## Data to test with
 
-### Option 1: sample data (one click)
+### Option 1: the demo data, real results without paying (recommended)
+`test-inputs/demo-data/` is a snapshot of the team's app, taken on 2026-10-25. With the app **stopped**:
+
+```bash
+npm run demo:load            # into an empty data/ folder
+npm run demo:load -- --yes   # replaces data/ that already has projects (it is backed up first)
+```
+
+You get exactly what the team sees:
+
+| Project | Status | What's in it |
+|---|---|---|
+| **PRJ-2026-002** · Electronic Seal Tracking System for Transit Cargo (IT & security) | Evaluated | POC set 2: standard CTS-2026, 2 vendors (Trakom Security Solutions, Orbis Track), a **real Claude Haiku analysis** with its 2 consultant reports, plus an earlier demo-AI analysis |
+| **PRJ-2026-003** · Air Quality and Noise Monitoring Network (Safety & environment) | Evaluated | POC set 3: standard PEMS-2026, 3 vendors (Sabkha Environmental Systems, Nimbrel Sensing, Kaltenmoor Messtechnik), a **real Claude Haiku analysis** with its 3 consultant reports |
+| **PRJ-2026-001** · High-Energy Cargo X-Ray Inspection Systems (IT & security) | Open | Standard CITS-2026 and 5 vendor proposals, not analysed yet: run it yourself |
+
+The owner's name was taken out of the snapshot, so the welcome dialog asks for yours. Every results page, list view, the comparison and the report PDFs work at once, with no API key. A new analysis still needs the demo AI or a key.
+
+**To refresh the snapshot** from your own app (for the next person who clones): `npm run demo:save`. It copies your `data/` into `test-inputs/demo-data/` without your name and organisation and without the Files API ids of your key; then commit it.
+
+### Option 2: sample data (one click)
 **Settings → Demo tools → Load sample data**, or from a terminal (with the app stopped or running):
 
 ```bash
@@ -88,7 +109,7 @@ Then open the X-Ray project and click **Run AI analysis**. In demo mode it is fr
 
 The sample data is defined in `test-inputs/seed/manifest.json` and read from `test-inputs/phase-1`, `phase-2` and `phase-4`. Don't delete those folders.
 
-### Option 2: the POC tenders (best for demos and real AI runs)
+### Option 3: the POC tenders (best for demos and real AI runs)
 [`test-inputs/poc-inputs/`](../test-inputs/poc-inputs/README.md) holds **4 complete, mid-size tenders** you create yourself through the guided **New project** form, as a real user would. Each has an RFP (PDF), a standard's 12 rules (Excel, CSV and text), and 2–3 vendors with a technical and a commercial PDF.
 
 | Set | Tender | Vendors |
@@ -100,14 +121,15 @@ The sample data is defined in `test-inputs/seed/manifest.json` and read from `te
 
 Each set's README is a step-by-step script: what to type and drop at each step. It ends with **"What a good result looks like"** (who should win, which gaps the AI should find), so you can judge a live run. Rebuild the files with `npx tsx scripts/test-inputs/build-poc.ts`.
 
-### Option 3: submit bids as a vendor
+### Option 4: submit bids as a vendor
 **Settings → Demo tools → Vendor simulator** submits bids by hand, as a vendor would. (The app used to write bids with AI; that was removed on 2026-10-25.)
 
 ### The rest of `test-inputs/`
 | Folder | What it is |
 |---|---|
-| `poc-inputs/` | **Start here**: the 4 tenders above. |
-| `seed/` | The sample-data manifest (Option 1). |
+| `demo-data/` | The team's app as a snapshot: database and files (Option 1, `npm run demo:load`). |
+| `poc-inputs/` | **Start here** to build a tender yourself: the 4 tenders above. |
+| `seed/` | The sample-data manifest (Option 2). |
 | `phase-1/` … `phase-6/` | Test packs from each build phase, still useful for upload edge cases. Examples: an RFP pack with Excel, Word and image annexes; 21 files for a bulk upload; corrupted, password-protected and Arabic-named files; standards as PDFs; sample bids. Their READMEs describe the screens as they were then, so the files are current but the click paths in them may be outdated. The 55 MB "oversized" file is generated, not committed: `npx tsx scripts/test-inputs/build-phase-1.ts`. |
 | `SCENARIO.md` | Notes for humans about the fictional tenders. **Never upload it.** Test documents must never help the AI: an RFP and its standards don't contradict each other, and every vendor proposal reads as a legitimate bid. |
 
@@ -116,11 +138,13 @@ All organisations, people and documents in `test-inputs/` are fictional.
 ## A short tour
 - **Projects:** the welcome band, then every project. **New project** is a guided form: Project (title, category, RFP) → Standards → Vendors.
 - **A project:** Overview, Proposals (vendors, documents, **Add vendor**), and **Run AI analysis** with a time estimate. A run starts on click; if you cancel one started by mistake, the page keeps showing the previous results.
-- **AI analysis results:** mission control while it runs (you can leave the page; a pill in the top bar follows the run), then the tabs:
-  - **RFP, Standards** and **Risks:** by section, or the red **list** view with filters per vendor.
-  - **Comparison:** a vendor-by-vendor table.
+- **AI analysis results:** while it runs, mission control shows the step texts and the **agent team** (an AI Orchestrator passing the work from agent to agent); you can leave the page, a pill in the top bar follows the run. Then the tabs:
+  - **Overview:** the recommended vendor, then every vendor's RFP %, Standards % and risk score.
+  - **RFP, Standards** and **Risks:** by section, or the red **list** view with filters per vendor (status / severity, type, section).
+  - **Comparison:** pick vendors and press Compare: the agents' steps play, then a vendor-by-vendor table.
   - **Reports:** View or Download each consultant report as PDF.
   - **AI quality:** the run's numbers and a human review form.
+- **No prices on screen:** the app never shows what the AI costs (a deliberate choice). Costs are still recorded in the database for the team.
 - Evidence links open the built-in **document reader** on the right page with the quote highlighted. Standard rules open in a side panel.
 - **Standards:** the library (rules, priorities, documents).
 - **Settings:** your profile, the AI model, the report language (English or Arabic), scoring weights, parallel steps, and **Demo tools**.
@@ -132,6 +156,7 @@ All organisations, people and documents in `test-inputs/` are fictional.
 | `npm run build` + `npm start` | Production build and server |
 | `npm run check` | Lint, typecheck, colour-contrast check and the unit/integration tests (run before every commit) |
 | `npm run test:e2e` | Playwright end-to-end tests (builds its own server on port 3200, demo AI) |
+| `npm run demo:load` / `npm run demo:save` | Load the team's demo data / save yours as the new demo data (see above) |
 | `npm run seed` / `npm run reset -- --yes` | Sample data / wipe everything (see above) |
 | `npm run db:studio` | Browse the database |
 | `npm run ai:smoke` | One tiny **paid** live call (≈ $0.01) to check the key works |
@@ -156,7 +181,7 @@ All organisations, people and documents in `test-inputs/` are fictional.
   - `reports/`: the consultant PDFs;
   - `db/`, `documents/`, `seed/`, `storage/`.
 - `src/lib/`: shared types, labels, the run plan and estimates.
-- `scripts/`: seed, reset, AI checks, test-input builders.
+- `scripts/`: demo data, seed, reset, AI checks, test-input builders.
 - `tests/`: unit, integration, E2E.
 
 ## Troubleshooting

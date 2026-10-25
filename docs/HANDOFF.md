@@ -23,53 +23,30 @@ Status legend: 🔴 Open · 🟡 Workaround in place · ✅ Solved · ℹ️ Rul
 6. **Live AI tests run on Sonnet 5.5 first**, to keep failed runs cheap; switch to Opus 5.5 (the default model) only once things work (user, Phase 6: "make tests using sonnet first so we minimize failure prices then when its ready switch to opus"). Live tests use the throwaway `data/live-test/` (G-60), never the user's `data/`. **Update 2026-10-23:** the user added $5, so about **$6** is left. Testing runs on **Haiku 5.5**; **Opus runs once** when everything is ready (user: "we will keep running haiku to test and when everything is ready we can run oppus once"). The user starts the runs and reviews the results with me (user: "let me do the ai run … check the results w me").
 
 ## 1. Where we are (update every session)
-- **Last session:** 2026-10-22/23 (session 6: client feedback → P8 re-planned and built).
-- **Done:** Planning · P0–P7 · **P8 (new story)**. P8 is **waiting for the user's test** (checkpoint P8.6). P5–P7 were never formally tested by the user, and the client meeting replaced their results UI anyway.
-- **What P8 is** (the user's story after the client meeting; plan in `C:\Users\impos\.claude\plans\zazzy-humming-thunder.md`):
-  - **RTA design system**, the user's company standard (`rta standard/`, untracked, never commit it). UI only: database and backend stay ours.
-  - **Guided New project form**, Project → Standards → Vendors (`new-project-wizard.tsx`):
-    - **Project** is mandatory: title, category, RFP drop zone. The first upload creates the draft.
-    - **Standards** shows the category's standards. **New standard** creates one from a dropped rules file (`new-standard-dialog.tsx`, `server/standards/rules-file.ts`). Skippable.
-    - **Vendors**: each vendor has two drop zones (`vendors-editor.tsx`). Skippable.
-    - **Create** publishes the project and opens it.
-  - **Project page:** Overview + Proposals only. One AI analysis button (`AiAnalysisAction`). **Add vendor** dialog, also after an analysis.
-  - **Pipeline 3N + 2:** checklist → standards per vendor → RFP per vendor → risk per vendor → recommendation.
-    - Every point has a one-line `headline` and a proposal `section`, both stored in the new table `analysis_meta`.
-    - Marsa computes the scores, the 0–100 risk score and the pick; the AI writes only the reason (§6).
-  - **Results page** `/analysis/<projectId>` (`components/analysis/`). The sidebar collapses while it is open. Mission control shows while a run is active. Tabs: Overview · Compliance · Risks · Comparison · AI quality.
-  - The old `/projects/:id/evaluation` and `/ai-review` URLs redirect to it.
-- **Git:**
-  - local commits `af6f4bd` (P8.0), `3ecfb09` (P8.3), `a43b28d` (P8.1–P8.4), plus the P8.5 commit (test inputs, tests, docs);
-  - **not pushed** (§0 rule 5);
-  - rollback point: tag `before-rta-redesign` = `2daa169`.
-- **POC inputs** (`test-inputs/poc-inputs/`, built by `scripts/test-inputs/build-poc.ts`):
-  - proposals follow the 7-section template: technical = sections 1–5, commercial = 6–7 with "Terms and deviations";
-  - rules come as `.xlsx`, `.csv` and `.txt`;
-  - READMEs walk through the guided form;
-  - set 3 `3-three-vendors-air-quality`: PEMS-2026, RFP NGPA/T/2026/052, 3 vendors, 11 steps;
-  - estimates for the 2-vendor sets: Haiku ≈ $0.05, Sonnet ≈ $0.60–0.66, Opus ≈ $1.3–1.45. Set 3: Haiku ≈ $0.08 (real $0.094), Sonnet ≈ $0.92, Opus ≈ $2.05.
-- **User's budget:** about **$6** (user, 2026-10-23). Haiku for tests, Opus once at the end, and the user starts the runs (§0 rules 6–7).
-  - Spent this session: one Haiku check of POC set 3 at **$0.094**, on a throwaway server with its own data folder (`data/haiku-check`).
-  - That run: Sabkha recommended (95 % standards, risk 19), Kaltenmoor 2nd (risk 51), Nimbrel last (risk 84); all 7 sections filled.
-- **Feedback round after the first P8 test (2026-10-23), all fixed:**
-  - only 4 sections showed: every tab now lists all 7, and the section guess scores keywords (G-81);
-  - Comparison columns are headed with the vendor names in every section;
-  - a risk's "View more" links the RFP clause or rule, the vendor's evidence, and its section in Compliance;
-  - section numbers are hidden (names only);
-  - a new standard from a dropped file showed "0 rules" (G-82);
-  - "Section E" appeared in the AI's text (G-83).
-  - **New POC set 3** (three vendors, Safety & environment).
-- **User's own data (`data/`):**
-  - CITS-2026 and PRJ-2026-001 (IT & security, open, 2 RFP PDFs, 4 vendor proposals);
-  - DB backup in `data/backups/`;
-  - the throwaway live-test DB is `data/live-test/`.
-- **Port 3001 (the user's own server, don't kill it):**
-  - `next start -p 3001` with `NEXT_DIST_DIR=.next-view DATA_DIR=./data/live-test AI_MODE=live`, model Haiku;
-  - it still runs the **pre-P8 build**: rebuild `.next-view` to see P8 there;
-  - it holds the real Sonnet results (Cargo X-Ray $4.80, PCS $1.17). Keep them.
-- **Next:** the user tests P8 (main case: `test-inputs/poc-inputs/2-meeting-e-seals/README.md`). Then push, then P9.
-- **App runs?** `npm run dev` → http://localhost:3000.
-- **All checks green?** `npm run check` ✔ (**178 unit + integration**) · `npm run test:e2e` ✔ (**20**).
+- **Last session:** 2026-10-24/25 (session 7): the user's page-by-page feedback on P8, consultant reports, the agent visuals, the fresh-clone guide. Everything is committed and **pushed**.
+- **Done:** Planning · P0–P8 and the P8.6 feedback rounds. **Next:** whatever the user asks next (they review feature by feature); P9 (hardening) when asked.
+- **New here?** [`docs/FRESHLY-CLONED.md`](FRESHLY-CLONED.md) (setup, demo data, test tenders), then the rest of this file.
+- **The app today:**
+  - **Projects** home (welcome band, workspace totals), the guided **New project** form (Project → Standards → Vendors), the project page (Overview + Proposals + **Add vendor**). **Run AI analysis** starts on click, with no price shown.
+  - **Pipeline 4N + 2:** checklist → standards per vendor → RFP per vendor → risk per vendor → recommendation (Marsa scores and picks, the AI explains) → **consultant report** per vendor (2-page PDF, `src/server/reports/`).
+  - **Mission control:** ring and step texts beside the **agent orchestra** (`agent-orchestra.tsx`), with a ball passed agent → orchestrator → next agent.
+  - **Results** `/analysis/<projectId>`, tabs:
+    - **Overview:** a featured recommendation card, then rings per vendor; section titles open their tab.
+    - **RFP / Standards** (`ComplianceTab`): **By section** or the red **Point list**, with per-vendor Status / Type / Section dropdowns; collapsible vendor cards.
+    - **Risks:** By section or **Risk list** (Severity / Type / Section).
+    - **Comparison:** the agents' run, then the pricing-page table.
+    - **Reports:** View / Download PDF.
+    - **AI quality:** no prices; confidence in green / blue / yellow.
+  - A cancelled, interrupted or failed run never hides the previous results (`StoppedNotice`).
+  - **No prices anywhere in the UI** (deliberate, 2026-10-25). Costs are still stored (`costUsd`, `estimateRun` for the docs).
+  - **AI bid generation was removed** (2026-10-25); the manual Vendor simulator stays.
+- **Data:**
+  - The user's app (`data/`): PRJ-2026-001 X-ray (open, 5 proposals), PRJ-2026-002 E-seals (evaluated: Haiku live $0.094 with reports, plus an older demo run), PRJ-2026-003 Air quality (evaluated: Haiku live $0.089 + $0.034 reports). Standards CITS-2026, CTS-2026, PEMS-2026; 10 vendors.
+  - The same, as a **snapshot in git**: `test-inputs/demo-data/` (`npm run demo:save` / `demo:load`; name, organisation and Files API ids removed).
+  - The sample data (`npm run seed`, the X-ray and PCS samples) is unchanged: the tests are built on it.
+- **Servers:** :3000 = the user's app, a production build in `.next-design` (`NEXT_DIST_DIR=.next-design npx next start -p 3000`), live AI with Haiku selected. :3001 was not running on 2026-10-25. Rebuild flow and G-86 below.
+- **API spend this session:** about $0.22 on Haiku: the user's runs on sets 2 and 3, and the 3 reports backfilled on the user's word.
+- **Checks:** `npm run check` ✔ (**181**) · `npm run test:e2e` ✔ (**19**). I-27: one runner test is flaky.
 
 ## 2. Quick start for a new session
 ```bash
@@ -560,3 +537,10 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
     - `tests/integration/generate.test.ts` and its E2E test.
 
     `print.ts` lost `htmlToPdf` (only the reports print now). The manual **Vendor simulator** (`/vendor-portal`) stays, and the `ai` proposal source stays so old generated proposals still show their pill. Stale generated route types in `.next-view/`, `.next/dev/` and `.next-e2e/` (they still imported the deleted route) were deleted; they regenerate on build.
+- **Hand-over for cloning** (user, away, on remote control: "update the … clone md and the docs and the test inputs … and the seeded data too to match the current … then push"):
+  - New **`npm run demo:save` / `npm run demo:load`** (`scripts/demo-data.ts`). The snapshot of the user's app lives in **`test-inputs/demo-data/`** (app.db + uploads, 5.8 MB, with a README).
+    - The DB is copied with SQLite's backup API (safe while the app runs). Then `customer_name` / `organization` are emptied, `onboarded = 0`, and `anthropic_file_id` is nulled; the DB is vacuumed.
+    - `demo:load` refuses a `data/` that has projects unless `--yes`, and then backs it up to `data/backups/before-demo-<time>/`.
+    - **Checked:** loaded into an empty folder and served it. 3 projects; the welcome dialog asks for a name; PRJ-2026-002/003 show their live Haiku runs; the report PDFs serve (cached, so even without Chromium).
+  - `docs/FRESHLY-CLONED.md` has demo data as Option 1, the setup block runs `npm run demo:load`, and the tour covers the agent team, the list views, the comparison run and "no prices". The root README and HANDOFF §1 were refreshed.
+  - The sample data (seed) was left as it is: the tests are built on it. The demo snapshot is what "matches the current app".

@@ -4,13 +4,13 @@
 > Legend: ⬜ not started · 🟦 in progress · ✅ done · ⏸ blocked / waiting on you · ➖ skipped / rejected
 
 ## Now
-- **Current phase:** **P8 (new story after the client meeting) ✅ built → waiting for your test** (checkpoint P8.6). Committed locally, **not pushed**.
+- **Current phase:** **P8 ✅ built, P8.6 feedback rounds ✅ done (2026-10-25)**, all **pushed**. Next: the user's next request, feature by feature; P9 (hardening) when asked.
 - **Name:** users see **Mizan**; "Marsa" is the codename in code and docs (see CLAUDE.md, HANDOFF G-85).
   - Guided New project form (Project → Standards → Vendors);
-  - project page with one AI analysis button;
-  - new pipeline (standards and RFP checked separately, 7 proposal sections, 0–100 risk score);
-  - the full-width **AI analysis results** page.
-- **Test it:** http://localhost:3000/projects · guide: [test-inputs/poc-inputs/README.md](../test-inputs/poc-inputs/README.md) (the meeting set, step by step).
+  - project page with one AI analysis button (starts on click, no price shown);
+  - pipeline: standards and RFP checked separately, 7 proposal sections, 0–100 risk score, recommendation, **one consultant report PDF per vendor**;
+  - the full-width **AI analysis results** page (Overview · RFP · Standards · Risks · Comparison · Reports · AI quality), with the **agent orchestra** while a run is going.
+- **Test it:** http://localhost:3000/projects. **Fresh clone:** [FRESHLY-CLONED.md](FRESHLY-CLONED.md) (`npm run demo:load` gives the team's projects with real results); demo tenders: [test-inputs/poc-inputs/README.md](../test-inputs/poc-inputs/README.md).
 - **Rollback point:** tag `before-rta-redesign` (commit `2daa169`) is the app before the RTA design and P8.
 - **Session handoff notes:** [HANDOFF.md](HANDOFF.md) (read first every session).
 
@@ -41,6 +41,7 @@
 | 2026-10-25 | **Risks tab like RFP/Standards:** vendor pills hidden, vendors collapse (first open), red "By section / Risk list" switch, per-vendor Severity / Type / Section dropdowns; the risk list opens on all severities, worst first | You |
 | 2026-10-25 | **Agents made visible:** mission control shows the run as an agent team around an AI Orchestrator, with a ball passed agent → orchestrator → next agent; **Compare** plays the agents' steps (files handed over, comparison, assessment, results) under the vendor cards before the table appears | You |
 | 2026-10-25 | **No prices in the app** (AI quality, run confirmation, project panel, run menu, settings, standards); **a cancelled or failed run no longer hides the previous results**; mission control fits on screen (ring beside the agent team); AI confidence in green / blue / yellow; **AI vendor generation removed** | You |
+| 2026-10-25 | **Demo data in git** (`test-inputs/demo-data/`, `npm run demo:load`): a fresh clone shows the team's 3 projects with the real Haiku analyses and reports; fresh-clone guide and HANDOFF §1 refreshed | You |
 | 2026-10-23 | **Product name shown to users: Mizan** (procurement name; "Marsa" meant harbour). Only the UI changes: code, database and docs keep the codename Marsa | You |
 | 2026-10-23 | **Logo: the Sharjah emblem** replaces the RTA logo (the RTA colours and fonts stay) | You |
 | 2026-10-23 | POC set 4 with three vendors (customs laboratory LIMS, category Quality) | You |

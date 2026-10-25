@@ -7,5 +7,6 @@ A procurement-evaluation prototype for a ports and customs authority. Customers 
 ```bash
 npm install
 npx playwright install chromium
-npm run dev   # http://localhost:3000
+npm run demo:load   # optional: the team's projects with real AI results
+npm run dev         # http://localhost:3000
 ```

@@ -14,6 +14,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "seed": "tsx scripts/seed.ts",
+    "demo:save": "tsx scripts/demo-data.ts save",
+    "demo:load": "tsx scripts/demo-data.ts load",
     "ai:smoke": "tsx --conditions=react-server scripts/ai-smoke.ts",
     "ai:run": "tsx --conditions=react-server scripts/ai-run.ts",
     "reset": "tsx scripts/reset.ts",
