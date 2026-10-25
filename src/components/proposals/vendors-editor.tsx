@@ -33,7 +33,7 @@ import { useSettings } from "@/hooks/use-settings";
 import { ApiClientError } from "@/lib/api-client";
 import type { ProposalSummaryDto, VendorDto } from "@/lib/api-types";
 import { PROPOSAL_SECTION_LABEL } from "@/lib/labels";
-import { PROPOSAL_SECTIONS } from "@/lib/domain";
+import { sectionsFor, sectionTemplateFor } from "@/lib/domain";
 
 const EMPTY: VendorInput = { name: "", country: "", contactName: "", contactEmail: "" };
 
@@ -44,12 +44,15 @@ const EMPTY: VendorInput = { name: "", country: "", contactName: "", contactEmai
  */
 export function VendorsEditor({
   projectId,
+  category,
   ensureProject,
   onSaved,
   compact = false,
 }: {
   /** null: the guided form has no draft yet; `ensureProject` creates it when a vendor is saved. */
   projectId: string | null;
+  /** The project's category: building works show their own proposal template. */
+  category?: string;
   ensureProject?: () => Promise<string>;
   onSaved?: (p: { vendorName: string }) => void;
   /** Dialog use: only the form, no list of saved vendors. */
@@ -80,6 +83,7 @@ export function VendorsEditor({
           >
             <VendorForm
               projectId={projectId}
+              category={category}
               ensureProject={ensureProject}
               taken={list.map((p) => p.vendorId)}
               onSaved={(name) => {
@@ -160,18 +164,21 @@ function SavedVendor({ p, projectId }: { p: ProposalSummaryDto; projectId: strin
 
 function VendorForm({
   projectId,
+  category,
   ensureProject,
   taken,
   onSaved,
   onCancel,
 }: {
   projectId: string | null;
+  category?: string;
   ensureProject?: () => Promise<string>;
   taken: string[];
   onSaved: (vendorName: string) => void;
   onCancel?: () => void;
 }) {
   const t = useT();
+  const works = sectionTemplateFor(category) === "works";
   const reduce = useReducedMotion();
   const { data: settings } = useSettings();
   const { data: vendors } = useVendors();
@@ -384,7 +391,9 @@ function VendorForm({
             description={
               <span className="flex items-center gap-1.5">
                 <Receipt className="size-3.5" aria-hidden />{" "}
-                {t("Prices, payment and terms (sections 6–7)")}
+                {works
+                  ? t("Priced bill of quantities, bid bond and declarations (sections 4–6)")
+                  : t("Prices, payment and terms (sections 6–7)")}
               </span>
             }
             maxSizeMb={maxMb}
@@ -398,7 +407,9 @@ function VendorForm({
             description={
               <span className="flex items-center gap-1.5">
                 <FileText className="size-3.5" aria-hidden />{" "}
-                {t("Solution, plan and support (sections 1–5)")}
+                {works
+                  ? t("Licence, scope and programme (sections 1–3)")
+                  : t("Solution, plan and support (sections 1–5)")}
               </span>
             }
             maxSizeMb={maxMb}
@@ -409,10 +420,10 @@ function VendorForm({
       </div>
       <details className="text-xs text-ink-muted">
         <summary className="cursor-pointer select-none">
-          {t("Proposal template (7 sections)")}
+          {works ? t("Proposal template (6 sections)") : t("Proposal template (7 sections)")}
         </summary>
         <ol className="mt-2 grid list-decimal gap-1 ps-5 sm:grid-cols-2">
-          {PROPOSAL_SECTIONS.map((s) => (
+          {sectionsFor(category).map((s) => (
             <li key={s}>{t(PROPOSAL_SECTION_LABEL[s])}</li>
           ))}
         </ol>

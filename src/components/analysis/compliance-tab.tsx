@@ -28,7 +28,7 @@ import {
   MeterBar,
   type OpenEvidence,
   type Scope,
-  SECTION_ORDER,
+  sectionOrder,
   VendorCardShell,
   VendorDivider,
   VendorLabel,
@@ -100,8 +100,8 @@ export function ComplianceTab({
   const reduce = useReducedMotion();
   const vendors = d.vendors.filter((v) => v.scores);
   const inScope = d.requirements.filter((r) => r.scope === scope);
-  const sections = SECTION_ORDER.filter((s) => inScope.some((r) => r.section === s));
-  const empty = SECTION_ORDER.filter((s) => s !== null && !sections.includes(s));
+  const sections = sectionOrder(d).filter((s) => inScope.some((r) => r.section === s));
+  const empty = sectionOrder(d).filter((s) => s !== null && !sections.includes(s));
   const Icon = SCOPE_TEXT[scope].icon;
   const none = t(SCOPE_TEXT[scope].none);
   const codes = d.standards.map((s) => s.code).join(", ");

@@ -80,6 +80,7 @@ export const PROJECT_CATEGORY_LABEL: Record<ProjectCategory, string> = {
   "Safety & environment": msg("Safety & environment"),
   "Commercial & legal": msg("Commercial & legal"),
   Quality: msg("Quality"),
+  "Construction & maintenance": msg("Construction & maintenance"),
   General: msg("General"),
 };
 
@@ -87,6 +88,7 @@ export const PROPOSAL_SOURCE_LABEL: Record<ProposalSource, string> = {
   seed: msg("Sample"),
   simulator: msg("Uploaded"),
   ai: msg("AI-generated"),
+  import: msg("Imported"),
 };
 
 export const AI_MODEL_LABEL: Record<AiModel, string> = {
@@ -103,4 +105,11 @@ export const PROPOSAL_SECTION_LABEL: Record<ProposalSection, string> = {
   support: msg("Support, warranty & SLA"),
   commercial: msg("Commercial offer & pricing"),
   terms: msg("Terms & deviations"),
+  // Building works (2026-10-25)
+  contractor: msg("Contractor, licence & registration"),
+  scope: msg("Scope of works & specifications"),
+  programme: msg("Programme & duration"),
+  pricing: msg("Priced bill of quantities"),
+  guarantees: msg("Bid bond & guarantees"),
+  declarations: msg("Declarations, terms & contract"),
 };

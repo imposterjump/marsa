@@ -39,20 +39,23 @@ export function vendorColors(vendors: VendorResultDto[]): Map<string, string> {
   return new Map(ids.map((id, i) => [id, PALETTE[i % PALETTE.length]]));
 }
 
-/** Template order, then "Not assigned" for runs from before P8. */
+/** Every template's order, then "Not assigned" for runs from before P8. */
 export const SECTION_ORDER: (ProposalSection | null)[] = [...PROPOSAL_SECTIONS, null];
+/** The project's template order (building works have their own), then "Not assigned". */
+export const sectionOrder = (d: Pick<AnalysisResultsDto, "sections">) =>
+  [...d.sections, null] as (ProposalSection | null)[];
 /** The section's English label, msg()-marked: show it with t(sectionLabel(s)). */
 export const sectionLabel = (s: ProposalSection | null) =>
   s ? PROPOSAL_SECTION_LABEL[s] : msg("Not assigned to a section");
 /**
- * The sections a results tab shows: always all 7 of the template (an empty one says so), plus
- * "Not assigned" only when an older run has points without a section.
+ * The sections a results tab shows: always every section of the project's template (an empty
+ * one says so), plus "Not assigned" only when an older run has points without a section.
  */
 export function shownSections(d: AnalysisResultsDto): (ProposalSection | null)[] {
   const unassigned =
     d.requirements.some((r) => r.section === null) ||
     d.vendors.some((v) => v.risks.some((r) => r.section === null));
-  return SECTION_ORDER.filter((s) => s !== null || unassigned);
+  return sectionOrder(d).filter((s) => s !== null || unassigned);
 }
 
 /** The section's name as a card title; `as="span"` inside buttons. */

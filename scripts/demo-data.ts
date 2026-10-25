@@ -5,6 +5,8 @@
  *   npm run demo:save            copy DATA_DIR (default ./data) into test-inputs/demo-data/
  *   npm run demo:load            copy test-inputs/demo-data/ into an empty DATA_DIR
  *   npm run demo:load -- --yes   replace a DATA_DIR that already has data (backed up first)
+ *   demo:save refuses data with imported tenders (they may be real company files) unless
+ *   `-- --include-imports` is given.
  * Stop the app before loading. The snapshot leaves out the owner's name and organisation (the
  * welcome dialog asks again) and the Files API ids cached for the owner's API key.
  */
@@ -42,6 +44,27 @@ function count(file: string, table: string): number {
 async function save() {
   const src = path.join(dataDir, "app.db");
   if (!fs.existsSync(src)) throw new Error(`No database at ${src}.`);
+  // Imported tenders can be real company files (bank guarantees, licences): never into git by
+  // accident (2026-10-25).
+  const imported = (() => {
+    const db = new Database(src, { readonly: true });
+    try {
+      return (
+        db.prepare("select count(*) as n from proposals where source = 'import'").get() as {
+          n: number;
+        }
+      ).n;
+    } catch {
+      return 0;
+    } finally {
+      db.close();
+    }
+  })();
+  if (imported && !process.argv.includes("--include-imports")) {
+    throw new Error(
+      `The data holds ${imported} imported bids (Projects → Import tender), which may be real company files. Delete those projects first, or run: npm run demo:save -- --include-imports (only for fictional tenders).`,
+    );
+  }
   fs.rmSync(snapDir, { recursive: true, force: true });
   fs.mkdirSync(snapDir, { recursive: true });
   const dest = path.join(snapDir, "app.db");

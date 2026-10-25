@@ -55,6 +55,8 @@ function EditForm({ project, onDone }: { project: ProjectDetailDto; onDone: () =
     category: project.category,
     deadline: project.deadline,
     notes: project.notes,
+    estimateAmount: project.estimateAmount,
+    estimateCurrency: project.estimateCurrency,
   });
   const [touched, setTouched] = useState(false);
   const [serverErrors, setServerErrors] = useState<ProjectErrors>({});

@@ -33,6 +33,8 @@ import {
   summaryTask,
 } from "./prompts";
 import { APP_NAME } from "../../lib/brand";
+import { boqDetail, boqOverview } from "../boq/facts";
+import { sectionTemplateFor } from "../../lib/domain";
 
 export type Block = Anthropic.Beta.BetaContentBlockParam;
 
@@ -156,6 +158,20 @@ function analysesSection(title: string, payload: unknown): Block[] {
   return [text(`# Section E: ${title}\n${JSON.stringify(payload)}`)];
 }
 
+/**
+ * Building works: Mizan's price comparison (Section F), after the cached blocks so the cache is
+ * the same as without it. `proposalId` adds that bid's notable lines. Nothing for other tenders.
+ */
+function pricesSection(ctx: RunContext, proposalId?: string): Block[] {
+  if (!ctx.boq) return [];
+  const detail = proposalId ? boqDetail(ctx.boq, proposalId) : "";
+  return [
+    text(
+      `# Section F: ${APP_NAME}'s price comparison of the bills of quantities\nComputed by ${APP_NAME} from the bidders' Excel bills of quantities, line by line. Use these figures as given; do not add up the bill of quantities yourself.\n${boqOverview(ctx.boq)}${detail ? `\n\nThis bid's lines that stand out:\n${detail}` : ""}`,
+    ),
+  ];
+}
+
 export function buildContent(input: AnalysisStepInput): Block[] {
   const blocks = stepBlocks(input);
   const task = blocks.at(-1) as { type: "text"; text: string };
@@ -172,7 +188,10 @@ function stepBlocks(input: AnalysisStepInput): Block[] {
   switch (input.phase) {
     case "checklist": {
       const codes = input.ctx.standards.flatMap((s) => s.rules.map((r) => r.code));
-      return [...shared, text(checklistTask(codes))];
+      return [
+        ...shared,
+        text(checklistTask(codes, sectionTemplateFor(input.ctx.project.category))),
+      ];
     }
     // Standards and RFP checks of one vendor share ① ② ③: the second reads the first's cache.
     case "standards":
@@ -192,6 +211,7 @@ function stepBlocks(input: AnalysisStepInput): Block[] {
         ...shared,
         ...cached(checklistSection(input.checklist)),
         ...cached(vendorSection(input.vendor)),
+        ...pricesSection(input.ctx, input.vendor.proposalId),
         text(
           analyzeTask(
             input.vendor.name,
@@ -219,7 +239,8 @@ function stepBlocks(input: AnalysisStepInput): Block[] {
         ...cached(checklistSection(input.checklist)),
         ...cached(vendorSection(input.vendor)),
         ...analysesSection(`Analysis of ${input.vendor.name}`, digestForPrompt(input.analysis)),
-        text(riskTask(input.vendor.name)),
+        ...pricesSection(input.ctx, input.vendor.proposalId),
+        text(riskTask(input.vendor.name, sectionTemplateFor(input.ctx.project.category))),
       ];
     // P8: the recommendation needs the scores and analyses only, not the tender documents.
     case "summary":
@@ -238,6 +259,7 @@ function stepBlocks(input: AnalysisStepInput): Block[] {
           })),
           analyses: input.analyses.map(digestForPrompt),
         }),
+        ...pricesSection(input.ctx),
         text(summaryTask(input.recommended, input.missing)),
       ];
     // The report reads the bid itself and the tender, like the risk step, with the vendor's
@@ -277,6 +299,7 @@ function stepBlocks(input: AnalysisStepInput): Block[] {
           riskRegister: input.risks,
           otherBidPrices: input.otherPrices,
         }),
+        ...pricesSection(input.ctx, input.vendor.proposalId),
         text(reportTask(input.vendor.name, input.recommended)),
       ];
     }

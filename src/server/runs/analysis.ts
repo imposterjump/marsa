@@ -21,7 +21,12 @@ import type {
   RiskResultDto,
   VendorResultDto,
 } from "../../lib/api-types";
-import type { ProposalSection, ReportLanguage, RiskSeverity } from "../../lib/domain";
+import {
+  sectionsFor,
+  type ProposalSection,
+  type ReportLanguage,
+  type RiskSeverity,
+} from "../../lib/domain";
 import { emptyCounts } from "../../lib/scoring";
 import { toDocumentDto } from "../documents/dto";
 import type { LocalStorage } from "../storage/local";
@@ -207,6 +212,7 @@ export async function getAnalysisResults(
     })),
     reports: reportSummaries(db, run.id, vendors, L),
     textLanguage: L.language,
+    sections: [...sectionsFor(project.category)],
   };
 }
 

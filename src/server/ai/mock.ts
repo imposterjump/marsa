@@ -32,8 +32,9 @@ import type {
 } from "./schemas";
 import { normalizeChecklist, normalizeReport, requirementsFor, withStandardRules } from "./schemas";
 import { guessSection, pointType, type PointType } from "../../lib/sections";
-import { EMPTY_USAGE } from "../../lib/domain";
+import { EMPTY_USAGE, sectionTemplateFor } from "../../lib/domain";
 import { readPdfPages } from "../documents/pdf-text";
+import { analyzeWorks, worksChecklist } from "./mock-works";
 import type { LocalStorage } from "../storage/local";
 import type { CallResult } from "./result";
 import type {
@@ -163,6 +164,10 @@ const HOSTING =
 
 // ─── Steps ───────────────────────────────────────────────────────────────────
 async function checklist(input: Extract<StepInput, { phase: "checklist" }>, deps: MockDeps) {
+  const template = sectionTemplateFor(input.ctx.project.category);
+  // Building works: the tender's own conditions (mock-works.ts), plus the standards' rules.
+  if (template === "works")
+    return withStandardRules(worksChecklist(input.ctx), input.ctx.standards, template);
   const seen = new Set<string>();
   const reqs: ChecklistOutput["requirements"] = [];
   for (const s of await sentencesOf(input.ctx.rfpDocs, deps)) {
@@ -182,7 +187,7 @@ async function checklist(input: Extract<StepInput, { phase: "checklist" }>, deps
       sourceType: "rfp",
       sourceRef: `${s.doc.name}${s.page ? ` p.${s.page}` : ""}`,
       acceptance: "The proposal states compliance and describes how it is met.",
-      section: guessSection(s.text),
+      section: guessSection(s.text, template),
     });
   }
   const keyConstraints = reqs
@@ -190,10 +195,10 @@ async function checklist(input: Extract<StepInput, { phase: "checklist" }>, deps
     .slice(0, 5)
     .map((r) => ({ label: r.title, value: r.description.slice(0, 160) }));
   const ruleSections = input.ctx.standards.flatMap((std) =>
-    std.rules.map((rule) => ({ code: rule.code, section: guessSection(rule.text) })),
+    std.rules.map((rule) => ({ code: rule.code, section: guessSection(rule.text, template) })),
   );
-  const out = normalizeChecklist({ requirements: reqs, ruleSections, keyConstraints });
-  return withStandardRules(out, input.ctx.standards);
+  const out = normalizeChecklist({ requirements: reqs, ruleSections, keyConstraints }, template);
+  return withStandardRules(out, input.ctx.standards, template);
 }
 
 function commercialOf(sentences: Sentence[]): AnalysisOutput["commercial"] {
@@ -233,6 +238,12 @@ async function analyze(
 ): Promise<AnalysisOutput> {
   const vendor = input.vendor.name;
   const scope = requirementsFor(input.checklist, input.phase === "standards" ? "standards" : "rfp");
+  if (input.phase === "analyze" && sectionTemplateFor(input.ctx.project.category) === "works")
+    return analyzeWorks(
+      input.ctx,
+      input.vendor,
+      scope.map((r) => r.code),
+    );
   const sentences = await sentencesOf(input.vendor.docs, deps);
   // Technical documents first: they describe the architecture; negated mentions don't count.
   const conflict = [...sentences]
@@ -423,6 +434,10 @@ const RISK_FOR: Record<RequirementCategory, RiskOutput["risks"][number]["categor
 };
 
 function risk(input: Extract<StepInput, { phase: "risk" }>): RiskOutput {
+  // Building works file these under their own sections (prices, programme).
+  const works = sectionTemplateFor(input.ctx.project.category) === "works";
+  const priceSection = works ? ("pricing" as const) : ("commercial" as const);
+  const planSection = works ? ("programme" as const) : ("implementation" as const);
   const reqs = new Map(input.checklist.requirements.map((r) => [r.code, r]));
   const weight: Record<Priority, number> = { mandatory: 0, important: 1, desirable: 2 };
   const flagged = input.analysis.analysis.findings
@@ -449,7 +464,9 @@ function risk(input: Extract<StepInput, { phase: "risk" }>): RiskOutput {
       mitigation: "Require written confirmation and a contractual remedy before award.",
       evidence: f.evidenceQuote,
       requirementCodes: [f.code],
-      section: r?.section ?? guessSection(r?.description ?? ""),
+      section:
+        r?.section ??
+        guessSection(r?.description ?? "", sectionTemplateFor(input.ctx.project.category)),
     };
   });
   for (const ex of input.analysis.analysis.commercial.exclusions.slice(0, 1)) {
@@ -463,7 +480,7 @@ function risk(input: Extract<StepInput, { phase: "risk" }>): RiskOutput {
       mitigation: "Ask the vendor to price the excluded items as options.",
       evidence: ex,
       requirementCodes: [],
-      section: "commercial",
+      section: priceSection,
     });
   }
   while (risks.length < 3) {
@@ -479,7 +496,7 @@ function risk(input: Extract<StepInput, { phase: "risk" }>): RiskOutput {
             mitigation: "Tie the final payment to completed training and acceptance.",
             evidence: null,
             requirementCodes: [],
-            section: "implementation",
+            section: planSection,
           }
         : {
             title: "Delivery schedule",
@@ -491,7 +508,7 @@ function risk(input: Extract<StepInput, { phase: "risk" }>): RiskOutput {
             mitigation: "Agree milestone dates with delay penalties in the contract.",
             evidence: null,
             requirementCodes: [],
-            section: "implementation",
+            section: planSection,
           },
     );
   }

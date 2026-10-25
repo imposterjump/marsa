@@ -9,7 +9,7 @@ import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { InitialsAvatar } from "@/components/ui/initials-avatar";
 import type { AnalysisResultsDto, DocumentDto, VendorResultDto } from "@/lib/api-types";
 import { listSep } from "./risk-list";
-import { SECTION_ORDER } from "./shared";
+import { sectionOrder } from "./shared";
 
 interface Step {
   title: string;
@@ -237,7 +237,9 @@ function buildSteps(
       [...v.technicalDocuments, ...v.commercialDocuments].map((x) => x.originalName),
     ),
   ];
-  const sections = SECTION_ORDER.filter((s) => d.requirements.some((r) => r.section === s)).length;
+  const sections = sectionOrder(d).filter((s) =>
+    d.requirements.some((r) => r.section === s),
+  ).length;
   const rfp = d.requirements.filter((r) => r.scope === "rfp").length;
   const rules = d.requirements.filter((r) => r.scope === "standard").length;
   // Points where the chosen vendors' statuses differ: the assessment's real workload.

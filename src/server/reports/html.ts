@@ -10,7 +10,7 @@
  * conditions, negotiation points, clarifications) → method note.
  */
 import type { AspectRating, ReportLanguage, ReportVerdict, RiskSeverity } from "../../lib/domain";
-import { APP_NAME } from "../../lib/brand";
+import { APP_NAME, APP_NAME_AR } from "../../lib/brand";
 import type { ReportOutput } from "../ai/schemas";
 
 export interface ReportView {
@@ -109,7 +109,7 @@ const TEXT = {
     none: "لا يوجد.",
     page: (p: string, t: string) => `صفحة ${p} من ${t}`,
     method: (author: string) =>
-      `أعدّ ${APP_NAME} هذا التقرير باستخدام ${author} بصفة استشاري مشتريات، استنادًا إلى طلب العروض وعرض المورّد وتقييم ${APP_NAME}. الدرجات محسوبة وفق قواعد التقييم في ${APP_NAME}. محتوى مولَّد بالذكاء الاصطناعي: تحقّق من الحقائق الأساسية في المستندات الأصلية قبل اتخاذ القرار.`,
+      `أعدّ ${APP_NAME_AR} هذا التقرير باستخدام ${author} بصفة استشاري مشتريات، استنادًا إلى طلب العروض وعرض المورّد وتقييم ${APP_NAME_AR}. الدرجات محسوبة وفق قواعد التقييم في ${APP_NAME_AR}. محتوى مولَّد بالذكاء الاصطناعي: تحقّق من الحقائق الأساسية في المستندات الأصلية قبل اتخاذ القرار.`,
     verdict: {
       preferred_bidder: "المورّد المفضّل",
       acceptable_with_conditions: "مقبول بشروط",
@@ -286,7 +286,7 @@ h2 { break-after: avoid; }
   <div class="top">
     <div class="brand">
       ${assets.emblem ? `<img src="${assets.emblem}" alt="">` : ""}
-      <div><b>${esc(APP_NAME)}</b><span>${esc(t.title)}</span></div>
+      <div><b>${esc(view.language === "ar" ? APP_NAME_AR : APP_NAME)}</b><span>${esc(t.title)}</span></div>
     </div>
     <div class="conf">${esc(t.confidential)}</div>
   </div>
@@ -358,7 +358,9 @@ ${aspect(t.commercial, r.commercial, t)}
 /** Chromium footer: tender and vendor on one side, the page count on the other (system font). */
 export function reportFooter(view: ReportView): string {
   const t = TEXT[view.language];
-  const label = esc(`${APP_NAME} · ${view.project.code} · ${view.vendor.name}`);
+  const label = esc(
+    `${view.language === "ar" ? APP_NAME_AR : APP_NAME} · ${view.project.code} · ${view.vendor.name}`,
+  );
   const page = t.page('<span class="pageNumber"></span>', '<span class="totalPages"></span>');
   return `<div dir="${view.language === "ar" ? "rtl" : "ltr"}" style="width:100%;padding:0 14mm;font-family:'Segoe UI',Arial,sans-serif;font-size:7px;color:#8a94a6;display:flex;justify-content:space-between;"><span>${label}</span><span>${page}</span></div>`;
 }

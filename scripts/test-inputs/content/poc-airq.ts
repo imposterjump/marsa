@@ -265,7 +265,10 @@ export const AIRQ_TENDER: PocTender = {
           "8.1",
           "Mandatory requirements are pass/fail. Compliant bids are scored 70 % technical (measurement quality 30, data platform 20, operation and maintenance 30, references 20) and 30 % financial.",
         ],
-        ["8.2", "Evaluated price = supply and installation + 3 years of operation and maintenance."],
+        [
+          "8.2",
+          "Evaluated price = supply and installation + 3 years of operation and maintenance.",
+        ],
         ["8.3", "Bidders shall complete the compliance matrix in Annex 1."],
       ],
     },
@@ -332,9 +335,7 @@ export const AIRQ_BIDS: PocBid[] = [
           ],
         ),
       solution:
-        p(
-          "<b>Air-quality stations.</b> Each of the six stations contains:",
-        ) +
+        p("<b>Air-quality stations.</b> Each of the six stations contains:") +
         ul([
           "a Vireo PM-2 dual-channel beta-attenuation monitor for PM10 and PM2.5, certified by TÜV as equivalent to the EN reference method (EN 16450); certificates in Appendix B;",
           "a Vireo NX-1 chemiluminescence NO2 analyser (EN 14211), a Vireo SX-1 UV-fluorescence SO2 analyser (EN 14212) and a Vireo OX-1 UV-photometric O3 analyser (EN 14625), all type-approved;",
@@ -458,15 +459,17 @@ export const AIRQ_BIDS: PocBid[] = [
         tbl(
           ["Reference", "Scope", "Year"],
           [
-            ["City of Westhaven, smart-city air network", "120 sensor pods, public dashboard", "2022"],
+            [
+              "City of Westhaven, smart-city air network",
+              "120 sensor pods, public dashboard",
+              "2022",
+            ],
             ["Northbay Port, fence-line monitoring", "18 sensor pods, 6 noise nodes", "2024"],
             ["Coastal Highways Agency, roadside monitoring", "40 sensor pods", "2025"],
           ],
         ),
       solution:
-        p(
-          "<b>AQ-Pod S5.</b> One compact pod per site, mounted on a pole or a wall, with:",
-        ) +
+        p("<b>AQ-Pod S5.</b> One compact pod per site, mounted on a pole or a wall, with:") +
         ul([
           "an optical particle counter for PM1, PM2.5 and PM10; the AQ-Pod S5 is certified under MCERTS for indicative ambient particulate monitors;",
           "electrochemical sensors for NO2, SO2 and O3, corrected by our machine-learning calibration models;",
@@ -500,8 +503,7 @@ export const AIRQ_BIDS: PocBid[] = [
             ["Network live, trial period", "3"],
             ["Acceptance", "4"],
           ],
-        ) +
-        p("<b>Training.</b> Two online sessions (English) for the Authority's users."),
+        ) + p("<b>Training.</b> Two online sessions (English) for the Authority's users."),
       support:
         p("<b>Warranty.</b> 12 months from acceptance.") +
         p(
@@ -545,10 +547,16 @@ export const AIRQ_BIDS: PocBid[] = [
         "Prices are fixed for 3 years.",
       ],
       terms: [
-        ["Payment", "50 % with the order; 50 % on installation. Data service invoiced yearly in advance."],
+        [
+          "Payment",
+          "50 % with the order; 50 % on installation. Data service invoiced yearly in advance.",
+        ],
         ["Bid validity", "120 days from the bid closing date."],
         ["Bid security", "Bank guarantee of USD 25,000 issued by Thamesbridge Bank plc, London."],
-        ["Performance security", "10 % of the contract price, issued by Thamesbridge Bank plc, London."],
+        [
+          "Performance security",
+          "10 % of the contract price, issued by Thamesbridge Bank plc, London.",
+        ],
       ],
       deviations: ["Payment: 50 % with the order and 50 % on installation."],
     },
@@ -577,7 +585,9 @@ export const AIRQ_BIDS: PocBid[] = [
           ],
         ),
       solution:
-        p("<b>Air-quality stations.</b> Each station is built and tested in our Oldenburg factory:") +
+        p(
+          "<b>Air-quality stations.</b> Each station is built and tested in our Oldenburg factory:",
+        ) +
         ul([
           "AK-PM 300 monitor for PM10 and PM2.5, certified by TÜV as equivalent to the EN reference method (EN 16450); certificates attached;",
           "AK-NOx chemiluminescence analyser (EN 14211), AK-SO2 UV-fluorescence analyser (EN 14212) and AK-O3 UV-photometric analyser (EN 14625);",
@@ -594,10 +604,9 @@ export const AIRQ_BIDS: PocBid[] = [
         p(
           "<b>AirBase platform.</b> Automatic and manual validation with an audit trail. The alarm module checks the hourly averages every 15 minutes and sends e-mails to the duty officer. Monthly and annual reports export to Excel and PDF. The public dashboard is available in English and German; an Arabic version can be produced on request. Published data is available through a documented REST API.",
         ),
-      security:
-        p(
-          "<b>Hosting.</b> AirBase is installed on the Authority's servers in its data centre. Users sign in with their Active Directory accounts through LDAP. Raw and validated data are kept for 10 years.",
-        ),
+      security: p(
+        "<b>Hosting.</b> AirBase is installed on the Authority's servers in its data centre. Users sign in with their Active Directory accounts through LDAP. Raw and validated data are kept for 10 years.",
+      ),
       implementation:
         tbl(
           ["Milestone", "Month"],

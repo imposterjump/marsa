@@ -41,6 +41,9 @@ const projectFields = {
   category: z.enum(PROJECT_CATEGORIES),
   deadline,
   notes: z.string().trim().max(8000),
+  // The client's internal cost estimate (2026-10-25, building works).
+  estimateAmount: z.number().nonnegative().max(1e12).nullable(),
+  estimateCurrency: z.string().trim().max(8).nullable(),
 };
 
 export const projectInputSchema = z
@@ -50,6 +53,8 @@ export const projectInputSchema = z
     category: projectFields.category.default("General"),
     deadline: deadline.default(null),
     notes: projectFields.notes.default(""),
+    estimateAmount: projectFields.estimateAmount.default(null),
+    estimateCurrency: projectFields.estimateCurrency.default(null),
   })
   .strict();
 

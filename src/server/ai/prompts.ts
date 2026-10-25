@@ -8,7 +8,8 @@
  * The prompts are generic procurement guidance. They never mention a specific tender, vendor or
  * expected finding (CLAUDE.md: test documents and prompts never help the AI).
  */
-import { SECTION_LIST } from "../../lib/sections";
+import { sectionList } from "../../lib/sections";
+import type { SectionTemplate } from "../../lib/domain";
 import {
   CONFIDENCE_LEVELS,
   FINDING_STATUSES,
@@ -68,7 +69,17 @@ Rules:
 export const answerIn = (field: string) =>
   `Answer in the "${field}" field of the output object and set every other top-level field to null.`;
 
-export function checklistTask(standardRuleCodes: string[]): string {
+/**
+ * Building works (2026-10-25): the bill of quantities is priced line by line by the bidders and
+ * compared by Mizan itself, so the checklist keeps to what decides admissibility and quality.
+ */
+const WORKS_CHECKLIST = `
+- This is a building works tender. The bill of quantities lists the works to be priced: do not make one requirement per BOQ line. Make requirements for what a bid must do with it (price every item, keep the quantities and descriptions unchanged, totals and VAT, sign and stamp every page), and for the scope, specifications, programme or duration, bid bond, licences and declarations that the tender documents ask for. Mizan compares the prices item by item separately.`;
+
+export function checklistTask(
+  standardRuleCodes: string[],
+  template: SectionTemplate = "services",
+): string {
   const rules = standardRuleCodes.length
     ? `- ruleSections: for every standard rule in Section B (${standardRuleCodes.join(", ")}), the proposal section where a vendor answers it. The rules themselves are checked one by one in a later step: do not copy them into requirements.`
     : "- No standards are applied to this tender: ruleSections is empty.";
@@ -85,8 +96,8 @@ Read every RFP document in Section A (main document, addenda, annexes, clarifica
 - sourceType: "rfp" or "notes" (one of ${list(REQUIREMENT_SOURCES)}).
 - sourceRef: where it comes from, e.g. "RFP §4.1", "Addendum 1 Q3", "Annex B row 7".
 - acceptance: what evidence in a proposal shows compliance.
-- section: the proposal section where a vendor answers it, one of ${SECTION_LIST}.
-${rules}
+- section: the proposal section where a vendor answers it, one of ${sectionList(template)}.
+${rules}${template === "works" ? WORKS_CHECKLIST : ""}
 - keyConstraints: the 3–8 constraints that most limit which bids can win (for example a hosting or deployment restriction, the delivery deadline, a budget ceiling, mandatory certifications), as short label/value pairs.`;
 }
 
@@ -132,7 +143,7 @@ export function compareTask(vendor: string, others: string[]): string {
 - Use the scores in Section E as given. Use vendor names exactly as written there.`;
 }
 
-export function riskTask(vendor: string): string {
+export function riskTask(vendor: string, template: SectionTemplate = "services"): string {
   return `Task: build the risk register for awarding the contract to ${vendor}.
 
 Use the proposal (Section D) and the analysis of ${vendor} (Section E): findings that are partial, non-compliant or not addressed, the commercial terms and exclusions, the delivery plan, dependencies on third parties and anything else that could hurt the customer after award.
@@ -142,7 +153,7 @@ Use the proposal (Section D) and the analysis of ${vendor} (Section E): findings
 - consequence: what happens to the customer if this risk materialises after award.
 - mitigation: a concrete contract clause, clarification or project control.
 - evidence: a short quote or document reference, or empty. requirementCodes: related checklist codes (may be empty).
-- section: the proposal section the risk relates to, one of ${SECTION_LIST}.
+- section: the proposal section the risk relates to, one of ${sectionList(template)}.
 - overall: one of ${list(RISK_SEVERITIES)}, the risk of awarding to ${vendor}.`;
 }
 

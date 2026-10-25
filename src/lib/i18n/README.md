@@ -3,8 +3,9 @@
 Users switch the language with the **ع / EN** button in the top bar or in **Settings → Appearance**.
 The choice is saved in the browser (`localStorage` `marsa-locale`, plus a cookie of the same name the
 server reads for error messages). Arabic turns the whole page right-to-left (`<html lang="ar" dir="rtl">`).
-AI-written text (findings, summaries, reports) stays in the language it was written in. The run's
-**Report language** setting (Settings → AI) chooses that language for new analyses.
+AI-written text (findings, summaries, reports) is translated by each run's last step, the
+Translator (`src/server/ai/translate.ts`): the results and report PDFs come in the screen's language.
+Runs of the free demo AI, and runs from before 2026-10-25 that were not translated, stay English.
 
 ## How it works
 

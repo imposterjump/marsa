@@ -20,6 +20,9 @@ export interface ProjectInput {
   category: ProjectCategory;
   deadline: string | null;
   notes: string;
+  /** The client's internal cost estimate (building works only; never shown to vendors). */
+  estimateAmount?: number | null;
+  estimateCurrency?: string | null;
 }
 
 export function useProjects() {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { TriangleAlert } from "lucide-react";
 import { useT, type T } from "@/components/i18n-provider";
 import { Field } from "@/components/ui/field";
@@ -14,7 +15,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type { ProjectInput } from "@/hooks/use-projects";
 import type { ProjectStandardRef } from "@/lib/api-types";
-import { PROJECT_CATEGORIES, standardFitsProject, type ProjectCategory } from "@/lib/domain";
+import {
+  PROJECT_CATEGORIES,
+  standardFitsProject,
+  WORKS_CATEGORY,
+  type ProjectCategory,
+} from "@/lib/domain";
 import { PROJECT_CATEGORY_LABEL } from "@/lib/labels";
 
 export const EMPTY_PROJECT: ProjectInput = {
@@ -23,7 +29,39 @@ export const EMPTY_PROJECT: ProjectInput = {
   category: "General", // i18n-ignore
   deadline: null,
   notes: "",
+  estimateAmount: null,
+  estimateCurrency: null,
 };
+
+export const DEFAULT_CURRENCY = "AED";
+const MAX_ESTIMATE = 1e12; // the server's limit
+
+const AMOUNT_FORMAT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+/** "12,500,000": Western digits in both languages, as on RTA screens. */
+const formatAmount = (n: number | null | undefined) =>
+  n == null || !Number.isFinite(n) ? "" : AMOUNT_FORMAT.format(n);
+
+/** Keeps what an amount can hold: digits (Arabic-Indic ones read as 0–9), commas, one point. */
+function cleanAmount(raw: string): string {
+  const s = raw
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/[٫]/g, ".")
+    .replace(/[٬]/g, ",")
+    .replace(/[^\d.,]/g, "");
+  const [whole, ...rest] = s.split(".");
+  return rest.length ? `${whole}.${rest.join("")}` : whole;
+}
+const parseAmount = (text: string): number | null => {
+  const s = text.replace(/,/g, "");
+  return s && s !== "." ? Number(s) : null;
+};
+
+/** The estimate's check (shared by the project form and the tender import). */
+export const estimateError = (amount: number | null | undefined, t: T): string | null =>
+  amount != null && (!Number.isFinite(amount) || amount < 0 || amount > MAX_ESTIMATE)
+    ? t("Enter an estimate under 1,000,000,000,000.")
+    : null;
 
 const todayYmd = () => {
   const d = new Date();
@@ -52,6 +90,8 @@ export function validateProject(
       v.deadline && !allowPastDeadline && v.deadline < todayYmd()
         ? t("The submission deadline can't be in the past.")
         : null,
+    // Building works only; for other categories the (hidden) field is not checked.
+    estimateAmount: v.category === WORKS_CATEGORY ? estimateError(v.estimateAmount, t) : null,
   };
 }
 
@@ -147,6 +187,17 @@ export function ProjectDetailsForm({
         </Field>
       </div>
       {categoryNote}
+      {value.category === WORKS_CATEGORY && (
+        <EstimateFields
+          amount={value.estimateAmount ?? null}
+          currency={value.estimateCurrency ?? null}
+          onChange={(estimateAmount, estimateCurrency) =>
+            onChange({ ...value, estimateAmount, estimateCurrency })
+          }
+          error={errors.estimateAmount}
+          hint={t("Bids are compared with it in the price comparison. Never shown to vendors.")}
+        />
+      )}
       <Field
         label={t("Key requirements / notes")}
         optional
@@ -161,6 +212,63 @@ export function ProjectDetailsForm({
           placeholder={t("Quantities, specifications, constraints…")}
           rows={4}
           dir="auto"
+        />
+      </Field>
+    </div>
+  );
+}
+
+/**
+ * The client's internal cost estimate of a building works tender (2026-10-25): an amount and its
+ * currency (AED unless changed). Optional; bids are compared with it in the price comparison and
+ * it is never shown to vendors. The typed text is kept as typed; it starts from `amount` when the
+ * fields are shown.
+ */
+export function EstimateFields({
+  amount,
+  currency,
+  onChange,
+  error,
+  hint,
+}: {
+  amount: number | null;
+  currency: string | null;
+  onChange: (amount: number | null, currency: string | null) => void;
+  error?: string | null;
+  hint: React.ReactNode;
+}) {
+  const t = useT();
+  const [text, setText] = useState(() => formatAmount(amount));
+
+  return (
+    <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_8rem]">
+      <Field label={t("Cost estimate (internal)")} optional error={error} hint={hint}>
+        <Input
+          inputMode="decimal"
+          autoComplete="off"
+          value={text}
+          placeholder="12,500,000"
+          onChange={(e) => {
+            const next = cleanAmount(e.target.value);
+            setText(next);
+            const value = parseAmount(next);
+            onChange(value, value != null ? (currency ?? DEFAULT_CURRENCY) : currency);
+          }}
+          onBlur={() => {
+            const value = parseAmount(text);
+            if (value != null && Number.isFinite(value)) setText(formatAmount(value));
+          }}
+          className="tabular-nums"
+        />
+      </Field>
+      <Field label={t("Currency")}>
+        <Input
+          value={currency ?? DEFAULT_CURRENCY}
+          maxLength={8}
+          autoComplete="off"
+          onChange={(e) => onChange(amount, e.target.value.trimStart().toUpperCase())}
+          onBlur={() => currency !== null && !currency.trim() && onChange(amount, DEFAULT_CURRENCY)}
+          className="uppercase"
         />
       </Field>
     </div>

@@ -14,6 +14,7 @@ export const STANDARD_CATEGORIES = [
   "Safety & environment",
   "Commercial & legal",
   "Quality",
+  "Construction & maintenance",
   "General",
 ] as const;
 export type StandardCategory = (typeof STANDARD_CATEGORIES)[number];
@@ -25,6 +26,8 @@ export type StandardCategory = (typeof STANDARD_CATEGORIES)[number];
 export const PROJECT_CATEGORIES = STANDARD_CATEGORIES;
 export type ProjectCategory = StandardCategory;
 export const GENERAL_CATEGORY = "General" satisfies StandardCategory;
+/** Building works tenders (2026-10-25, the Public Works tenders): their own proposal sections. */
+export const WORKS_CATEGORY = "Construction & maintenance" satisfies StandardCategory;
 
 /** Can a standard of `standardCategory` apply to a project of `projectCategory`? */
 export function standardFitsProject(standardCategory: string, projectCategory: string): boolean {
@@ -120,7 +123,8 @@ export type RunPhase = (typeof RUN_PHASES)[number];
 export const PROPOSAL_STATUSES = ["submitted", "withdrawn"] as const;
 export type ProposalStatus = (typeof PROPOSAL_STATUSES)[number];
 
-export const PROPOSAL_SOURCES = ["seed", "simulator", "ai"] as const;
+/** import = from a tender folder exported by the e-procurement portal (2026-10-25). */
+export const PROPOSAL_SOURCES = ["seed", "simulator", "ai", "import"] as const;
 export type ProposalSource = (typeof PROPOSAL_SOURCES)[number];
 
 export const THEMES = ["light", "dark", "system"] as const;
@@ -197,7 +201,7 @@ export type ReviewVerdict = (typeof REVIEW_VERDICTS)[number];
  * requirement, standard rule and risk is filed under one, so vendors can be compared section by
  * section. Technical proposal = company … support; commercial proposal = commercial and terms.
  */
-export const PROPOSAL_SECTIONS = [
+export const SERVICE_SECTIONS = [
   "company",
   "solution",
   "security",
@@ -206,7 +210,32 @@ export const PROPOSAL_SECTIONS = [
   "commercial",
   "terms",
 ] as const;
+/**
+ * Building works (2026-10-25): a contractor's bid as the Public Works Department asks for it
+ * (licence, scope, programme, priced bill of quantities, bid bond, declarations).
+ */
+export const WORKS_SECTIONS = [
+  "contractor",
+  "scope",
+  "programme",
+  "pricing",
+  "guarantees",
+  "declarations",
+] as const;
+/** Every section key of both templates (stored in analysis_meta.section). */
+export const PROPOSAL_SECTIONS = [...SERVICE_SECTIONS, ...WORKS_SECTIONS] as const;
 export type ProposalSection = (typeof PROPOSAL_SECTIONS)[number];
+
+export type SectionTemplate = "services" | "works";
+/** A project's proposal template follows its category. */
+export const sectionTemplateFor = (category: string | null | undefined): SectionTemplate =>
+  category === WORKS_CATEGORY ? "works" : "services";
+export const SECTIONS_OF: Record<SectionTemplate, readonly ProposalSection[]> = {
+  services: SERVICE_SECTIONS,
+  works: WORKS_SECTIONS,
+};
+export const sectionsFor = (category: string | null | undefined) =>
+  SECTIONS_OF[sectionTemplateFor(category)];
 
 /** What an analysis_meta row describes. */
 export const META_KINDS = ["requirement", "finding", "risk"] as const;

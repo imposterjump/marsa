@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { LayoutGrid, List, Plus, Search, SearchX } from "lucide-react";
+import { FolderInput, LayoutGrid, List, Plus, Search, SearchX } from "lucide-react";
 import { useT } from "@/components/i18n-provider";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { ProjectsArt } from "@/components/illustrations";
@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useProjects } from "@/hooks/use-projects";
 import type { ProjectStatus } from "@/lib/domain";
 import { PROJECT_STATUS_LABEL } from "@/lib/labels";
+import { ImportTenderDialog } from "./import-tender-dialog";
 import { ProjectCard, ProjectRow } from "./project-card";
 import { ProjectsWelcome } from "./projects-welcome";
 
@@ -27,6 +28,7 @@ export function ProjectsHome() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [view, setView] = useState<View>("grid");
+  const [importing, setImporting] = useState(false);
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -43,7 +45,7 @@ export function ProjectsHome() {
 
   return (
     <div className="flex flex-col gap-10">
-      <ProjectsWelcome projects={projects} />
+      <ProjectsWelcome projects={projects} onImport={() => setImporting(true)} />
 
       {/* ── Projects list ── */}
       <section aria-labelledby="projects-heading" className="flex flex-col gap-5">
@@ -132,11 +134,16 @@ export function ProjectsHome() {
                 { app: t.appName },
               )}
               actions={
-                <Button asChild>
-                  <Link href="/projects/new">
-                    <Plus /> {t("Create your first project")}
-                  </Link>
-                </Button>
+                <>
+                  <Button asChild>
+                    <Link href="/projects/new">
+                      <Plus /> {t("Create your first project")}
+                    </Link>
+                  </Button>
+                  <Button variant="secondary" onClick={() => setImporting(true)}>
+                    <FolderInput /> {t("Import tender")}
+                  </Button>
+                </>
               }
             />
           </div>
@@ -179,6 +186,8 @@ export function ProjectsHome() {
           </Stagger>
         )}
       </section>
+
+      <ImportTenderDialog open={importing} onOpenChange={setImporting} />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import type {
 } from "./schemas";
 import type { CallResult } from "./result";
 import type { TranslationOutput } from "./translate";
+import type { BoqComparisonDto } from "../../lib/api-types";
 import type { RunText } from "../runs/texts";
 
 export interface SourceDoc {
@@ -68,6 +69,11 @@ export interface RunContext {
   standards: StandardContext[];
   vendors: VendorContext[];
   reportLanguage: ReportLanguage;
+  /**
+   * Building works (2026-10-25): Mizan's price comparison of the bills of quantities, loaded when
+   * the run starts; the steps get its figures as text (src/server/boq/facts.ts).
+   */
+  boq?: BoqComparisonDto | null;
 }
 
 /** One vendor's analysis plus the scores Marsa computed from it (never the model's numbers). */

@@ -38,7 +38,7 @@ import {
   type OpenEvidence,
   RISK_FILL,
   type Scope,
-  SECTION_ORDER,
+  sectionOrder,
   VendorLabel,
   pctText,
   scopeStats,
@@ -232,12 +232,12 @@ function PricingTable({
   const ranked = d.vendors.filter((v) => v.scores);
   const recommended = d.recommendation?.proposalId ?? ranked[0]?.proposalId;
   const sectionsFor = (scope: Scope) =>
-    SECTION_ORDER.filter((s) => d.requirements.some((r) => r.section === s && r.scope === scope));
+    sectionOrder(d).filter((s) => d.requirements.some((r) => r.section === s && r.scope === scope));
   const missingFor = (scope: Scope) =>
-    SECTION_ORDER.filter(
+    sectionOrder(d).filter(
       (s): s is ProposalSection => s !== null && !sectionsFor(scope).includes(s),
     );
-  const riskSections = SECTION_ORDER.filter((s) =>
+  const riskSections = sectionOrder(d).filter((s) =>
     vendors.some((v) => v.risks.some((r) => r.section === s)),
   );
   const n = vendors.length;

@@ -1,7 +1,9 @@
 import type { Dictionary } from "../core";
 import { analysis } from "./analysis";
 import { common } from "./common";
+import { imports } from "./imports";
 import { comparison } from "./comparison";
+import { prices } from "./prices";
 import { projects } from "./projects";
 import { proposals } from "./proposals";
 import { results } from "./results";
@@ -19,6 +21,8 @@ export const AR_PARTS: Record<string, Dictionary> = {
   ui,
   analysis,
   comparison,
+  prices,
+  imports,
   results,
   projects,
   proposals,

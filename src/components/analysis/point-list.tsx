@@ -42,7 +42,7 @@ import {
   type OpenEvidence,
   type PointType,
   type Scope,
-  SECTION_ORDER,
+  sectionOrder,
   ScoreRing,
   VendorCardShell,
   VendorDivider,
@@ -123,7 +123,7 @@ function pointsOf(d: AnalysisResultsDto, v: VendorResultDto, scope: Scope): Poin
       (a, b) =>
         STATUS_RANK[a.f.status] - STATUS_RANK[b.f.status] ||
         PRIORITY_RANK[a.r.priority] - PRIORITY_RANK[b.r.priority] ||
-        SECTION_ORDER.indexOf(a.r.section) - SECTION_ORDER.indexOf(b.r.section) ||
+        sectionOrder(d).indexOf(a.r.section) - sectionOrder(d).indexOf(b.r.section) ||
         a.f.code.localeCompare(b.f.code, undefined, { numeric: true }),
     );
 }
@@ -288,6 +288,7 @@ function VendorPoints({
           onFilters={setFilters}
           points={points}
           reqs={reqs}
+          order={sectionOrder(d)}
           onReset={reset}
         />
       </div>
@@ -366,6 +367,7 @@ function VendorFilters({
   onFilters,
   points,
   reqs,
+  order,
   onReset,
 }: {
   vendor: string;
@@ -373,12 +375,14 @@ function VendorFilters({
   onFilters: (f: ListFilters) => void;
   points: Point[];
   reqs: RequirementResultDto[];
+  /** The project's sections in template order (sectionOrder). */
+  order: (ProposalSection | null)[];
   onReset: () => void;
 }) {
   const t = useT();
   const count = (over: Partial<ListFilters>) =>
     points.filter((p) => matches(p, { ...filters, ...over })).length;
-  const sections = SECTION_ORDER.filter((s) => s !== null || reqs.some((r) => r.section === null));
+  const sections = order.filter((s) => s !== null || reqs.some((r) => r.section === null));
   const changed =
     filters.status !== DEFAULT_FILTERS.status ||
     filters.type !== DEFAULT_FILTERS.type ||

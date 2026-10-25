@@ -8,6 +8,7 @@ import { eq, inArray } from "drizzle-orm";
 import type { Db } from "../db/connect";
 import { documents } from "../db/schema";
 import { env } from "../env";
+import { sectionTemplateFor } from "../../lib/domain";
 import { getStorage } from "../storage";
 import type { LocalStorage } from "../storage/local";
 import { AiError, callStructured, uploadFile } from "./client";
@@ -95,13 +96,18 @@ export function createLiveEngine(db: Db, storage: LocalStorage, model: string): 
         );
       }
       let data: unknown = fromWire(field, answer);
+      const template = sectionTemplateFor(i.ctx.project.category);
       if (i.phase === "checklist") {
         // The model lists the RFP requirements; every standard rule is added as its own one.
-        data = withStandardRules(normalizeChecklist(data as ChecklistOutput), i.ctx.standards);
+        data = withStandardRules(
+          normalizeChecklist(data as ChecklistOutput, template),
+          i.ctx.standards,
+          template,
+        );
       } else if (i.phase === "standards" || i.phase === "analyze") {
         data = normalizeAnalysis(data as AnalysisOutput);
       } else if (i.phase === "risk") {
-        data = normalizeRisks(data as RiskOutput);
+        data = normalizeRisks(data as RiskOutput, template);
       } else if (i.phase === "report") {
         data = normalizeReport(data as ReportOutput, {
           recommended: i.recommended === i.vendor.name,

@@ -6,6 +6,7 @@ import "server-only";
 import { getDb } from "../db/client";
 import { env, isApiKeyConfigured } from "../env";
 import { forgetUploads, getEngine } from "../ai/engine";
+import { getBoqComparison } from "../boq/load";
 import { getStorage } from "../storage";
 import { saveRunQuality } from "./quality";
 import { createRunner, type Runner } from "./runner";
@@ -21,6 +22,8 @@ export function getRunner(): Runner {
       forgetUploads: (docs) => forgetUploads(db, docs),
       mode: env.AI_MODE,
       apiKeyConfigured: isApiKeyConfigured(),
+      // Building works: the price comparison of the run's bids (src/server/boq).
+      pricesFor: (run) => getBoqComparison(db, getStorage(), run.projectId, run.config.proposalIds),
       // AI review: store the run's quality metrics as soon as it ends.
       onFinished: (runId) =>
         saveRunQuality(db, getStorage(), runId).catch((err) =>

@@ -92,6 +92,12 @@ export const projects = sqliteTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     publishedAt: text("published_at"),
+    /**
+     * The client's internal cost estimate (2026-10-25, building works): bids are compared with it.
+     * Added columns (ALTER TABLE ADD COLUMN), no table rebuild (G-52). Never shown to vendors.
+     */
+    estimateAmount: real("estimate_amount"),
+    estimateCurrency: text("estimate_currency"),
   },
   (t) => [uniqueIndex("projects_code_uq").on(t.code), index("projects_status_idx").on(t.status)],
 );

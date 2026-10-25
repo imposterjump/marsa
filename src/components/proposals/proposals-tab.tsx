@@ -74,7 +74,12 @@ export function ProposalsTab() {
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
-            <VendorsEditor projectId={p.id} compact onSaved={() => setAdding(false)} />
+            <VendorsEditor
+              projectId={p.id}
+              category={p.category}
+              compact
+              onSaved={() => setAdding(false)}
+            />
           </DialogBody>
         </DialogContent>
       </Dialog>

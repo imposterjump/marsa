@@ -60,6 +60,8 @@ const fromProject = (p: ProjectDetailDto): ProjectInput => ({
   category: p.category,
   deadline: p.deadline,
   notes: p.notes,
+  estimateAmount: p.estimateAmount,
+  estimateCurrency: p.estimateCurrency,
 });
 const trimmed = (v: ProjectInput) => ({
   ...v,
@@ -638,7 +640,11 @@ function VendorsStep({
             "Add each vendor with its two proposals: the commercial (financial) one and the technical one. You can skip this and add vendors later, even after an analysis, then run it again.",
           )}
         </p>
-        <VendorsEditor projectId={project?.id ?? null} ensureProject={ensureDraft} />
+        <VendorsEditor
+          projectId={project?.id ?? null}
+          category={project?.category}
+          ensureProject={ensureDraft}
+        />
       </div>
       <StepFooter>
         <Button variant="ghost" onClick={onBack}>

@@ -21,6 +21,7 @@ New to the repo (or a fresh clone)? [`docs/FRESHLY-CLONED.md`](docs/FRESHLY-CLON
 - **End every phase** by starting the app (`npm run dev` → http://localhost:3000), then giving the localhost link and a bullet list of what's done for the user to test.
 - **Every phase generates deep, production-like test inputs** in `test-inputs/phase-N/` with a README test guide.
 - **Test documents never help the AI.** RFP and standards must not contradict each other. Vendor proposals must be legitimate bids. Reference notes for humans go in `test-inputs/SCENARIO.md` (never uploaded).
+- **The client's real tender files (`new company req files/`) never go into git**: they hold bank guarantees, licences and an IBAN (HANDOFF G-90). Use `test-inputs/works-tender/` for tests.
 
 ## Working rules
 - Work subtask by subtask (`P{phase}.{n}`). A subtask is done only when its "Done when" test passes.

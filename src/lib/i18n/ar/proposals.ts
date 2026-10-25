@@ -300,4 +300,11 @@ export const proposals: Dictionary = {
     "قائمة تحقق واحدة، ثم لكل مورّد: المعايير وطلب العروض والمخاطر، ثم توصية واحدة، ثم تقرير استشاري لكل مورّد، ثم الترجمة إلى العربية.",
   "1 checklist, then per vendor: RFP and risk, then 1 recommendation, then a consultant report per vendor, then the translation into Arabic.":
     "قائمة تحقق واحدة، ثم لكل مورّد: طلب العروض والمخاطر، ثم توصية واحدة، ثم تقرير استشاري لكل مورّد، ثم الترجمة إلى العربية.",
+
+  // ── vendors-editor: building works (2026-10-25) ──
+  "Priced bill of quantities, bid bond and declarations (sections 4–6)":
+    "جدول الكميات المسعّر والتأمين الابتدائي والإقرارات (الأقسام 4–6)",
+  "Licence, scope and programme (sections 1–3)":
+    "الترخيص ونطاق الأعمال والبرنامج الزمني (الأقسام 1–3)",
+  "Proposal template (6 sections)": "قالب العرض (6 أقسام)",
 };

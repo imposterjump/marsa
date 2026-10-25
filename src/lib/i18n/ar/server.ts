@@ -139,4 +139,19 @@ export const server: Dictionary = {
     other: "فشلت {n} خطوة.",
   },
   "{n} step failed.": "فشلت خطوة واحدة.",
+
+  // ── Tender import (2026-10-25) ──
+  "This folder holds {n} tenders. Import them one at a time.": {
+    two: "يحتوي هذا المجلد على مناقصتين. استورد كل مناقصة على حدة.",
+    few: "يحتوي هذا المجلد على {n} مناقصات. استورد كل مناقصة على حدة.",
+    many: "يحتوي هذا المجلد على {n} مناقصة. استورد كل مناقصة على حدة.",
+    other: "يحتوي هذا المجلد على {n} مناقصة. استورد كل مناقصة على حدة.",
+  },
+  "This tender has no such round of bids.": "لا توجد في هذه المناقصة جولة العطاءات هذه.",
+  "The folder has no tender documents.": "لا يحتوي المجلد على مستندات الطرح.",
+  "No tender document could be read.": "تعذّرت قراءة جميع مستندات الطرح.",
+  "Import not found.": "عملية الاستيراد غير موجودة.",
+  "A file path is missing.": "مسار الملف مفقود.",
+  "A file of the tender is larger than 300 MB.": "أحد ملفات المناقصة أكبر من 300 ميغابايت.",
+  "The tender is larger than 2 GB.": "حجم المناقصة أكبر من 2 غيغابايت.",
 };

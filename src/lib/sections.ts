@@ -3,7 +3,12 @@
  * "security") to a section key, and a keyword guess used by the demo engine and as a fallback.
  * Pure; shared by server and UI.
  */
-import { PROPOSAL_SECTIONS, type ProposalSection } from "./domain";
+import {
+  PROPOSAL_SECTIONS,
+  SECTIONS_OF,
+  type ProposalSection,
+  type SectionTemplate,
+} from "./domain";
 import { PROPOSAL_SECTION_LABEL } from "./labels";
 
 /**
@@ -46,20 +51,72 @@ const HINTS: [ProposalSection, number, RegExp][] = [
 ];
 
 /**
+ * Building works (2026-10-25): the same scoring over a contractor's bid, in English and Arabic.
+ * No `\b` before Arabic words (JavaScript's word boundary only knows Latin letters).
+ */
+const WORKS_HINTS: [ProposalSection, number, RegExp][] = [
+  [
+    "guarantees",
+    2,
+    /(bid bond|bid security|bank guarantee|performance (bond|guarantee|security)|advance payment guarantee|retention|ضمان|كفالة|التأمين الابتدائي|تأمين ابتدائي|حسن التنفيذ)/gi,
+  ],
+  [
+    "pricing",
+    2,
+    /(bill of quantit|boq|unit (price|rate)|rates?\b|price[sd]?\b|pricing|lump sum|provisional sum|amount|vat|جدول (ال)?كميات|تسعير|سعر|أسعار|الأسعار|المبلغ|المبالغ الاحتياطية|ضريبة القيمة المضافة|الإجمالي)/gi,
+  ],
+  [
+    "declarations",
+    2,
+    /(declaration|acknowledg|undertak|form of tender|contract (form|conditions)|conditions of contract|terms and conditions|signed and stamped|sign(ed)? (&|and) stamp|stamp(ed)?|site visit|إقرار|تعهد|العقد|شروط|توقيع|ختم|زيارة الموقع)/gi,
+  ],
+  [
+    "contractor",
+    1,
+    /(trade licen[cs]e|licen[cs]e|registration|classification|commercial register|company profile|experience|similar (projects|works)|references?|staff|engineer|رخصة|ترخيص|تسجيل|تصنيف|السجل التجاري|خبرة|مشاريع مماثلة|المهندس|الكادر)/gi,
+  ],
+  [
+    "programme",
+    1,
+    /(programme|program\b|schedule|duration|time ?line|completion|commencement|handover|days\b|weeks\b|months\b|البرنامج الزمني|الجدول الزمني|مدة|المدة|التنفيذ خلال|يوم|أيام|شهر|أشهر|الاستلام)/gi,
+  ],
+  [
+    "scope",
+    1,
+    /(scope|specification|drawings?|material|supply (and|&) (install|fix)|install|demolition|concrete|block ?work|plaster|tiles?|ceiling|doors?|windows?|paint|waterproof|plumbing|electrical|hvac|mep|نطاق|المواصفات|المخططات|مواد|توريد|تركيب|هدم|خرسانة|بلوك|لياسة|بلاط|أسقف|أبواب|نوافذ|دهان|عزل|سباكة|كهرباء|تكييف)/gi,
+  ],
+];
+
+const HINTS_OF: Record<SectionTemplate, [ProposalSection, number, RegExp][]> = {
+  services: HINTS,
+  works: WORKS_HINTS,
+};
+
+/**
  * Commercial or technical point (user, 2026-10-25), by the proposal section it is answered in:
  * "Commercial offer & pricing" and "Terms & deviations" are commercial, the other five technical.
  * Points without a section (runs from before P8) have no type.
  */
 export type PointType = "technical" | "commercial";
-export const COMMERCIAL_SECTIONS: readonly ProposalSection[] = ["commercial", "terms"];
+export const COMMERCIAL_SECTIONS: readonly ProposalSection[] = [
+  "commercial",
+  "terms",
+  // Building works: prices, the bid bond and the declarations / contract terms.
+  "pricing",
+  "guarantees",
+  "declarations",
+];
 export const pointType = (s: ProposalSection | null): PointType | null =>
   s === null ? null : COMMERCIAL_SECTIONS.includes(s) ? "commercial" : "technical";
 
 /** Best-effort section for a requirement, rule or risk text: the section with the best score. */
-export function guessSection(text: string): ProposalSection {
-  let best: ProposalSection = "solution";
+export function guessSection(
+  text: string,
+  template: SectionTemplate = "services",
+): ProposalSection {
+  let best: ProposalSection = template === "works" ? "scope" : "solution";
   let bestScore = 0;
-  for (const [section, weight, re] of HINTS) {
+  for (const [section, weight, re] of HINTS_OF[template]) {
     const score = (text.match(re)?.length ?? 0) * weight;
     if (score > bestScore) {
       best = section;
@@ -69,20 +126,28 @@ export function guessSection(text: string): ProposalSection {
   return best;
 }
 
-/** The model's section value → a key; falls back to a keyword guess on `context`. */
-export function toSection(value: string | null | undefined, context = ""): ProposalSection {
+/**
+ * The model's section value → a key of the template; falls back to a keyword guess on `context`.
+ * A key of either template is kept as it is (results are saved after they were normalised).
+ */
+export function toSection(
+  value: string | null | undefined,
+  context = "",
+  template: SectionTemplate = "services",
+): ProposalSection {
   const v = (value ?? "").trim().toLowerCase();
-  const key = PROPOSAL_SECTIONS.find(
-    (k) => k === v || PROPOSAL_SECTION_LABEL[k].toLowerCase() === v,
-  );
+  const exact = PROPOSAL_SECTIONS.find((k) => k === v);
+  if (exact) return exact;
+  const keys = SECTIONS_OF[template];
+  const key = keys.find((k) => PROPOSAL_SECTION_LABEL[k].toLowerCase() === v);
   if (key) return key;
-  const partial = PROPOSAL_SECTIONS.find(
+  const partial = keys.find(
     (k) => v && (PROPOSAL_SECTION_LABEL[k].toLowerCase().includes(v) || v.includes(k)),
   );
-  return partial ?? guessSection(`${value ?? ""} ${context}`);
+  return partial ?? guessSection(`${value ?? ""} ${context}`, template);
 }
 
 /** "company" = "Company & references", … for prompts. */
-export const SECTION_LIST = PROPOSAL_SECTIONS.map(
-  (k) => `"${k}" (${PROPOSAL_SECTION_LABEL[k]})`,
-).join(", ");
+export const sectionList = (template: SectionTemplate = "services") =>
+  SECTIONS_OF[template].map((k) => `"${k}" (${PROPOSAL_SECTION_LABEL[k]})`).join(", ");
+export const SECTION_LIST = sectionList("services");

@@ -121,7 +121,10 @@ The sample data is defined in `test-inputs/seed/manifest.json` and read from `te
 
 Each set's README is a step-by-step script: what to type and drop at each step. It ends with **"What a good result looks like"** (who should win, which gaps the AI should find), so you can judge a live run. Rebuild the files with `npx tsx scripts/test-inputs/build-poc.ts`.
 
-### Option 4: submit bids as a vendor
+### Option 4: import a building works tender
+`test-inputs/works-tender/` is a fictional tender in the e-procurement portal's export layout (3 contractors, bids in a zip, an estimate in the internal papers). **Projects → Import tender** and choose its folder, or `npx tsx scripts/tender-import.ts "<folder>" --commit`. Its README lists what the price comparison should find. (The client's real tenders import the same way but are not in git.)
+
+### Option 5: submit bids as a vendor
 **Settings → Demo tools → Vendor simulator** submits bids by hand, as a vendor would. (The app used to write bids with AI; that was removed on 2026-10-25.)
 
 ### The rest of `test-inputs/`
@@ -136,7 +139,8 @@ Each set's README is a step-by-step script: what to type and drop at each step. 
 All organisations, people and documents in `test-inputs/` are fictional.
 
 ## A short tour
-- **English or Arabic:** the **العربية / English** button in the top bar (or Settings → Appearance → Language) switches every screen; Arabic is right-to-left. New analyses are then written in that language too. AI text from earlier runs stays in the language it was written in, and the free demo AI always writes English.
+- **English or Arabic:** the **العربية / English** button in the top bar (or Settings → Appearance → Language) switches every screen; Arabic is right-to-left. Every live analysis comes in both languages (a Translator agent ends each run), and the results and report PDFs follow the screen. The free demo AI writes English only.
+- **Import tender** (Projects home): a building works tender as the e-procurement portal exports it (folder or zip). Try `test-inputs/works-tender/` (fictional). The project gets the *Construction & maintenance* sections, the estimate, and a **Prices** tab on its results that compares the bills of quantities line by line.
 - **Projects:** the welcome band, then every project. **New project** is a guided form: Project (title, category, RFP) → Standards → Vendors.
 - **A project:** Overview, Proposals (vendors, documents, **Add vendor**), and **Run AI analysis** with a time estimate. A run starts on click; if you cancel one started by mistake, the page keeps showing the previous results.
 - **AI analysis results:** while it runs, mission control shows the step texts and the **agent team** (an AI Orchestrator passing the work from agent to agent); you can leave the page, a pill in the top bar follows the run. Then the tabs:
@@ -148,7 +152,7 @@ All organisations, people and documents in `test-inputs/` are fictional.
 - **No prices on screen:** the app never shows what the AI costs (a deliberate choice). Costs are still recorded in the database for the team.
 - Evidence links open the built-in **document reader** on the right page with the quote highlighted. Standard rules open in a side panel.
 - **Standards:** the library (rules, priorities, documents).
-- **Settings:** your profile, the screen language, the AI model, the report language (English or Arabic), scoring weights, parallel steps, and **Demo tools**.
+- **Settings:** your profile, the screen language, the AI model, scoring weights, parallel steps, and **Demo tools**.
 
 ## Commands
 | Command | What it does |
@@ -157,6 +161,9 @@ All organisations, people and documents in `test-inputs/` are fictional.
 | `npm run build` + `npm start` | Production build and server |
 | `npm run check` | Lint, typecheck, colour-contrast check and the unit/integration tests, including "every screen text has Arabic" (run before every commit) |
 | `npm run i18n:scan` | English left in the UI and texts with no Arabic translation |
+| `npx tsx scripts/tender-import.ts "<folder>" [--commit]` | Preview (or import into `DATA_DIR`) a tender exported by the e-procurement portal |
+| `npx tsx scripts/boq-check.ts --compare=<client.xlsx> <bids folder or zip>` | Read and compare bills of quantities from the command line |
+| `npx tsx scripts/translation-check.ts <runId>` | How much of a run's AI text has its Arabic translation |
 | `npm run test:e2e` | Playwright end-to-end tests (builds its own server on port 3200, demo AI) |
 | `npm run demo:load` / `npm run demo:save` | Load the team's demo data / save yours as the new demo data (see above) |
 | `npm run seed` / `npm run reset -- --yes` | Sample data / wipe everything (see above) |

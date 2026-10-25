@@ -12,7 +12,8 @@
 import { eq, inArray } from "drizzle-orm";
 import type { Db } from "../db/connect";
 import { analysisRuns, analysisSteps, projects } from "../db/schema";
-import { RUN_PHASES, type RunPhase } from "../../lib/domain";
+import { RUN_PHASES, sectionTemplateFor, type RunPhase } from "../../lib/domain";
+import type { BoqComparisonDto } from "../../lib/api-types";
 import { ApiError } from "../api-errors";
 import { describeError } from "../ai/client";
 import { nativeDocsFor } from "../ai/content";
@@ -69,6 +70,11 @@ export interface RunnerDeps {
   apiKeyConfigured: boolean;
   /** Called after a run ends (any status), e.g. to compute its quality metrics. */
   onFinished?(runId: string): Promise<unknown> | void;
+  /**
+   * Building works (2026-10-25): the price comparison of the run's bids, given to the steps as
+   * Mizan's figures. Not set (or null) for other tenders.
+   */
+  pricesFor?(run: RunRow): Promise<BoqComparisonDto | null>;
 }
 
 interface Handle {
@@ -300,6 +306,8 @@ export function createRunner(deps: RunnerDeps) {
       markRunRunning(db, run.id);
       db.update(projects).set({ status: "evaluating" }).where(eq(projects.id, run.projectId)).run();
       const ctx = loadRunContext(db, run.projectId, run.config);
+      if (sectionTemplateFor(ctx.project.category) === "works")
+        ctx.boq = (await deps.pricesFor?.(run).catch(() => null)) ?? null;
       const engine = deps.engineFor(run);
       for (const phase of RUN_PHASES) {
         if (handle.cancelled) break;

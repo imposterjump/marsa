@@ -114,6 +114,9 @@ export interface ProjectDto {
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
+  /** The client's internal cost estimate (building works; never shown to vendors). */
+  estimateAmount: number | null;
+  estimateCurrency: string | null;
 }
 
 export interface ProjectSummaryDto extends ProjectDto {
@@ -526,9 +529,143 @@ export interface AnalysisResultsDto {
   keyConstraints: { label: string; value: string }[];
   /** One per vendor of `vendors`, in the same order. */
   reports: ReportSummaryDto[];
+  /** The project's proposal sections in order (building works have their own, 2026-10-25). */
+  sections: ProposalSection[];
   /**
    * The language the AI's texts come out in: the requested one when the run has a translation
    * (2026-10-25), else the language the run was written in.
    */
   textLanguage: ReportLanguage;
+}
+
+// ─── Price comparison of building works tenders (2026-10-25) ──────────────────
+/** What stands out on one bidder's line of the bill of quantities. */
+export type BoqFlag =
+  "unpriced" | "missing" | "qty_changed" | "arithmetic" | "high" | "low" | "lowest";
+
+export interface BoqCellDto {
+  rate: number | null;
+  /** Written instead of a rate ("LS", "Included"). */
+  rateText: string | null;
+  amount: number | null;
+  amountText: string | null;
+  /** The bidder's quantity when it differs from the client's. */
+  qty: number | null;
+  /** The rate, or amount ÷ quantity for a lump sum: what is compared across bidders. */
+  effectiveRate: number | null;
+  flags: BoqFlag[];
+}
+
+export interface BoqRowDto {
+  index: number;
+  sheet: string;
+  section: string;
+  no: string;
+  description: string;
+  unit: string;
+  qty: number | null;
+  /** False for descriptive lines with no quantity and no unit. */
+  priceable: boolean;
+  /** The bidders' median rate (3 or more priced bids). */
+  median: number | null;
+  /** By proposal id. */
+  cells: Record<string, BoqCellDto>;
+}
+
+export interface BoqVendorDto {
+  proposalId: string;
+  vendor: string;
+  /** The priced bill of quantities used (an Excel file of the bid). */
+  document: string | null;
+  /** False when the bid has no readable Excel bill of quantities. */
+  parsed: boolean;
+  /** The total the bidder wrote (before VAT). */
+  statedTotal: number | null;
+  vat: number | null;
+  totalWithVat: number | null;
+  /** What the bidder's lines add up to (its added lines included). */
+  linesTotal: number | null;
+  /** statedTotal − linesTotal when they disagree. */
+  difference: number | null;
+  priced: number;
+  unpriced: number;
+  /** Client lines the bidder left out of its copy. */
+  missing: number;
+  /** Lines the bidder added, and their amount. */
+  extra: number;
+  extraAmount: number;
+  arithmetic: number;
+  qtyChanged: number;
+  high: number;
+  low: number;
+  /** Lines where this bidder has the lowest rate. */
+  lowest: number;
+  /** Bid total against the client's estimate, in %. */
+  vsEstimatePct: number | null;
+  /** 1 = cheapest bid. */
+  rank: number | null;
+}
+
+export interface BoqComparisonDto {
+  currency: string;
+  /** The client's internal cost estimate (projects.estimate_amount). */
+  estimate: number | null;
+  clientDocument: string;
+  /** Lines to price in the client's bill of quantities. */
+  items: number;
+  sheets: string[];
+  rows: BoqRowDto[];
+  vendors: BoqVendorDto[];
+}
+
+// ─── Tender import (2026-10-25): a tender as the e-procurement portal exports it ─
+export interface TenderImportFileDto {
+  name: string;
+  /** Path inside the imported folder (zips shown as folders). */
+  path: string;
+  size: number;
+  /** For a bid's file: the envelope it goes to. */
+  kind: "commercial" | "technical" | null;
+  /** Imported unless the user unticks it (lean import: false for what is left out). */
+  include: boolean;
+  /** Why it is left out by default; null when it is imported. */
+  leftOut: "drawing" | "image" | "map" | "permit" | "site_report" | "bank_details" | null;
+}
+
+export interface TenderImportVendorDto {
+  folder: string;
+  /** From the company's supplier.txt, else its folder name. */
+  name: string;
+  files: TenderImportFileDto[];
+  /** Identical files the company uploaded more than once (kept once). */
+  duplicates: number;
+}
+
+export interface TenderImportRoundDto {
+  /** opening = bids at the opening; negotiation = revised bids; bids = a single round. */
+  key: "opening" | "negotiation" | "bids";
+  vendors: TenderImportVendorDto[];
+}
+
+export interface TenderImportPreviewDto {
+  id: string;
+  /** Suggested project name (the tender's folder name). */
+  name: string;
+  /** The portal's tender reference, when the export has one (rfq.txt). */
+  reference: string | null;
+  tenderDocuments: TenderImportFileDto[];
+  /** Internal papers: never imported; the estimate is read from them. */
+  internalDocuments: TenderImportFileDto[];
+  estimate: { amount: number; currency: string; source: string } | null;
+  rounds: TenderImportRoundDto[];
+  /** Files that belong to no part of the tender (left out). */
+  ignored: string[];
+}
+
+export interface TenderImportResultDto {
+  projectId: string;
+  vendors: number;
+  documents: number;
+  /** Files that could not be imported, with the reason. */
+  skipped: { name: string; reason: string }[];
 }

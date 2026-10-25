@@ -20,6 +20,7 @@ import {
   RISK_SEVERITIES,
   type Priority,
   type RequirementCategory,
+  type SectionTemplate,
 } from "../../lib/domain";
 
 export const ChecklistSchema = z.object({
@@ -328,14 +329,17 @@ export const OUTPUT_FIELD = {
 // ─── Post-parse normalisation ────────────────────────────────────────────────
 const clamp15 = (n: number) => Math.min(5, Math.max(1, Math.round(Number.isFinite(n) ? n : 3)));
 
-export function normalizeRisks(out: RiskOutput): RiskOutput {
+export function normalizeRisks(
+  out: RiskOutput,
+  template: SectionTemplate = "services",
+): RiskOutput {
   return {
     ...out,
     risks: out.risks.map((r) => ({
       ...r,
       likelihood: clamp15(r.likelihood),
       impact: clamp15(r.impact),
-      section: toSection(r.section, `${r.title} ${r.description}`),
+      section: toSection(r.section, `${r.title} ${r.description}`, template),
     })),
   };
 }
@@ -401,7 +405,10 @@ export function normalizeAnalysis(out: AnalysisOutput): AnalysisOutput {
  * format; sections normalised to keys. Standard rules are added separately (withStandardRules),
  * so anything the model labelled "standard" is dropped here.
  */
-export function normalizeChecklist(out: ChecklistOutput): ChecklistOutput {
+export function normalizeChecklist(
+  out: ChecklistOutput,
+  template: SectionTemplate = "services",
+): ChecklistOutput {
   const seen = new Set<string>();
   const requirements = out.requirements
     .filter((r) => r.sourceType !== "standard")
@@ -416,7 +423,7 @@ export function normalizeChecklist(out: ChecklistOutput): ChecklistOutput {
         code,
         title: r.title.trim(),
         sourceRef: r.sourceRef.trim(),
-        section: toSection(r.section, `${r.title} ${r.description}`),
+        section: toSection(r.section, `${r.title} ${r.description}`, template),
       };
     });
   return { ...out, requirements };
@@ -452,6 +459,7 @@ export function withStandardRules(
     category: string;
     rules: { code: string; text: string; priority: Priority }[];
   }[],
+  template: SectionTemplate = "services",
 ): ChecklistOutput {
   const sectionOf = new Map(
     (out.ruleSections ?? []).map((r) => [r.code.trim().toUpperCase(), r.section]),
@@ -472,7 +480,7 @@ export function withStandardRules(
         sourceType: "standard",
         sourceRef: rule.code,
         acceptance: "The proposal shows how this rule is met.",
-        section: toSection(sectionOf.get(rule.code.toUpperCase()), rule.text),
+        section: toSection(sectionOf.get(rule.code.toUpperCase()), rule.text, template),
       });
     }
   }

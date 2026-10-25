@@ -7,6 +7,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  Calculator,
   ChevronDown,
   CircleAlert,
   ClipboardCheck,
@@ -43,6 +44,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocumentReader } from "@/components/viewer/document-reader";
+import { useBoqComparison } from "@/hooks/use-boq";
 import {
   isRunActive,
   useAnalysisResults,
@@ -61,6 +63,7 @@ import { type ComplianceFocus, ComplianceTab } from "./compliance-tab";
 import { OverviewTab } from "./overview-tab";
 import { ReportsTab } from "./reports-tab";
 import type { ComplianceView } from "./point-list";
+import { PricesTab } from "./prices-tab";
 import { RisksTab } from "./risks-tab";
 import { type OpenEvidence, type Scope, vendorColors } from "./shared";
 
@@ -74,6 +77,8 @@ const TABS = [
   { id: "standards", label: msg("Standards"), icon: ShieldCheck },
   { id: "risks", label: msg("Risks"), icon: ShieldAlert },
   { id: "comparison", label: msg("Comparison"), icon: Columns3 },
+  // Building works only (2026-10-25): shown when the tender has an Excel bill of quantities.
+  { id: "prices", label: msg("Prices"), icon: Calculator },
   { id: "reports", label: msg("Reports"), icon: ScrollText },
   { id: "quality", label: msg("AI quality"), icon: ClipboardCheck },
 ] as const;
@@ -515,10 +520,23 @@ function Results({ d }: { d: AnalysisResultsDto }) {
   // A risk's "see its points": switch to the RFP or Standards tab, scroll to and pulse the section.
   const [focus, setFocus] = useState<ComplianceFocus | null>(null);
 
+  // The price comparison of the bids in this analysis; null when the tender has no Excel bill of
+  // quantities, and then there is no Prices tab.
+  const boq = useBoqComparison(p.id, d.run.id);
+  const prices = boq.data ?? null;
+
   // Old links said ?tab=compliance: that is the RFP tab now. No standards applied: no Standards tab.
-  const tabs = TABS.filter((x) => x.id !== "standards" || d.hasStandards);
+  const tabs = TABS.filter(
+    (x) => (x.id !== "standards" || d.hasStandards) && (x.id !== "prices" || !!prices),
+  );
   const tabParam = params.get("tab") === "compliance" ? "rfp" : params.get("tab");
-  const tab: TabId = tabs.some((x) => x.id === tabParam) ? (tabParam as TabId) : "overview";
+  // ?tab=prices waits for the price comparison instead of falling back to the overview.
+  const pricesPending = tabParam === "prices" && boq.isPending;
+  const tab: TabId = pricesPending
+    ? "prices"
+    : tabs.some((x) => x.id === tabParam)
+      ? (tabParam as TabId)
+      : "overview";
   const setQuery = (next: Record<string, string | null>) => {
     const q = new URLSearchParams(params);
     for (const [k, v] of Object.entries(next)) {
@@ -634,6 +652,15 @@ function Results({ d }: { d: AnalysisResultsDto }) {
         <TabsContent value="comparison">
           <ComparisonTab d={d} colors={colors} onEvidence={onEvidence} />
         </TabsContent>
+        {(prices || pricesPending) && (
+          <TabsContent value="prices">
+            {prices ? (
+              <PricesTab c={prices} colors={colors} />
+            ) : (
+              <Skeleton className="h-96 w-full rounded-xl" />
+            )}
+          </TabsContent>
+        )}
         <TabsContent value="reports">
           <ReportsTab d={d} colors={colors} />
         </TabsContent>

@@ -10,7 +10,8 @@
   - project page with one AI analysis button (starts on click, no price shown);
   - pipeline: standards and RFP checked separately, 7 proposal sections, 0–100 risk score, recommendation, **one consultant report PDF per vendor**;
   - the full-width **AI analysis results** page (Overview · RFP · Standards · Risks · Comparison · Reports · AI quality), with the **agent orchestra** while a run is going;
-  - **every screen in English or Arabic** (right-to-left), switched from the top bar.
+  - **every screen in English or Arabic** (right-to-left), switched from the top bar; **every analysis in both languages**;
+  - **building works tenders**: Import tender, the Prices tab (bills of quantities compared line by line), works sections.
 - **Test it:** http://localhost:3000/projects. **Fresh clone:** [FRESHLY-CLONED.md](FRESHLY-CLONED.md) (`npm run demo:load` gives the team's projects with real results); demo tenders: [test-inputs/poc-inputs/README.md](../test-inputs/poc-inputs/README.md).
 - **Rollback point:** tag `before-rta-redesign` (commit `2daa169`) is the app before the RTA design and P8.
 - **Session handoff notes:** [HANDOFF.md](HANDOFF.md) (read first every session).
@@ -43,6 +44,8 @@
 | 2026-10-25 | **Agents made visible:** mission control shows the run as an agent team around an AI Orchestrator, with a ball passed agent → orchestrator → next agent; **Compare** plays the agents' steps (files handed over, comparison, assessment, results) under the vendor cards before the table appears | You |
 | 2026-10-25 | **No prices in the app** (AI quality, run confirmation, project panel, run menu, settings, standards); **a cancelled or failed run no longer hides the previous results**; mission control fits on screen (ring beside the agent team); AI confidence in green / blue / yellow; **AI vendor generation removed** | You |
 | 2026-10-25 | **Demo data in git** (`test-inputs/demo-data/`, `npm run demo:load`): a fresh clone shows the team's 3 projects with the real Haiku analyses and reports; fresh-clone guide and HANDOFF §1 refreshed | You |
+| 2026-10-25 | **Every analysis in English and Arabic**: a Translator agent (Haiku) ends each run; screens and report PDFs follow the screen language; the Report language setting is gone; the two live runs were translated ($0.083) instead of rerun | You |
+| 2026-10-25 | **Building works tenders** (the supervisor's Public Works tenders): **Import tender** from the portal's folder/zip (lean: drawings, photos, maps, permits, IBAN letters, duplicates left out unless ticked), category *Construction & maintenance* with its own sections and an internal estimate, a **Prices** tab comparing the bills of quantities line by line; the real tenders stay out of git | You |
 | 2026-10-25 | **The whole UI in Arabic** with an **العربية / English** switch (top bar + Settings → Appearance), right-to-left layout, Arabic dates and plurals, server errors in the reader's language. Switching also sets the AI's report language for new analyses; finished results stay in their language. Documents can be in any language. Pasted rules accept إلزامي / مهم / مرغوب | You |
 | 2026-10-23 | **Product name shown to users: Mizan** (procurement name; "Marsa" meant harbour). Only the UI changes: code, database and docs keep the codename Marsa | You |
 | 2026-10-23 | **Logo: the Sharjah emblem** replaces the RTA logo (the RTA colours and fonts stay) | You |

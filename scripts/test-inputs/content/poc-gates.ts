@@ -373,9 +373,7 @@ export const GATES_BIDS: PocBid[] = [
         p(
           "<b>Availability.</b> We commit to 99.7 % availability per calendar month. If the GOS is unavailable, the kiosks switch to manual mode and the control room opens the barriers, with the OCR readings still displayed.",
         ) +
-        p(
-          "<b>Warranty.</b> 24-month warranty from acceptance, parts and labour.",
-        ) +
+        p("<b>Warranty.</b> 24-month warranty from acceptance, parts and labour.") +
         p(
           "<b>Maintenance.</b> Three years of maintenance after the warranty: quarterly preventive maintenance, software updates, a 24/7 hotline, and on-site response within 4 hours from our Al-Noor service centre, which holds a stock of critical spare parts (cameras, readers, barrier controllers, kiosk printers).",
         ),

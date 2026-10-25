@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   FileStack,
   FileText,
+  FolderInput,
   Plus,
   ShieldCheck,
   Sparkles,
@@ -46,7 +47,14 @@ interface Step {
  * Greeting + what the app does, then the procurement workflow as an RTA KPI band, each step
  * carrying workspace-wide totals. Replaces the old hero with the harbour line art.
  */
-export function ProjectsWelcome({ projects }: { projects: ProjectSummaryDto[] | undefined }) {
+export function ProjectsWelcome({
+  projects,
+  onImport,
+}: {
+  projects: ProjectSummaryDto[] | undefined;
+  /** Opens Import tender (a tender exported by the e-procurement portal, 2026-10-25). */
+  onImport?: () => void;
+}) {
   const t = useT();
   const { data: settings } = useSettings();
   const { data: standards } = useStandards();
@@ -176,6 +184,16 @@ export function ProjectsWelcome({ projects }: { projects: ProjectSummaryDto[] | 
                 <Plus /> {t("New project")}
               </Link>
             </Button>
+            {onImport && (
+              <Button
+                size="lg"
+                variant="secondary"
+                className="flex-1 sm:flex-none"
+                onClick={onImport}
+              >
+                <FolderInput /> {t("Import tender")}
+              </Button>
+            )}
             <Button size="lg" variant="secondary" className="flex-1 sm:flex-none" asChild>
               <Link href="/standards">
                 <ClipboardCheck /> {t("Manage standards")}
