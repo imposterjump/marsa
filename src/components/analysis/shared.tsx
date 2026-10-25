@@ -1,6 +1,8 @@
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
+import { useId } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "cn";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import type { VendorDocRef } from "@/components/results/finding-card";
@@ -50,11 +52,27 @@ export function shownSections(d: AnalysisResultsDto): (ProposalSection | null)[]
 }
 
 /** The section's name as a card title; `as="span"` inside buttons. */
-export function SectionTitle({ section, as: Tag = "h3" }: { section: ProposalSection | null; as?: "h3" | "span" }) {
+export function SectionTitle({
+  section,
+  as: Tag = "h3",
+}: {
+  section: ProposalSection | null;
+  as?: "h3" | "span";
+}) {
   return <Tag className="font-heading text-lg font-semibold text-ink">{sectionLabel(section)}</Tag>;
 }
 
 export type Scope = "standard" | "rfp";
+
+/**
+ * Commercial or technical point (user, 2026-10-25), by the proposal section it is answered in:
+ * "Commercial offer & pricing" and "Terms & deviations" are commercial, the other five technical.
+ * Points without a section (runs from before P8) have no type.
+ */
+export type PointType = "technical" | "commercial";
+const COMMERCIAL_SECTIONS: ProposalSection[] = ["commercial", "terms"];
+export const pointType = (s: ProposalSection | null): PointType | null =>
+  s === null ? null : COMMERCIAL_SECTIONS.includes(s) ? "commercial" : "technical";
 
 /** Opens the reader at a document page and quote; `vendorId` keeps that vendor's envelopes in it
  * when the document is the RFP (a clause opened from the vendor's finding). */
@@ -75,7 +93,7 @@ export interface ScopeStats {
 export function scopeStats(
   d: AnalysisResultsDto,
   v: VendorResultDto,
-  { section, scope }: { section?: ProposalSection | null; scope?: Scope },
+  { section, scope, type }: { section?: ProposalSection | null; scope?: Scope; type?: PointType },
 ): ScopeStats {
   const reqs = new Map(d.requirements.map((r) => [r.id, r]));
   const items = v.findings
@@ -84,7 +102,8 @@ export function scopeStats(
       (x): x is { f: FindingResultDto; r: RequirementResultDto } =>
         !!x.r &&
         (section === undefined || x.r.section === section) &&
-        (scope === undefined || x.r.scope === scope),
+        (scope === undefined || x.r.scope === scope) &&
+        (type === undefined || pointType(x.r.section) === type),
     );
   if (!items.length) return { pct: null, counts: emptyCounts(), total: 0, mandatoryNotMet: 0 };
   const s = computeScore(
@@ -92,7 +111,12 @@ export function scopeStats(
     d.weights,
     d.partialCredit,
   );
-  return { pct: s.scorePct, counts: s.counts, total: items.length, mandatoryNotMet: s.mandatoryFailures };
+  return {
+    pct: s.scorePct,
+    counts: s.counts,
+    total: items.length,
+    mandatoryNotMet: s.mandatoryFailures,
+  };
 }
 
 export function vendorDocRefs(v: VendorResultDto): VendorDocRef[] {
@@ -127,7 +151,11 @@ export function VendorLabel({
   return (
     <span className={cn("flex min-w-0 items-center gap-2.5", className)}>
       {color && (
-        <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: color }} />
+        <span
+          aria-hidden
+          className="size-2.5 shrink-0 rounded-full"
+          style={{ background: color }}
+        />
       )}
       <InitialsAvatar name={v.vendor.name} size={size} />
       <span
@@ -236,7 +264,7 @@ export function ScoreRing({
           />
         )}
       </svg>
-      <span className="text-sm font-semibold tabular-nums text-ink">{text}</span>
+      <span className="text-sm font-semibold text-ink tabular-nums">{text}</span>
     </span>
   );
 }
@@ -254,7 +282,10 @@ export function CountsLegend({
   className?: string;
 }) {
   return (
-    <ul className={cn("flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink-2", className)} aria-label={label}>
+    <ul
+      className={cn("flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink-2", className)}
+      aria-label={label}
+    >
       {LEGEND_ORDER.map((st) => (
         <li key={st} className="inline-flex items-center gap-1.5">
           <span aria-hidden className={cn("size-2 rounded-full", STATUS_FILL[st])} />
@@ -263,6 +294,80 @@ export function CountsLegend({
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * A vendor's card in the RFP and Standards tabs: a tinted summary band on top that folds the card
+ * away (user, 2026-10-25: "colapse each vendor to access the next one easily"). The whole band
+ * toggles; the chevron is the real button, so keyboard and screen readers get aria-expanded.
+ */
+export function VendorCardShell({
+  v,
+  open,
+  onToggle,
+  header,
+  children,
+}: {
+  v: VendorResultDto;
+  open: boolean;
+  onToggle: () => void;
+  header: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const reduce = useReducedMotion();
+  const bodyId = useId();
+  return (
+    <section
+      id={`vendor-${v.proposalId}`}
+      aria-label={v.vendor.name}
+      className="scroll-mt-24 rounded-xl border border-border bg-surface shadow-sm"
+    >
+      {/* The chevron's click bubbles up here, so one handler serves the band and the button.
+          Selecting text in the band does not fold it. */}
+      <div
+        onClick={() => {
+          if (!window.getSelection()?.toString()) onToggle();
+        }}
+        className={cn(
+          "relative cursor-pointer bg-surface-muted/70 py-5 ps-5 pe-16 transition-colors hover:bg-surface-muted",
+          open ? "rounded-t-xl border-b border-border" : "rounded-xl",
+        )}
+      >
+        {header}
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          className="absolute end-4 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg border border-border bg-surface text-ink-muted shadow-xs transition-colors hover:text-ink"
+        >
+          <span className="sr-only">
+            {open ? "Collapse" : "Expand"} {v.vendor.name}
+          </span>
+          <ChevronDown
+            aria-hidden
+            className={cn(
+              "size-5 transition-transform duration-200",
+              !open && "-rotate-90 rtl:rotate-90",
+            )}
+          />
+        </button>
+      </div>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            id={bodyId}
+            initial={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            animate={reduce ? { opacity: 1 } : { height: "auto", opacity: 1 }}
+            exit={reduce ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.28, ease: EASE_OUT_QUINT }}
+            className="overflow-hidden"
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
   );
 }
 

@@ -56,6 +56,7 @@ import { setSidebarCollapsed } from "@/lib/theme";
 import { ComparisonTab } from "./comparison-tab";
 import { type ComplianceFocus, ComplianceTab } from "./compliance-tab";
 import { OverviewTab } from "./overview-tab";
+import { type ComplianceView, DEFAULT_FILTERS, type ListFilters, filtersFrom } from "./point-list";
 import { RisksTab } from "./risks-tab";
 import { type OpenEvidence, type Scope, vendorColors } from "./shared";
 import { APP_NAME } from "@/lib/brand";
@@ -393,6 +394,18 @@ function Results({ d }: { d: AnalysisResultsDto }) {
     router.replace(s ? `${pathname}?${s}` : pathname, { scroll: false });
   };
 
+  // RFP / Standards: the view and the point-list filters live in the URL, so a filtered list can be
+  // reloaded or sent (?view=list&status=&type=&section=); both tabs share them.
+  const view: ComplianceView = params.get("view") === "list" ? "list" : "sections";
+  const filters = filtersFrom((k) => params.get(k));
+  const onView = (v: ComplianceView) => setQuery({ view: v === "list" ? v : null });
+  const onFilters = (f: ListFilters) =>
+    setQuery({
+      status: f.status === DEFAULT_FILTERS.status ? null : f.status,
+      type: f.type === "all" ? null : f.type,
+      section: f.section === "all" ? null : f.section,
+    });
+
   // Evidence and clause links open the reader: the vendor's two envelopes plus the RFP.
   const readerId = params.get("reader");
   const owner = readerId
@@ -412,9 +425,10 @@ function Results({ d }: { d: AnalysisResultsDto }) {
   const readerOpen = !!readerId && groups.some((g) => g.docs.some((x) => x.id === readerId));
   const onSection = (section: ProposalSection | null, scope?: Scope, proposalId?: string) => {
     const has = (s: Scope) => d.requirements.some((r) => r.section === section && r.scope === s);
-    const view: Scope = scope ?? (has("rfp") || !has("standard") ? "rfp" : "standard");
-    setFocus({ section, scope: view, proposalId, at: Date.now() });
-    setQuery({ tab: view === "standard" && d.hasStandards ? "standards" : "rfp" });
+    const target: Scope = scope ?? (has("rfp") || !has("standard") ? "rfp" : "standard");
+    setFocus({ section, scope: target, proposalId, at: Date.now() });
+    // The section lives in the section view.
+    setQuery({ tab: target === "standard" && d.hasStandards ? "standards" : "rfp", view: null });
   };
   const onEvidence: OpenEvidence = (docId, page, quote, vendorId) =>
     setQuery({
@@ -448,7 +462,18 @@ function Results({ d }: { d: AnalysisResultsDto }) {
           />
         </TabsContent>
         <TabsContent value="rfp">
-          <ComplianceTab key={focus?.at ?? 0} scope="rfp" d={d} colors={colors} onEvidence={onEvidence} focus={focus} />
+          <ComplianceTab
+            key={focus?.at ?? 0}
+            scope="rfp"
+            d={d}
+            colors={colors}
+            onEvidence={onEvidence}
+            focus={focus}
+            view={view}
+            onView={onView}
+            filters={filters}
+            onFilters={onFilters}
+          />
         </TabsContent>
         {d.hasStandards && (
           <TabsContent value="standards">
@@ -459,6 +484,10 @@ function Results({ d }: { d: AnalysisResultsDto }) {
               colors={colors}
               onEvidence={onEvidence}
               focus={focus}
+              view={view}
+              onView={onView}
+              filters={filters}
+              onFilters={onFilters}
             />
           </TabsContent>
         )}

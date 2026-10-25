@@ -107,6 +107,53 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     });
     await page.keyboard.press("Escape");
     await expect(page).not.toHaveURL(/reader=/);
+
+    // The vendor pills are hidden; each vendor card folds away, one by one or all at once
+    await expect(page.getByRole("navigation", { name: "Vendors" })).toHaveCount(0);
+    await meridianCard.getByRole("button", { name: "Collapse Meridian Scan Technologies" }).click();
+    await expect(
+      meridianCard.getByRole("list", { name: "Meridian Scan Technologies by section" }),
+    ).toHaveCount(0);
+    await meridianCard.getByRole("button", { name: "Expand Meridian Scan Technologies" }).click();
+    await page.getByRole("button", { name: "Collapse all" }).click();
+    await expect(page.locator('section[id^=vendor-] ul[aria-label$=" by section"]')).toHaveCount(0);
+    await page.getByRole("button", { name: "Expand all" }).click();
+    await expect(page.locator('section[id^=vendor-] ul[aria-label$=" by section"]')).toHaveCount(4);
+
+    // Point list: every point of a vendor in one list, worst first, filtered by status, type and
+    // section (kept in the URL); it opens on the non-compliant points; a choice with nothing in
+    // it says so
+    await page.getByRole("radio", { name: /Point list/ }).click();
+    await expect(page).toHaveURL(/view=list/);
+    const statusFilter = page.getByRole("radiogroup", { name: "Status" });
+    await expect(statusFilter.getByRole("radio", { name: /^Non-compliant/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    for (const li of await page.locator('ol[aria-label$=": points"] > li').all())
+      await expect(li).toContainText("Non-compliant");
+    await statusFilter.getByRole("radio", { name: /^All/ }).click();
+    await expect(page).toHaveURL(/status=all/);
+    const points = page.getByRole("list", { name: "Meridian Scan Technologies: points" });
+    await expect(points.locator(":scope > li").first()).toBeVisible();
+    await page.getByRole("radio", { name: /^Commercial/ }).click();
+    await expect(page).toHaveURL(/type=commercial/);
+    await page.getByRole("combobox", { name: "Section" }).click();
+    await page.getByRole("option", { name: /Security & data/ }).click();
+    await expect(page).toHaveURL(/section=security/);
+    // Security & data is a technical section: nothing commercial in it, for any vendor
+    await expect(
+      page.getByRole("heading", { name: "No data related to Commercial · Security & data" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Reset filters" }).first().click();
+    await expect(page).not.toHaveURL(/status=|type=|section=/);
+    // Details put the requirement and the offer side by side
+    await statusFilter.getByRole("radio", { name: /^All/ }).click();
+    await points.getByRole("button", { name: "Details" }).first().click();
+    await expect(points.getByText("The RFP requires").first()).toBeVisible();
+    await page.getByRole("radio", { name: /By section/ }).click();
+    await expect(page).not.toHaveURL(/view=list/);
+
     // The Standards tab: a standard rule opens in a panel over the results; closing it leaves
     // the page where it was. The full standard is one click away.
     await page.getByRole("tab", { name: "Standards" }).click();

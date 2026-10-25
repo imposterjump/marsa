@@ -2,11 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ChevronDown, FileText, ShieldCheck } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  FileText,
+  LayoutList,
+  Rows3,
+  ShieldCheck,
+} from "lucide-react";
 import { cn } from "cn";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { FindingCard } from "@/components/results/finding-card";
 import { STATUS_FILL } from "@/components/results/gap-bar";
+import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { AnalysisResultsDto, FindingResultDto, VendorResultDto } from "@/lib/api-types";
 import type { FindingStatus, ProposalSection } from "@/lib/domain";
 import { FINDING_STATUS_LABEL } from "@/lib/labels";
@@ -17,6 +27,7 @@ import {
   type OpenEvidence,
   type Scope,
   SECTION_ORDER,
+  VendorCardShell,
   VendorDivider,
   VendorLabel,
   pctText,
@@ -24,8 +35,8 @@ import {
   sectionLabel,
   vendorDocRefs,
 } from "./shared";
+import { type ComplianceView, type ListFilters, PointListView } from "./point-list";
 
-const card = "rounded-xl border border-border bg-surface shadow-sm";
 /** The status pills in a section's dropdown, worst first. */
 const STATUS_PILLS: FindingStatus[] = ["non_compliant", "partial", "not_addressed", "compliant"];
 const SHORT_FIRST: Record<FindingStatus, number> = {
@@ -64,6 +75,8 @@ const rowId = (proposalId: string, section: ProposalSection | null) =>
  * vendor in ranking order, with its result for the whole tab on top and its score in every
  * proposal section underneath. A section opens its points, one status group at a time. Sections
  * this tab has nothing about are listed once at the end.
+ * Two views (user, 2026-10-25): that one, "By section", and the filtered "Point list"
+ * (`point-list.tsx`). Every vendor card folds away in both.
  */
 export function ComplianceTab({
   scope,
@@ -71,6 +84,10 @@ export function ComplianceTab({
   colors,
   onEvidence,
   focus,
+  view,
+  onView,
+  filters,
+  onFilters,
 }: {
   scope: Scope;
   d: AnalysisResultsDto;
@@ -78,8 +95,20 @@ export function ComplianceTab({
   onEvidence: OpenEvidence;
   /** A section to bring into view (from a risk's "see its points"). */
   focus?: ComplianceFocus | null;
+  view: ComplianceView;
+  onView: (view: ComplianceView) => void;
+  filters: ListFilters;
+  onFilters: (filters: ListFilters) => void;
 }) {
   const reduce = useReducedMotion();
+  // Folded vendor cards, in both views (all open at first).
+  const [closed, setClosed] = useState<ReadonlySet<string>>(new Set());
+  const toggle = (id: string) =>
+    setClosed((c) => {
+      const next = new Set(c);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const vendors = d.vendors.filter((v) => v.scores);
   const inScope = d.requirements.filter((r) => r.scope === scope);
   const sections = SECTION_ORDER.filter((s) => inScope.some((r) => r.section === s));
@@ -100,6 +129,8 @@ export function ComplianceTab({
     return () => cancelAnimationFrame(raf);
   }, [target?.proposalId, target?.section, reduce]);
 
+  const allClosed = vendors.length > 0 && vendors.every((v) => closed.has(v.proposalId));
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -109,8 +140,38 @@ export function ComplianceTab({
           {scope === "standard" &&
             d.standards.length > 0 &&
             ` from ${d.standards.map((s) => s.code).join(", ")}`}{" "}
-          · each vendor&apos;s score per proposal section
+          ·{" "}
+          {view === "list"
+            ? "every point of a vendor in one list, worst first"
+            : "each vendor\u2019s score per proposal section"}
         </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {vendors.length > 1 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                setClosed(allClosed ? new Set() : new Set(vendors.map((v) => v.proposalId)))
+              }
+            >
+              {allClosed ? <ChevronsUpDown aria-hidden /> : <ChevronsDownUp aria-hidden />}
+              {allClosed ? "Expand all" : "Collapse all"}
+            </Button>
+          )}
+          <SegmentedControl
+            size="sm"
+            aria-label="View"
+            value={view}
+            onValueChange={onView}
+            options={[
+              { value: "sections", label: "By section", icon: <Rows3 aria-hidden /> },
+              { value: "list", label: "Point list", icon: <LayoutList aria-hidden /> },
+            ]}
+          />
+        </div>
+        {/* Vendor jump pills, hidden for now (user, 2026-10-25). They still work: to bring them
+            back, delete the opening and closing comment lines around the block below. */}
+        {/*
         {vendors.length > 1 && (
           <nav aria-label="Vendors" className="flex flex-wrap gap-2">
             {vendors.map((v) => (
@@ -129,24 +190,41 @@ export function ComplianceTab({
             ))}
           </nav>
         )}
+        */}
       </div>
 
-      {vendors.map((v, i) => (
-        <div key={v.proposalId} className="flex flex-col gap-2">
-          <VendorDivider n={i + 1} total={vendors.length} />
-          <VendorCard
-            d={d}
-            scope={scope}
-            v={v}
-            color={colors.get(v.proposalId)}
-            sections={sections}
-            onEvidence={onEvidence}
-            focusSection={target?.proposalId === v.proposalId ? target.section : undefined}
-          />
-        </div>
-      ))}
+      {view === "list" ? (
+        <PointListView
+          d={d}
+          scope={scope}
+          vendors={vendors}
+          colors={colors}
+          filters={filters}
+          onFilters={onFilters}
+          isOpen={(id) => !closed.has(id)}
+          onToggle={toggle}
+          onEvidence={onEvidence}
+        />
+      ) : (
+        vendors.map((v, i) => (
+          <div key={v.proposalId} className="flex flex-col gap-2">
+            <VendorDivider n={i + 1} total={vendors.length} />
+            <VendorCard
+              d={d}
+              scope={scope}
+              v={v}
+              color={colors.get(v.proposalId)}
+              sections={sections}
+              onEvidence={onEvidence}
+              focusSection={target?.proposalId === v.proposalId ? target.section : undefined}
+              open={!closed.has(v.proposalId)}
+              onToggle={() => toggle(v.proposalId)}
+            />
+          </div>
+        ))
+      )}
 
-      {empty.length > 0 && (
+      {view === "sections" && empty.length > 0 && (
         <section
           aria-label={SCOPE_TEXT[scope].none}
           className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-dashed border-border-strong/70 px-5 py-4"
@@ -174,6 +252,8 @@ function VendorCard({
   sections,
   onEvidence,
   focusSection,
+  open,
+  onToggle,
 }: {
   d: AnalysisResultsDto;
   scope: Scope;
@@ -183,39 +263,47 @@ function VendorCard({
   onEvidence: OpenEvidence;
   /** undefined: no focus on this vendor; null is the "not assigned" section. */
   focusSection?: ProposalSection | null;
+  open: boolean;
+  onToggle: () => void;
 }) {
   const st = scopeStats(d, v, { scope });
   const short = st.counts.non_compliant + st.counts.not_addressed + st.counts.partial;
   return (
-    <section
-      id={`vendor-${v.proposalId}`}
-      aria-label={v.vendor.name}
-      className={cn(card, "scroll-mt-24")}
-    >
-      {/* The vendor's summary is a tinted band with one big number and no bar, so it never reads
-          like one more section row (user, 2026-10-23: "no contrast between the general score and
-          each section score"). */}
-      <header className="flex flex-wrap items-center justify-between gap-x-10 gap-y-4 rounded-t-xl border-b border-border bg-surface-muted/70 px-5 py-5">
-        <span className="flex min-w-0 flex-col gap-1">
-          <VendorLabel v={v} color={color} size="md" />
-          <span className="ps-[4.75rem] text-xs text-ink-muted">
-            {st.total} {scope === "rfp" ? "RFP requirements" : "standard rules"} ·{" "}
-            {short ? `${short} short` : "everything met"}
-            {st.mandatoryNotMet > 0 && (
-              <span className="text-fail"> · {st.mandatoryNotMet} mandatory not met</span>
-            )}
-          </span>
-        </span>
-        <span className="flex flex-wrap items-center gap-x-8 gap-y-3">
-          <CountsLegend counts={st.counts} label={`${v.vendor.name}: all points`} className="max-w-xs" />
-          <span className="flex flex-col items-end">
-            <span className="caption-caps text-ink-muted">
-              Overall {scope === "rfp" ? "RFP" : "standards"} compliance
+    <VendorCardShell
+      v={v}
+      open={open}
+      onToggle={onToggle}
+      // The vendor's summary is a tinted band with one big number and no bar, so it never reads
+      // like one more section row (user, 2026-10-23: "no contrast between the general score and
+      // each section score").
+      header={
+        <div className="flex flex-wrap items-center justify-between gap-x-10 gap-y-4">
+          <span className="flex min-w-0 flex-col gap-1">
+            <VendorLabel v={v} color={color} size="md" />
+            <span className="ps-[4.75rem] text-xs text-ink-muted">
+              {st.total} {scope === "rfp" ? "RFP requirements" : "standard rules"} ·{" "}
+              {short ? `${short} short` : "everything met"}
+              {st.mandatoryNotMet > 0 && (
+                <span className="text-fail"> · {st.mandatoryNotMet} mandatory not met</span>
+              )}
             </span>
-            <span className="kpi text-4xl text-ink">{pctText(st.pct)}</span>
           </span>
-        </span>
-      </header>
+          <span className="flex flex-wrap items-center gap-x-8 gap-y-3">
+            <CountsLegend
+              counts={st.counts}
+              label={`${v.vendor.name}: all points`}
+              className="max-w-xs"
+            />
+            <span className="flex flex-col items-end">
+              <span className="caption-caps text-ink-muted">
+                Overall {scope === "rfp" ? "RFP" : "standards"} compliance
+              </span>
+              <span className="text-4xl kpi text-ink">{pctText(st.pct)}</span>
+            </span>
+          </span>
+        </div>
+      }
+    >
       <div className="flex items-center justify-between border-b border-border/70 px-5 py-2.5">
         <span className="caption-caps text-ink-muted">By proposal section</span>
         <span className="caption-caps text-ink-faint">Score per section</span>
@@ -236,7 +324,7 @@ function VendorCard({
           />
         ))}
       </ul>
-    </section>
+    </VendorCardShell>
   );
 }
 

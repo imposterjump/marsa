@@ -62,7 +62,6 @@ export function FindingCard({
   const reduce = useReducedMotion();
   const id = useId();
   const short = f.status !== "compliant";
-  const doc = vendorDocs.find((d) => d.id === f.evidenceDocId);
 
   return (
     <li className="rounded-xl border border-border bg-surface shadow-xs transition-shadow hover:shadow-sm">
@@ -94,29 +93,7 @@ export function FindingCard({
               </span>
             ) : (
               <>
-                {f.evidenceDocId ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      onEvidence(f.evidenceDocId!, f.evidencePage, f.evidenceQuote ?? "")
-                    }
-                    className="inline-flex w-fit max-w-full items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink-2 transition-colors outline-none hover:border-brand/50 hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
-                    title="Open the proposal at this sentence"
-                  >
-                    <BookOpen className="size-3.5 shrink-0 text-brand" aria-hidden />
-                    <span className="font-medium">{doc?.envelope ?? "Proposal"}</span>
-                    <span className="truncate text-ink-muted" dir="auto">
-                      {doc?.name ?? "document"}
-                    </span>
-                    {f.evidencePage && (
-                      <span className="shrink-0 tabular-nums">p. {f.evidencePage}</span>
-                    )}
-                    {!f.evidencePage && f.evidenceSection && (
-                      <span className="max-w-40 shrink-0 truncate">§ {f.evidenceSection}</span>
-                    )}
-                    <ArrowUpRight className="size-3 shrink-0 text-ink-faint" aria-hidden />
-                  </button>
-                ) : null}
+                <EvidenceChip f={f} vendorDocs={vendorDocs} onEvidence={onEvidence} />
                 {f.evidenceQuote ? (
                   <q className="line-clamp-2 text-ink-2 italic" dir="auto">
                     {f.evidenceQuote}
@@ -202,6 +179,39 @@ export function FindingCard({
         )}
       </AnimatePresence>
     </li>
+  );
+}
+
+/** Where the vendor's proposal says it: envelope, file and page, opening the reader at the quote. */
+export function EvidenceChip({
+  f,
+  vendorDocs,
+  onEvidence,
+}: {
+  f: FindingDto;
+  vendorDocs: VendorDocRef[];
+  onEvidence: OnEvidence;
+}) {
+  if (!f.evidenceDocId) return null;
+  const doc = vendorDocs.find((d) => d.id === f.evidenceDocId);
+  return (
+    <button
+      type="button"
+      onClick={() => onEvidence(f.evidenceDocId!, f.evidencePage, f.evidenceQuote ?? "")}
+      className="inline-flex w-fit max-w-full items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink-2 transition-colors outline-none hover:border-brand/50 hover:text-ink focus-visible:ring-2 focus-visible:ring-ring/50"
+      title="Open the proposal at this sentence"
+    >
+      <BookOpen className="size-3.5 shrink-0 text-brand" aria-hidden />
+      <span className="font-medium">{doc?.envelope ?? "Proposal"}</span>
+      <span className="truncate text-ink-muted" dir="auto">
+        {doc?.name ?? "document"}
+      </span>
+      {f.evidencePage && <span className="shrink-0 tabular-nums">p. {f.evidencePage}</span>}
+      {!f.evidencePage && f.evidenceSection && (
+        <span className="max-w-40 shrink-0 truncate">§ {f.evidenceSection}</span>
+      )}
+      <ArrowUpRight className="size-3 shrink-0 text-ink-faint" aria-hidden />
+    </button>
   );
 }
 
