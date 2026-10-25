@@ -38,8 +38,8 @@ export type OverviewTarget = "standards" | "rfp" | "risks";
 
 /**
  * Overview (user's design): the recommended vendor in a big box beside three mini boxes of the
- * same total height (Standards %, RFP %, risk score); then one row per vendor for the standards,
- * the RFP and the risks, each with a bar filled to its number and the number in a ring. A section
+ * same total height (RFP %, Standards %, risk score); then one row per vendor for the RFP, the
+ * standards and the risks (user, 2026-10-25: RFP first), each with a bar filled to its number and the number in a ring. A section
  * title opens its tab.
  */
 export function OverviewTab({
@@ -59,6 +59,16 @@ export function OverviewTab({
     <div className="flex flex-col gap-10">
       {pick && <Hero d={d} v={pick} />}
 
+      <ScopeSection
+        title="RFP compliance"
+        icon={FileText}
+        note={`${d.requirements.filter((r) => r.scope === "rfp").length} requirements`}
+        onOpen={() => onOpen("rfp")}
+        rows={[...analysed]
+          .sort((a, b) => b.scores!.rfpPct - a.scores!.rfpPct)
+          .map((v) => ({ v, pct: v.scores!.rfpPct, counts: v.rfpCounts, unit: "requirements" }))}
+        colors={colors}
+      />
       {d.hasStandards && (
         <ScopeSection
           title="Standards compliance"
@@ -76,16 +86,6 @@ export function OverviewTab({
           colors={colors}
         />
       )}
-      <ScopeSection
-        title="RFP compliance"
-        icon={FileText}
-        note={`${d.requirements.filter((r) => r.scope === "rfp").length} requirements`}
-        onOpen={() => onOpen("rfp")}
-        rows={[...analysed]
-          .sort((a, b) => b.scores!.rfpPct - a.scores!.rfpPct)
-          .map((v) => ({ v, pct: v.scores!.rfpPct, counts: v.rfpCounts, unit: "requirements" }))}
-        colors={colors}
-      />
       <RiskSection
         vendors={[...analysed].sort((a, b) => a.scores!.riskScore - b.scores!.riskScore)}
         colors={colors}
@@ -197,17 +197,17 @@ function Hero({ d, v }: { d: AnalysisResultsDto; v: VendorResultDto }) {
 
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 lg:grid-rows-3">
         <MiniBox
+          label="RFP compliance"
+          value={s.rfpPct}
+          suffix="%"
+          bar={<MeterBar value={s.rfpPct} fill={pctTone(s.rfpPct)} className={track} label="RFP compliance" />}
+        />
+        <MiniBox
           label="Standards compliance"
           value={s.standardsPct}
           suffix="%"
           bar={<MeterBar value={s.standardsPct} fill={pctTone(s.standardsPct)} className={track} label="Standards compliance" />}
           empty="No standards applied"
-        />
-        <MiniBox
-          label="RFP compliance"
-          value={s.rfpPct}
-          suffix="%"
-          bar={<MeterBar value={s.rfpPct} fill={pctTone(s.rfpPct)} className={track} label="RFP compliance" />}
         />
         <MiniBox
           label="Risk score"

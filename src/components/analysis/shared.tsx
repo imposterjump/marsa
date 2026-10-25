@@ -183,15 +183,15 @@ export const RISK_FILL: Record<RiskSeverity, string> = {
 };
 export const SEVERITY_ORDER: RiskSeverity[] = ["critical", "high", "moderate", "low"];
 
-/** Bands for a compliance % (user, 2026-10-25): blue from 70, amber from 30, red below. */
+/** Bands for a compliance % (user, 2026-10-25): green from 70, blue from 30, yellow below. */
 export const pctTone = (pct: number | null) =>
   pct === null
     ? "var(--missing-fill)"
     : pct >= 70
-      ? "var(--chart-1)"
+      ? "var(--ok-fill)"
       : pct >= 30
-        ? "var(--partial-fill)"
-        : "var(--fail-fill)";
+        ? "var(--chart-1)"
+        : "var(--partial-fill)";
 
 /**
  * A 0–100 number inside a ring filled to its share (90 leaves a tenth of the ring empty). Flat ends,
