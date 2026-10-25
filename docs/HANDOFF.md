@@ -422,3 +422,8 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 - **How it was checked:** throwaway server on 3400 (`.next-e2e`, `DATA_DIR=./data/hero-check`, a copy of the user's data, `AI_MODE=mock`), screenshots light / dark / 390 px. `npm run check` ✔ (178), E2E shell + projects + proposals ✔ (12).
 - **Pushed** on the user's word ("commit and push"): `a2a02f4` (their `rta standard/` folder, as committed, `__MACOSX/` included) and `571f68f`.
 - **Tried and rejected: the RTA dark hero band** on the welcome (ink background, angular glow, clipped corner, hover effects on the steps; local commit `e89c8bb`). User: "no i dont like put it back as it was". Reverted; the welcome stays the light band of `571f68f`. Don't propose a dark welcome band again.
+
+### 2026-10-25 · Session 7 (cont.)
+- **Run line moved off the results page** (user: the "Analysis complete · date · model · cost · N of N steps" line under "AI analysis results" was "taking so many space for nothing"; "remove them … or maybe put them in the ai quality tab"). In `analysis-page.tsx` the line is now `RunSummary`: a finished run shows it at the top of **AI quality** only. `RunBar` above the results shows nothing for a clean run, only the warning for a run with failed steps; a cancelled, interrupted or failed run (no tabs) keeps the line there with Resume.
+- E2E `analysis.spec.ts` updated: the Overview has no "14 of 14 steps"; AI quality shows "Analysis complete" and the steps; after Resume it waits for the Recommended vendor card. `npm run check` ✔ (178), analysis E2E ✔ (2).
+- The user's :3000 server was stopped by Claude Code for low memory (not restarted, per the rule). `.next-design` was rebuilt so the user only needs to start it.

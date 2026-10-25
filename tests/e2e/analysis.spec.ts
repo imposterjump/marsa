@@ -61,7 +61,8 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await expect(page.getByRole("tab", { name: "Overview", selected: true })).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByText("14 of 14 steps")).toBeVisible();
+    // The run's summary line is not above the results (it is in AI quality)
+    await expect(page.getByText("14 of 14 steps")).toHaveCount(0);
     const hero = page.getByRole("region", { name: "Recommended vendor" });
     await expect(hero).toContainText("Rank 1 of 4");
     await expect(hero).toContainText("AI-generated");
@@ -177,7 +178,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
       timeout: 20_000,
     });
     await page.getByRole("button", { name: "Resume" }).click();
-    await expect(page.getByText("Analysis complete", { exact: true })).toBeVisible({
+    await expect(page.getByRole("region", { name: "Recommended vendor" })).toBeVisible({
       timeout: 60_000,
     });
     await page.getByRole("button", { name: /Latest analysis/ }).click();
@@ -187,6 +188,8 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     // AI quality: the run's report, and a human review saved with it
     await page.getByRole("tab", { name: "AI quality" }).click();
     await expect(page.getByText("Confidence score")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Analysis complete", { exact: true })).toBeVisible();
+    await expect(page.getByText("14 of 14 steps")).toBeVisible();
     await expect(page.getByText("Files scanned")).toBeVisible();
     await expect(page.getByText("16 / 16")).toBeVisible(); // processed correctly
     await page

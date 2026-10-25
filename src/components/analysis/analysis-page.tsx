@@ -294,12 +294,37 @@ function RunArea({ runId }: { runId: string }) {
   );
 }
 
-/** One line about the run: when, which model, cost, steps; Resume and the error note if any. */
+/** One line about the run: status, when, which model and cost, steps (+ an action, e.g. Resume). */
+function RunSummary({ run, children }: { run: RunDto; children?: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-ink-muted">
+      <span className="inline-flex items-center gap-1.5 font-medium text-ink">
+        <RunIcon status={run.status} /> {RUN_TITLE[run.status]}
+      </span>
+      <span aria-hidden>·</span>
+      <span>{formatDateTime(run.startedAt ?? run.createdAt)}</span>
+      <span aria-hidden>·</span>
+      <span>{modelText(run)}</span>
+      <span aria-hidden>·</span>
+      <span className="tabular-nums">
+        {run.doneSteps} of {run.totalSteps} steps
+      </span>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Above the results: only what needs attention. A finished run's summary line lives in the
+ * AI quality tab (user, 2026-10-25: "its taking so many space for nothing"); a stopped or failed
+ * run has no tabs, so it keeps the line here with Resume and the error note.
+ */
 function RunBar({ data }: { data: RunStatusDto }) {
   const p = useProjectContext();
   const action = useRunAction(p.id);
   const { run } = data;
   const failed = data.steps.filter((s) => s.status === "failed");
+  const finished = run.status === "completed" || run.status === "completed_with_errors";
 
   const resume = async () => {
     try {
@@ -310,26 +335,18 @@ function RunBar({ data }: { data: RunStatusDto }) {
     }
   };
 
+  if (run.status === "completed") return null;
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-ink-muted">
-        <span className="inline-flex items-center gap-1.5 font-medium text-ink">
-          <RunIcon status={run.status} /> {RUN_TITLE[run.status]}
-        </span>
-        <span aria-hidden>·</span>
-        <span>{formatDateTime(run.startedAt ?? run.createdAt)}</span>
-        <span aria-hidden>·</span>
-        <span>{modelText(run)}</span>
-        <span aria-hidden>·</span>
-        <span className="tabular-nums">
-          {run.doneSteps} of {run.totalSteps} steps
-        </span>
-        {(run.status === "interrupted" || run.status === "cancelled") && (
-          <Button size="sm" onClick={() => void resume()} disabled={action.isPending} className="ms-auto">
-            <Play /> Resume
-          </Button>
-        )}
-      </div>
+      {!finished && (
+        <RunSummary run={run}>
+          {(run.status === "interrupted" || run.status === "cancelled") && (
+            <Button size="sm" onClick={() => void resume()} disabled={action.isPending} className="ms-auto">
+              <Play /> Resume
+            </Button>
+          )}
+        </RunSummary>
+      )}
       {(run.status === "completed_with_errors" || run.status === "failed") && (
         <div role="alert" className="flex items-start gap-3 rounded-lg bg-partial-soft p-4 text-[13px] text-ink-2">
           <CircleAlert className="mt-0.5 size-4 shrink-0 text-partial" aria-hidden />
@@ -442,6 +459,7 @@ function Results({ d }: { d: AnalysisResultsDto }) {
           <ComparisonTab d={d} colors={colors} onEvidence={onEvidence} />
         </TabsContent>
         <TabsContent value="quality" className="flex flex-col gap-6">
+          {status && <RunSummary run={status.run} />}
           <RunQuality runId={d.run.id} />
           {status && <StepTimeline data={status} defaultOpen={false} />}
         </TabsContent>
