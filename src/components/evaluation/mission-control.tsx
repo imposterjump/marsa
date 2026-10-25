@@ -67,7 +67,7 @@ export function MissionControl({ data }: { data: RunStatusDto }) {
       className="relative overflow-hidden rounded-3xl border border-border bg-surface shadow-xs"
     >
       <DepthBackdrop />
-      <div className="relative flex flex-col gap-8 px-6 py-7 sm:px-9 sm:py-9">
+      <div className="relative flex flex-col gap-6 px-6 py-6 sm:px-8 sm:py-7">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 flex-col gap-1">
             <h2
@@ -85,70 +85,74 @@ export function MissionControl({ data }: { data: RunStatusDto }) {
           </Button>
         </header>
 
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
-          <div
-            role="progressbar"
-            aria-label="Analysis progress"
-            aria-valuemin={0}
-            aria-valuemax={run.totalSteps}
-            aria-valuenow={run.doneSteps}
-            aria-valuetext={`${run.doneSteps} of ${run.totalSteps} steps finished`}
-            className="relative grid size-28 shrink-0 place-items-center"
-          >
-            <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
-              <circle
-                cx="50"
-                cy="50"
-                r={R}
-                fill="none"
-                strokeWidth="6"
-                className="stroke-surface-muted"
-              />
-              <motion.circle
-                cx="50"
-                cy="50"
-                r={R}
-                fill="none"
-                strokeWidth="6"
-                strokeLinecap="round"
-                className="stroke-brand"
-                strokeDasharray={C}
-                initial={false}
-                animate={{ strokeDashoffset: C * (1 - pct / 100) }}
-                transition={{ duration: reduce ? 0 : 0.8, ease: EASE_OUT_QUINT }}
-              />
-            </svg>
-            <span className="font-heading text-2xl font-semibold text-ink tabular-nums">
-              {pct}%
-            </span>
-          </div>
-
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-xs font-semibold tracking-[0.06em] text-ink-muted uppercase tabular-nums">
-              Step {k} of {run.totalSteps}
-            </span>
-            <div aria-live="polite" aria-atomic className="min-h-[3.5rem]">
-              <MaskedText
-                as="p"
-                text={
-                  current
-                    ? `${current.seq}/${run.totalSteps} · ${current.label}`
-                    : "Preparing the next step…"
-                }
-                replayKey={current?.id ?? "idle"}
-                className="font-heading text-xl leading-snug font-semibold tracking-tight text-ink sm:text-2xl"
-              />
+        {/* Wide screens: the ring and the step text on the left, the agent team beside them, so the
+            whole team fits on screen without scrolling (user, 2026-10-25). */}
+        <div className="grid items-center gap-6 lg:grid-cols-[minmax(240px,300px)_minmax(0,1fr)] lg:gap-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8 lg:flex-col lg:items-start lg:gap-5">
+            <div
+              role="progressbar"
+              aria-label="Analysis progress"
+              aria-valuemin={0}
+              aria-valuemax={run.totalSteps}
+              aria-valuenow={run.doneSteps}
+              aria-valuetext={`${run.doneSteps} of ${run.totalSteps} steps finished`}
+              className="relative grid size-28 shrink-0 place-items-center"
+            >
+              <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
+                <circle
+                  cx="50"
+                  cy="50"
+                  r={R}
+                  fill="none"
+                  strokeWidth="6"
+                  className="stroke-surface-muted"
+                />
+                <motion.circle
+                  cx="50"
+                  cy="50"
+                  r={R}
+                  fill="none"
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  className="stroke-brand"
+                  strokeDasharray={C}
+                  initial={false}
+                  animate={{ strokeDashoffset: C * (1 - pct / 100) }}
+                  transition={{ duration: reduce ? 0 : 0.8, ease: EASE_OUT_QUINT }}
+                />
+              </svg>
+              <span className="font-heading text-2xl font-semibold text-ink tabular-nums">
+                {pct}%
+              </span>
             </div>
-            <p className="text-[13px] text-ink-muted tabular-nums">
-              Elapsed {formatClock(now - started)}
-              {data.etaSeconds > 0 && <> · ~{formatDuration(data.etaSeconds)} left</>}
-              {running.length > 1 && <> · {running.length} running in parallel</>}
-            </p>
-          </div>
-        </div>
 
-        {/* The phases as an agent team handing work to each other (user, 2026-10-25). */}
-        <AgentOrchestra steps={steps} />
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-xs font-semibold tracking-[0.06em] text-ink-muted uppercase tabular-nums">
+                Step {k} of {run.totalSteps}
+              </span>
+              <div aria-live="polite" aria-atomic className="min-h-[3.5rem]">
+                <MaskedText
+                  as="p"
+                  text={
+                    current
+                      ? `${current.seq}/${run.totalSteps} · ${current.label}`
+                      : "Preparing the next step…"
+                  }
+                  replayKey={current?.id ?? "idle"}
+                  className="font-heading text-xl leading-snug font-semibold tracking-tight text-ink sm:text-2xl lg:text-xl"
+                />
+              </div>
+              <p className="text-[13px] text-ink-muted tabular-nums">
+                Elapsed {formatClock(now - started)}
+                {data.etaSeconds > 0 && <> · ~{formatDuration(data.etaSeconds)} left</>}
+                {running.length > 1 && <> · {running.length} running in parallel</>}
+              </p>
+            </div>
+          </div>
+
+          {/* The phases as an agent team handing work to each other (user, 2026-10-25). */}
+          <AgentOrchestra steps={steps} />
+        </div>
 
         <div className="flex flex-col gap-3">
           <h3 className="text-2xs font-semibold tracking-[0.06em] text-ink-muted uppercase">

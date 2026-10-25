@@ -79,7 +79,7 @@ If the company already exists from an earlier run, typing its name reuses it, an
 Click **Create project**. The project page opens with the project ready to analyse.
 
 ## 4. Run the AI analysis
-1. Click **Run AI analysis** in the project header. In live mode a dialog first shows the estimate:
+1. Click **Run AI analysis** in the project header; it starts at once. Expect (not shown in the app):
 
    | Model | Cost | Time |
    |---|---|---|

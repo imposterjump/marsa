@@ -159,7 +159,7 @@ function AiModeChip() {
       ? {
           icon: FlaskConical,
           title: "Demo AI",
-          sub: "Mock mode · no credits used",
+          sub: "Mock mode",
           tone: "text-[#7cb0f0]",
         }
       : apiKeyConfigured

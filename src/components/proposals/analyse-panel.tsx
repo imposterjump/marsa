@@ -136,34 +136,7 @@ export function AnalysePanel({
                 }
               />
               <Stat label="Time" value={`≈ ${formatDuration(seconds)}`} />
-              <Stat
-                label={mode === "live" ? `Cost · ${AI_MODEL_LABEL[model]}` : "Cost"}
-                value={
-                  mode !== "live" ? (
-                    "Free (demo AI)"
-                  ) : estimate ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span
-                          tabIndex={0}
-                          className="cursor-help underline decoration-dotted underline-offset-4"
-                        >
-                          ≈ ${estimate.usd.toFixed(2)}
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        Likely ${estimate.low.toFixed(2)}–${estimate.high.toFixed(2)}, for{" "}
-                        {estimate.requirementsEstimated ? "about " : ""}
-                        {estimate.requirements} requirements
-                        {estimate.requirementsEstimated ? " (estimated)" : " (as in the last run)"}.
-                        Calibrated on real runs; most of the cost is the AI writing its findings.
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    "…"
-                  )
-                }
-              />
+              <Stat label="AI" value={mode === "live" ? AI_MODEL_LABEL[model] : "Demo AI"} />
             </dl>
           )}
 

@@ -102,7 +102,7 @@ export function NewStandardDialog({
       if (ai) body.set("ai", "1");
       const res = await api<FileResult>("/api/standards/rules-from-file", { method: "POST", body });
       setResult(res);
-      if (res.usedAi && res.costUsd > 0) toast.success(`Rules read by AI · $${res.costUsd.toFixed(3)}`);
+      if (res.usedAi) toast.success("Rules read by AI");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't read the file.");
     } finally {
@@ -239,8 +239,8 @@ export function NewStandardDialog({
                     No rule table was found in this file&apos;s text. {APP_NAME} can read the rules with
                     AI:{" "}
                     {live
-                      ? `one small request to ${model ? AI_MODEL_LABEL[model] : "Claude"} (about $0.01 on Haiku, $0.05 on Sonnet).`
-                      : "free with the demo AI."}
+                      ? `one small request to ${model ? AI_MODEL_LABEL[model] : "Claude"}.`
+                      : "the demo AI reads them."}
                   </span>
                   <Button size="sm" className="w-fit" onClick={() => void read(file, true)}>
                     <Sparkles /> Read the rules with AI

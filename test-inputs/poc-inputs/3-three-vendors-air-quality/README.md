@@ -70,7 +70,7 @@ Click **Create project**.
    - 3 risk registers;
    - 1 recommendation;
    - 3 consultant reports.
-2. In live mode the confirmation shows the estimate:
+2. Expected cost and time (not shown in the app):
 
    | Model | Cost | Time |
    |---|---|---|

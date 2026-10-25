@@ -16,7 +16,6 @@
     "seed": "tsx scripts/seed.ts",
     "ai:smoke": "tsx --conditions=react-server scripts/ai-smoke.ts",
     "ai:run": "tsx --conditions=react-server scripts/ai-run.ts",
-    "ai:generate": "tsx --conditions=react-server scripts/ai-generate.ts",
     "reset": "tsx scripts/reset.ts",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -356,28 +356,6 @@ export interface ProposalResultDto {
   risks: RiskDto[];
 }
 
-// ─── AI-generated proposals (P7.5) ───────────────────────────────────────────
-export type BidProfileDto = "strong" | "budget_partial" | "risky_cloud" | "incomplete";
-
-export interface GenJobDto {
-  id: string;
-  projectId: string;
-  mode: "mock" | "live";
-  model: string;
-  status: "running" | "done" | "failed";
-  items: {
-    profile: BidProfileDto;
-    vendorName: string;
-    country: string;
-    status: "queued" | "writing" | "rendering" | "done" | "failed";
-    error: string | null;
-    proposalId: string | null;
-    costUsd: number;
-  }[];
-  costUsd: number;
-  createdAt: string;
-  finishedAt: string | null;
-}
 
 // ─── AI review (run quality + human reviews) ─────────────────────────────────
 export interface RunQualityDto {

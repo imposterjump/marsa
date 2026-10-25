@@ -176,18 +176,12 @@ function RunReport({ runId, needsRefresh }: { runId: string; needsRefresh: boole
         />
         <StatTile
           icon={Timer}
-          label={q.mode === "mock" ? "Time" : "Cost and time"}
-          value={
-            q.mode === "mock"
-              ? q.durationMs
-                ? formatDuration(q.durationMs / 1000)
-                : "—"
-              : `$${q.costUsd.toFixed(2)}`
-          }
+          label="Time"
+          value={q.durationMs ? formatDuration(q.durationMs / 1000) : "—"}
           detail={
             q.mode === "mock"
-              ? "Demo AI (free)"
-              : `${q.durationMs ? formatDuration(q.durationMs / 1000) : "—"} · ${modelName(q.model)}${q.cacheHitPct != null ? ` · ${q.cacheHitPct} % from cache` : ""}`
+              ? "Demo AI"
+              : `${modelName(q.model)}${q.cacheHitPct != null ? ` · ${q.cacheHitPct} % from cache` : ""}`
           }
         />
       </div>
@@ -246,14 +240,15 @@ function RunReport({ runId, needsRefresh }: { runId: string; needsRefresh: boole
           <StackedBar
             label="AI confidence per finding"
             segments={[
-              { key: "h", label: "High", value: findings.byConfidence.high, fill: "bg-brand" },
+              // Green, blue, yellow (user, 2026-10-25: the red shades were too close to tell apart).
+              { key: "h", label: "High", value: findings.byConfidence.high, fill: "bg-ok-fill" },
               {
                 key: "m",
                 label: "Medium",
                 value: findings.byConfidence.medium,
-                fill: "bg-brand/55",
+                fill: "bg-chart-1",
               },
-              { key: "l", label: "Low", value: findings.byConfidence.low, fill: "bg-brand/25" },
+              { key: "l", label: "Low", value: findings.byConfidence.low, fill: "bg-partial-fill" },
             ]}
           />
         </section>

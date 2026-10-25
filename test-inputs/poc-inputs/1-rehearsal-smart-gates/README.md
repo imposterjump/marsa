@@ -77,7 +77,7 @@ Click **Create project**. The project page opens.
 **To rehearse adding a vendor later:** save only Sahel here and create the project. Then add Vector under **Proposals → Add vendor**.
 
 ## 4. Run the AI analysis
-1. Click **Run AI analysis**. In live mode a dialog first shows the estimate:
+1. Click **Run AI analysis**; it starts at once. Expect (not shown in the app):
 
    | Model | Cost | Time |
    |---|---|---|

@@ -538,3 +538,25 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 
     Then "Results ready", the card folds (`AnimatePresence` exit) and the table fades in. About 6 s, ×0.3 under reduced motion. The timer depends only on the step (`onDone` held in a ref) so re-renders don't restart it. Nothing is recomputed: it is a presentation of work the analysis already did.
   - E2E: the comparison run region with 6 steps and locked checkboxes, then the table (20 s timeout). `npm run check` ✔ (185), full E2E ✔ (20). Screens from a demo run on a copy of the user's data: light and dark at 1440 (including a mid-trip ball frame), 390 px, and the comparison run at 0.4 s / 3.2 s / 6.2 s and the result.
+- **Follow-up round (2026-10-25).** Started after the user's own live Haiku run on PRJ-2026-002 finished (10/10, $0.094), as asked ("wait until it ends … so u dont interupt it").
+  - **Orchestra smaller:** user: "so it can all fit in the page … i dont have to scroll". On lg screens mission control puts the ring and step text in a left column (240–300 px) beside the agent team. The team itself is smaller (node 54 / hub 80 / height 390 when wide; 50 / 72 / 400 mid; 44 / 64 / 400 phone) and the card's gaps are tighter.
+  - **A stopped run never hides the previous results** (user: "if i started by mistake and cancled i dont have to lose the previous evaluation"). With no `?run=` in the URL (the project page's Open AI analysis, the run pill), if the newest run is cancelled, interrupted or failed and an earlier one finished, `AnalysisPage` opens the latest finished run. Above it, `StoppedNotice` (role status "A newer analysis was stopped") offers **Open it** and **Resume it** (cancelled / interrupted). A stopped run opened on purpose gets **Show the previous results** in its `RunBar`. The project status was already right (`restoreProjectStatus`).
+  - **No prices anywhere in the UI** (user: "remove all pricings … remove any confirmation message for the price we wont show the client we were worried abt the price"):
+    - AI quality: the "Cost and time" tile became "Time" (model and cache % below).
+    - `StartRunButton` starts on click: the cost confirmation dialog is gone, live too.
+    - The project page panel shows Time + AI (model) instead of Cost.
+    - The run menu and the summary line show the model only (`modelText`).
+    - Settings model cards: no token prices or price wording.
+    - The New standard AI-read note and toast: no $.
+    - The sidebar chip says "Mock mode", not "no credits used".
+    - Costs are still recorded in the DB (`costUsd`) and the estimator still exists, for us (the POC READMEs keep their cost tables, marked "not shown in the app").
+  - **AI's own confidence colours:** High green `bg-ok-fill`, Medium blue `bg-chart-1`, Low yellow `bg-partial-fill`; they were three shades of brand red.
+  - **AI vendor generation removed** (user: "we wont need it anymore remove the functionality and the button"). Deleted:
+    - the **Generate with AI** button and `generate-proposals-dialog.tsx`;
+    - `use-generate.ts` and `POST/GET /api/projects/:id/simulate`;
+    - `src/server/simulate/` (generator, prompts, mock writer, DOCX/PDF render);
+    - `estimateBidsUsd` and `useBidsEstimate`, `GenJobDto` / `BidProfileDto`;
+    - `scripts/ai-generate.ts` and the `ai:generate` script;
+    - `tests/integration/generate.test.ts` and its E2E test.
+
+    `print.ts` lost `htmlToPdf` (only the reports print now). The manual **Vendor simulator** (`/vendor-portal`) stays, and the `ai` proposal source stays so old generated proposals still show their pill. Stale generated route types in `.next-view/`, `.next/dev/` and `.next-e2e/` (they still imported the deleted route) were deleted; they regenerate on build.

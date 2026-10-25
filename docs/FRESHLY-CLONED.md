@@ -52,7 +52,7 @@ npm run dev                        # → http://localhost:3000
 | | Demo AI (default) | Live AI |
 |---|---|---|
 | Setting | `AI_MODE=mock` (or nothing) | `AI_MODE=live` + `ANTHROPIC_API_KEY` |
-| Cost | $0 | Real Claude API calls (the run dialog shows the estimate first) |
+| Cost | $0 | Real Claude API calls, billed to the API key. The app shows no prices; see the cost table in [`test-inputs/poc-inputs/README.md`](../test-inputs/poc-inputs/README.md) |
 | Results | Templates built from the documents' sentences: good for clicking through every screen, not for judging vendors | A real evaluation |
 
 **To switch to live AI:**
@@ -100,8 +100,8 @@ The sample data is defined in `test-inputs/seed/manifest.json` and read from `te
 
 Each set's README is a step-by-step script: what to type and drop at each step. It ends with **"What a good result looks like"** (who should win, which gaps the AI should find), so you can judge a live run. Rebuild the files with `npx tsx scripts/test-inputs/build-poc.ts`.
 
-### Option 3: AI-generated bids
-On a project's **Proposals** tab, **Generate with AI** writes vendor bids for the tender: a technical proposal (DOCX) and a commercial one (PDF). They are free templates in demo mode and realistic bids in live mode; the dialog shows the cost first. **Settings → Demo tools → Vendor simulator** submits bids by hand, as a vendor would.
+### Option 3: submit bids as a vendor
+**Settings → Demo tools → Vendor simulator** submits bids by hand, as a vendor would. (The app used to write bids with AI; that was removed on 2026-10-25.)
 
 ### The rest of `test-inputs/`
 | Folder | What it is |
@@ -115,7 +115,7 @@ All organisations, people and documents in `test-inputs/` are fictional.
 
 ## A short tour
 - **Projects:** the welcome band, then every project. **New project** is a guided form: Project (title, category, RFP) → Standards → Vendors.
-- **A project:** Overview, Proposals (vendors, documents, **Add vendor**), and **Run AI analysis** with a time and cost estimate.
+- **A project:** Overview, Proposals (vendors, documents, **Add vendor**), and **Run AI analysis** with a time estimate. A run starts on click; if you cancel one started by mistake, the page keeps showing the previous results.
 - **AI analysis results:** mission control while it runs (you can leave the page; a pill in the top bar follows the run), then the tabs:
   - **RFP, Standards** and **Risks:** by section, or the red **list** view with filters per vendor.
   - **Comparison:** a vendor-by-vendor table.
@@ -155,7 +155,7 @@ All organisations, people and documents in `test-inputs/` are fictional.
   - `runs/`: the pipeline runner, scores;
   - `reports/`: the consultant PDFs;
   - `db/`, `documents/`, `seed/`, `storage/`.
-- `src/lib/`: shared types, labels, the cost estimate.
+- `src/lib/`: shared types, labels, the run plan and estimates.
 - `scripts/`: seed, reset, AI checks, test-input builders.
 - `tests/`: unit, integration, E2E.
 

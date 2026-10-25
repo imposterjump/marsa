@@ -5,7 +5,6 @@ import { buildPreview, parseDelimited } from "@/server/documents/preview";
 import { paginate } from "@/lib/paginate";
 import {
   costFromUsage,
-  estimateBidsUsd,
   estimateRun,
   estimateSeconds,
   formatDuration,
@@ -152,12 +151,6 @@ describe("analysis plan (RDD §7.1)", () => {
     expect(costFromUsage("claude-haiku-5-5", u(100_000))).toBeCloseTo(0.01, 6);
     expect(costFromUsage("claude-haiku-5-5", u(200_000))).toBeCloseTo(0.1, 6);
     expect(costFromUsage("claude-sonnet-5-5", u(200_000))).toBeCloseTo(0.4, 6);
-  });
-
-  it("estimates generated bids from the measured Sonnet job (2 bids: $0.19)", () => {
-    const usd = estimateBidsUsd(pcs, { model: "claude-sonnet-5-5", count: 2 });
-    expect(usd).toBeGreaterThan(0.15);
-    expect(usd).toBeLessThan(0.3);
   });
 
   it("formats durations", () => {

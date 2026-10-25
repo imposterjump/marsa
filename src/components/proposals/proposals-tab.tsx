@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Eye, FileStack, Megaphone, MoreHorizontal, Trash2, UserPlus, Users, Wand2 } from "lucide-react";
+import { Eye, FileStack, Megaphone, MoreHorizontal, Trash2, UserPlus, Users } from "lucide-react";
 import { DataTable, type Column } from "@/components/data/data-table";
 import { useProjectContext } from "@/components/projects/project-shell";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VendorsEditor } from "./vendors-editor";
-import { GenerateProposalsDialog } from "./generate-proposals-dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   DropdownMenu,
@@ -47,26 +46,21 @@ export function ProposalsTab() {
   const remove = useDeleteProposal(p.id);
   const base = `/projects/${p.id}/proposals`;
   const canAdd = p.status === "open" || p.status === "evaluated" || p.status === "draft";
-  const canSimulate = canAdd;
   const canRemove = canAdd;
 
-  const [generating, setGenerating] = useState(false);
+  // AI-generated bids were removed (user, 2026-10-25): vendors are added by hand only.
   const [adding, setAdding] = useState(false);
   const simulate = canAdd && (
     <span className="flex flex-wrap gap-2">
       <Button onClick={() => setAdding(true)}>
         <UserPlus /> Add vendor
       </Button>
-      <Button variant="brand" onClick={() => setGenerating(true)}>
-        <Wand2 /> Generate with AI
-      </Button>
     </span>
   );
-  // Rendered once, outside both layouts below: the first generated proposal switches the tab from
-  // the empty state to the table, which would otherwise remount the dialog and lose its progress.
-  const generateDialog = canSimulate && (
+  // Rendered once, outside both layouts below: the first saved vendor switches the tab from the
+  // empty state to the table, which would otherwise remount the dialog.
+  const addDialog = canAdd && (
     <>
-      <GenerateProposalsDialog project={p} open={generating} onOpenChange={setGenerating} />
       <Dialog open={adding} onOpenChange={setAdding}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
@@ -87,13 +81,13 @@ export function ProposalsTab() {
   if (!isLoading && !isError && data?.length === 0) {
     return (
       <>
-        {generateDialog}
+        {addDialog}
         <div className="flex flex-col gap-6">
           <div className="rounded-2xl border border-dashed border-border-strong bg-surface/60">
             <EmptyState
               size="lg"
               art={
-                canSimulate ? (
+                canAdd ? (
                   <Users className="size-12 text-brand" strokeWidth={1.25} />
                 ) : (
                   <Megaphone className="size-12 text-ink-faint" strokeWidth={1.25} />
@@ -228,7 +222,7 @@ export function ProposalsTab() {
 
   return (
     <>
-      {generateDialog}
+      {addDialog}
       <section aria-labelledby="proposals-title" className="flex flex-col gap-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-col gap-1">

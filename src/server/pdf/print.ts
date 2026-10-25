@@ -1,8 +1,7 @@
 /**
- * HTML → PDF with the Chromium that Playwright installed (`npx playwright install chromium`).
- * Shared by the generated bids (simulate/render.ts) and the consultant reports (reports/pdf.ts).
- * One browser per call; `withBrowser` lets a caller print several times (e.g. to fit a page count)
- * without starting Chromium again.
+ * HTML → PDF with the Chromium that Playwright installed (`npx playwright install chromium`), for
+ * the consultant reports (reports/pdf.ts). One browser per call; `withBrowser` lets a caller print
+ * several times (e.g. to fit a page count) without starting Chromium again.
  */
 import "server-only";
 import type { Browser } from "playwright-core";
@@ -50,6 +49,3 @@ export async function withBrowser<T>(fn: (print: Print) => Promise<T>): Promise<
     await browser.close();
   }
 }
-
-export const htmlToPdf = (html: string, opts?: PrintOptions) =>
-  withBrowser((print) => print(html, opts));

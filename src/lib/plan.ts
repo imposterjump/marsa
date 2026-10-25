@@ -316,23 +316,6 @@ export function estimateRun(
   };
 }
 
-/** Cost of generating AI bids (P7.5): the tender is cached once, each bid adds ~7k output tokens. */
-export function estimateBidsUsd(
-  input: Pick<RunEstimateInput, "shared">,
-  { model, count }: { model: AiModel; count: number },
-): number {
-  if (count <= 0) return 0;
-  const { shared } = input;
-  const S =
-    shared.pdfPages * TOKENS.sharedPdfPage +
-    shared.images * TOKENS.image +
-    (shared.textChars + shared.rulesChars) / TOKENS.charsPerToken +
-    1_500;
-  let usd = stepUsd(model, { uncached: 2_000, read: 0, write: S, out: 7_000 });
-  usd += (count - 1) * stepUsd(model, { uncached: 2_000, read: S, write: 0, out: 7_000 });
-  return Math.round(usd * 1.15 * 100) / 100; // bids vary in length; round up a little
-}
-
 export function formatDuration(seconds: number): string {
   if (seconds < 60) return `${Math.max(1, Math.round(seconds))} s`;
   const m = Math.round(seconds / 60);

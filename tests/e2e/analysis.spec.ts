@@ -315,7 +315,16 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await expect(page.getByText("Analysis cancelled", { exact: true })).toBeVisible({
       timeout: 20_000,
     });
-    await page.getByRole("button", { name: "Resume" }).click();
+    // A cancelled run never hides the previous results: opened from the project (no run in the
+    // URL), the page shows the last finished analysis and says the newer one was stopped
+    await expect(page.getByRole("link", { name: "Show the previous results" })).toBeVisible();
+    await page.goto(`/analysis/${xray.id}`);
+    const stoppedNote = page.getByRole("status", { name: "A newer analysis was stopped" });
+    await expect(stoppedNote).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("region", { name: "Recommended vendor" })).toBeVisible();
+    await stoppedNote.getByRole("button", { name: "Resume it" }).click();
+    await expect(page).toHaveURL(/run=/);
+    await expect(stoppedNote).toHaveCount(0);
     await expect(page.getByRole("region", { name: "Recommended vendor" })).toBeVisible({
       timeout: 60_000,
     });
@@ -348,31 +357,5 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await expect(page).toHaveURL(new RegExp(`/analysis/${xray.id}$`));
     await page.goto(`/projects/${xray.id}/ai-review`);
     await expect(page).toHaveURL(new RegExp(`/analysis/${xray.id}\\?tab=quality$`));
-  });
-
-  test("generate proposals with AI (mock writer, real DOCX + PDF)", async ({ page }) => {
-    const { pcs } = await sampleTenders(page);
-    await page.goto(`/projects/${pcs.id}/proposals`);
-    await page.getByRole("button", { name: "Generate with AI" }).click();
-    const dialog = page.getByRole("dialog", { name: "Generate proposals with AI" });
-    await expect(dialog).toContainText("free (demo AI)");
-    await dialog.getByLabel(/^Budget/).click(); // leave only "Strong"
-    await dialog.getByRole("button", { name: "Generate 1" }).click();
-    await expect(dialog.getByText("Submitted")).toBeVisible({ timeout: 60_000 });
-    await dialog.getByRole("button", { name: "Done" }).click();
-    const table = page.getByRole("table");
-    await expect(table.getByRole("row")).toHaveCount(2); // header + 1
-    await table.getByRole("link", { name: /^View / }).click();
-    const reader = page.getByRole("dialog");
-    await expect(reader.getByRole("img", { name: /Financial-Proposal\.pdf, page 1/ })).toBeVisible({
-      timeout: 20_000,
-    });
-    await expect(reader).toContainText("Financial proposal (Envelope 2)");
-    await reader.getByRole("tab", { name: "Technical" }).click();
-    await expect(reader.getByRole("img", { name: /Technical-Proposal\.docx, page 1/ })).toBeVisible(
-      {
-        timeout: 20_000,
-      },
-    );
   });
 });

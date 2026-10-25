@@ -11,25 +11,23 @@ import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import type { AiModel, ReportLanguage } from "@/lib/domain";
 import { SaveStatus, Section } from "./settings-section";
 
-const MODELS: { id: AiModel; name: string; blurb: string; price: string }[] = [
+// No prices on the model cards (user, 2026-10-25: the client never sees costs).
+const MODELS: { id: AiModel; name: string; blurb: string }[] = [
   {
     id: "claude-opus-5-5",
     name: "Claude Opus 5.5",
     blurb: "Most thorough. Best for long, technical proposals and subtle partial-compliance calls.",
-    price: "$4 / $20 per million input / output tokens",
   },
   {
     id: "claude-sonnet-5-5",
     name: "Claude Sonnet 5.5",
-    blurb: "Faster and half the price. Slightly less depth on very long, complex proposals.",
-    price: "$2 / $10 per million input / output tokens",
+    blurb: "Faster, with slightly less depth on very long, complex proposals.",
   },
   {
     id: "claude-haiku-5-5",
     name: "Claude Haiku 5.5",
     blurb:
-      "Fastest and cheapest, for trying the pipeline end to end. Rougher calls on partial compliance and subtle conflicts.",
-    price: "$0.10 / $0.50 per million tokens (prompts ≤ 100K tokens; 5× above)",
+      "Fastest, for trying the pipeline end to end. Rougher calls on partial compliance and subtle conflicts.",
   },
 ];
 
@@ -91,7 +89,6 @@ export function AiSection() {
                     </span>
                   </span>
                   <span className="text-[13px] leading-relaxed text-ink-muted">{m.blurb}</span>
-                  <span className="text-xs font-medium text-ink-2">{m.price}</span>
                   {m.id === "claude-opus-5-5" && (
                     <Pill tone="brand" size="sm" className="absolute end-4 -top-2.5">
                       Recommended

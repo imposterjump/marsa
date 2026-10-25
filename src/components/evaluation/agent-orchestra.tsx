@@ -99,11 +99,11 @@ export function AgentOrchestra({ steps }: { steps: Steps }) {
   // ─── Geometry: an ellipse that fits the card, with room for the labels ───
   const wide = w >= 760;
   const compact = w > 0 && w < 560;
-  const node = wide ? 66 : compact ? 48 : 58;
-  const hub = wide ? 100 : compact ? 70 : 86;
-  const h = wide ? 540 : compact ? 460 : 500;
-  const labelW = compact ? 104 : wide ? 210 : 176;
-  const label = compact ? 34 : 46; // room for a two-line label
+  const node = wide ? 54 : compact ? 44 : 50;
+  const hub = wide ? 80 : compact ? 64 : 72;
+  const h = wide ? 390 : compact ? 400 : 400;
+  const labelW = compact ? 100 : wide ? 196 : 172;
+  const label = compact ? 32 : 38; // room for a name and its job line
   const cx = w / 2;
   const cy = h / 2;
   const rx = Math.max(0, Math.min(w / 2 - labelW / 2 - 4, 420));
@@ -214,7 +214,7 @@ export function AgentOrchestra({ steps }: { steps: Steps }) {
               animate={reduce || allDone ? { scale: 1 } : { scale: [1, 1.035, 1] }}
               transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
             >
-              <Sparkles className={wide ? "size-9" : "size-7"} strokeWidth={1.6} aria-hidden />
+              <Sparkles className={wide ? "size-8" : "size-7"} strokeWidth={1.6} aria-hidden />
             </motion.div>
             <div className="flex flex-col items-center rounded-lg bg-surface/90 px-2 py-0.5 text-center backdrop-blur-sm">
               <span className={cn("font-semibold text-ink", compact ? "text-xs" : "text-sm")}>
@@ -293,7 +293,7 @@ export function AgentOrchestra({ steps }: { steps: Steps }) {
                     <Icon
                       aria-hidden
                       className={cn(
-                        compact ? "size-5" : "size-6",
+                        compact ? "size-[18px]" : "size-5",
                         state === "active" && "-translate-y-[18%]",
                       )}
                       strokeWidth={state === "done" ? 2.4 : 1.8}
@@ -303,7 +303,7 @@ export function AgentOrchestra({ steps }: { steps: Steps }) {
                     <span
                       className={cn(
                         "font-semibold",
-                        compact ? "text-[11px]" : "text-[13px]",
+                        compact ? "text-[11px]" : "text-[12.5px]",
                         state === "pending" || state === "skipped" ? "text-ink-faint" : "text-ink",
                       )}
                     >
@@ -312,7 +312,7 @@ export function AgentOrchestra({ steps }: { steps: Steps }) {
                     <span
                       className={cn(
                         "mt-0.5",
-                        compact ? "text-[10px]" : "text-xs",
+                        compact ? "text-[10px]" : "text-[11px]",
                         state === "active"
                           ? "font-medium text-brand-ink"
                           : failed

@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { DEFAULT_AI_MODEL, DEFAULT_CONCURRENCY } from "@/lib/domain";
-import { estimateBidsUsd, estimateRun, type RunEstimateInput } from "@/lib/plan";
+import { estimateRun, type RunEstimateInput } from "@/lib/plan";
 import { useHydrationSafe } from "./hydration-safe";
 import { useSettings } from "./use-settings";
 
@@ -29,11 +29,4 @@ export function useRunEstimate(projectId: string) {
     live: settings.runtime.aiMode === "live",
     ...estimateRun(input, { model, concurrency: settings.concurrency ?? DEFAULT_CONCURRENCY }),
   };
-}
-
-export function useBidsEstimate(projectId: string, count: number, enabled: boolean) {
-  const { data: settings } = useSettings();
-  const { data: input } = useEstimateInput(projectId, enabled);
-  if (!settings || !input) return null;
-  return estimateBidsUsd(input, { model: settings.aiModel ?? DEFAULT_AI_MODEL, count });
 }

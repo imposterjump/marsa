@@ -88,8 +88,13 @@ const RUN_TITLE: Record<RunStatus, string> = {
   interrupted: "Analysis interrupted",
 };
 
+// No prices on screen (user, 2026-10-25): the client never sees what a run cost.
 const modelText = (r: RunDto) =>
-  r.mode === "mock" ? "Demo AI (free)" : `${AI_MODEL_LABEL[r.model as AiModel] ?? r.model} · $${r.costUsd.toFixed(2)}`;
+  r.mode === "mock" ? "Demo AI" : (AI_MODEL_LABEL[r.model as AiModel] ?? r.model);
+
+const isFinished = (s: RunStatus) => s === "completed" || s === "completed_with_errors";
+/** Runs that stopped before giving results; they never hide the results before them. */
+const STOPPED: RunStatus[] = ["cancelled", "interrupted", "failed"];
 
 /**
  * AI analysis results (P8, user's design): its own full-width page outside the project tabs, so
@@ -105,7 +110,15 @@ export function AnalysisPage() {
   useCollapsedSidebar();
 
   const runId = params.get("run");
-  const selected = runs.data?.find((r) => r.id === runId) ?? runs.data?.[0] ?? null;
+  const all = runs.data ?? [];
+  const latest = all[0] ?? null;
+  const lastFinished = all.find((r) => isFinished(r.status)) ?? null;
+  // A run stopped before it finished doesn't hide the results before it (user, 2026-10-25: "if i
+  // started by mistake and cancled i dont have to lose the previous evaluation"): with no run in
+  // the URL, the page opens on the latest finished analysis and says a newer one was stopped.
+  const stopped =
+    !runId && latest && STOPPED.includes(latest.status) && lastFinished ? latest : null;
+  const selected = all.find((r) => r.id === runId) ?? (stopped ? lastFinished : latest);
 
   return (
     <div className="flex flex-col gap-6">
@@ -141,8 +154,57 @@ export function AnalysisPage() {
       ) : !selected ? (
         <NoRunYet />
       ) : (
-        <RunArea key={selected.id} runId={selected.id} />
+        <>
+          {stopped && <StoppedNotice run={stopped} />}
+          <RunArea key={selected.id} runId={selected.id} />
+        </>
       )}
+    </div>
+  );
+}
+
+/** Above the previous results: the newer run that was stopped, with Resume and a link to it. */
+function StoppedNotice({ run }: { run: RunDto }) {
+  const p = useProjectContext();
+  const router = useRouter();
+  const action = useRunAction(p.id);
+  const resumable = run.status === "cancelled" || run.status === "interrupted";
+  const resume = async () => {
+    try {
+      await action.mutateAsync({ runId: run.id, action: "resume" });
+      toast.success("Analysis resumed");
+      router.push(`/analysis/${p.id}?run=${run.id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  };
+  return (
+    <div
+      role="status"
+      aria-label="A newer analysis was stopped"
+      className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border bg-surface px-5 py-3.5 text-[13px] text-ink-2 shadow-xs"
+    >
+      <RunIcon status={run.status} />
+      <span className="min-w-0 flex-1">
+        <span className="font-medium text-ink">{RUN_TITLE[run.status]}.</span> The newer analysis of{" "}
+        {formatDateTime(run.startedAt ?? run.createdAt)} stopped before it finished, so these are
+        the results of the previous analysis.
+      </span>
+      <span className="flex shrink-0 items-center gap-2">
+        <Button variant="ghost" size="sm" asChild>
+          <Link href={`/analysis/${p.id}?run=${run.id}`}>Open it</Link>
+        </Button>
+        {resumable && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void resume()}
+            disabled={action.isPending}
+          >
+            <Play /> Resume it
+          </Button>
+        )}
+      </span>
     </div>
   );
 }
@@ -204,7 +266,8 @@ function RunActions({ runs, selected }: { runs: RunDto[]; selected: RunDto }) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="secondary">
-              <History /> {runs[0].id === selected.id ? "Latest analysis" : formatDateTime(selected.createdAt)}
+              <History />{" "}
+              {runs[0].id === selected.id ? "Latest analysis" : formatDateTime(selected.createdAt)}
               <ChevronDown className="text-ink-muted" />
             </Button>
           </DropdownMenuTrigger>
@@ -229,7 +292,9 @@ function RunActions({ runs, selected }: { runs: RunDto[]; selected: RunDto }) {
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-      {canRun && !isRunActive(runs[0]?.status) && <StartRunButton projectId={p.id} again size="default" />}
+      {canRun && !isRunActive(runs[0]?.status) && (
+        <StartRunButton projectId={p.id} again size="default" />
+      )}
     </div>
   );
 }
@@ -264,7 +329,10 @@ function RunArea({ runId }: { runId: string }) {
           exit={
             reduce
               ? { opacity: 0, transition: { duration: 0.15 } }
-              : { clipPath: "inset(0 0 100% 0)", transition: { duration: 0.7, ease: EASE_OUT_QUINT } }
+              : {
+                  clipPath: "inset(0 0 100% 0)",
+                  transition: { duration: 0.7, ease: EASE_OUT_QUINT },
+                }
           }
           style={{ clipPath: "inset(0 0 0% 0)" }}
         >
@@ -326,7 +394,12 @@ function RunSummary({ run, children }: { run: RunDto; children?: React.ReactNode
 function RunBar({ data }: { data: RunStatusDto }) {
   const p = useProjectContext();
   const action = useRunAction(p.id);
+  const { data: runs } = useProjectRuns(p.id);
   const { run } = data;
+  // A stopped run opened on purpose: the way back to the results it didn't replace.
+  const previous = runs?.find(
+    (r) => r.id !== run.id && isFinished(r.status) && r.createdAt < run.createdAt,
+  );
   const failed = data.steps.filter((s) => s.status === "failed");
   const finished = run.status === "completed" || run.status === "completed_with_errors";
 
@@ -344,15 +417,25 @@ function RunBar({ data }: { data: RunStatusDto }) {
     <div className="flex flex-col gap-3">
       {!finished && (
         <RunSummary run={run}>
-          {(run.status === "interrupted" || run.status === "cancelled") && (
-            <Button size="sm" onClick={() => void resume()} disabled={action.isPending} className="ms-auto">
-              <Play /> Resume
-            </Button>
-          )}
+          <span className="ms-auto flex items-center gap-2">
+            {previous && STOPPED.includes(run.status) && (
+              <Button variant="secondary" size="sm" asChild>
+                <Link href={`/analysis/${p.id}?run=${previous.id}`}>Show the previous results</Link>
+              </Button>
+            )}
+            {(run.status === "interrupted" || run.status === "cancelled") && (
+              <Button size="sm" onClick={() => void resume()} disabled={action.isPending}>
+                <Play /> Resume
+              </Button>
+            )}
+          </span>
         </RunSummary>
       )}
       {(run.status === "completed_with_errors" || run.status === "failed") && (
-        <div role="alert" className="flex items-start gap-3 rounded-lg bg-partial-soft p-4 text-[13px] text-ink-2">
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-lg bg-partial-soft p-4 text-[13px] text-ink-2"
+        >
           <CircleAlert className="mt-0.5 size-4 shrink-0 text-partial" aria-hidden />
           <div className="flex flex-col gap-1">
             <span className="font-medium text-ink">
@@ -435,8 +518,15 @@ function Results({ d }: { d: AnalysisResultsDto }) {
 
   return (
     <>
-      <Tabs value={tab} onValueChange={(v) => setQuery({ tab: v === "overview" ? null : v })} className="gap-6">
-        <TabsList variant="line" className="w-full justify-start overflow-x-auto border-b border-border">
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setQuery({ tab: v === "overview" ? null : v })}
+        className="gap-6"
+      >
+        <TabsList
+          variant="line"
+          className="w-full justify-start overflow-x-auto border-b border-border"
+        >
           {tabs.map((t) => (
             <TabsTrigger key={t.id} value={t.id}>
               <t.icon aria-hidden /> {t.label}

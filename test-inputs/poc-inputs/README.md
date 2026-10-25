@@ -35,7 +35,7 @@ All organisations, people and documents are fictional. Nothing in the vendor doc
 | Claude Sonnet 5.5 | ≈ $0.94 | ≈ $0.86 | ≈ $1.33 |
 | Claude Opus 5.5 | ≈ $2.07 | ≈ $1.90 | ≈ $2.92 |
 
-The consultant reports are about a quarter to a third of each figure (real set 3 on Haiku: $0.09 for the evaluation, $0.03 for the 3 reports). A run takes 4–7 minutes. **With about $6 of credit: test on Haiku, then run Opus once** when everything is ready. Before each run, the confirmation dialog shows the estimate again. The Haiku figures are calibrated on a real run (it writes about twice as much as Sonnet).
+The consultant reports are about a quarter to a third of each figure (real set 3 on Haiku: $0.09 for the evaluation, $0.03 for the 3 reports). A run takes 4–7 minutes. **With about $6 of credit: test on Haiku, then run Opus once** when everything is ready. The app itself shows no prices (no confirmation dialog, no cost in AI quality); these figures are for you. The Haiku figures are calibrated on a real run (it writes about twice as much as Sonnet).
 
 The free demo AI (`AI_MODE=mock`, the default on http://localhost:3000) runs the same screens at $0, but its results are templates. Use it to practise the clicks, not to judge the results.
 
