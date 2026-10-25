@@ -35,7 +35,7 @@ import {
   sectionLabel,
   vendorDocRefs,
 } from "./shared";
-import { type ComplianceView, type ListFilters, PointListView } from "./point-list";
+import { type ComplianceView, PointListView } from "./point-list";
 
 /** The status pills in a section's dropdown, worst first. */
 const STATUS_PILLS: FindingStatus[] = ["non_compliant", "partial", "not_addressed", "compliant"];
@@ -86,8 +86,6 @@ export function ComplianceTab({
   focus,
   view,
   onView,
-  filters,
-  onFilters,
 }: {
   scope: Scope;
   d: AnalysisResultsDto;
@@ -97,18 +95,8 @@ export function ComplianceTab({
   focus?: ComplianceFocus | null;
   view: ComplianceView;
   onView: (view: ComplianceView) => void;
-  filters: ListFilters;
-  onFilters: (filters: ListFilters) => void;
 }) {
   const reduce = useReducedMotion();
-  // Folded vendor cards, in both views (all open at first).
-  const [closed, setClosed] = useState<ReadonlySet<string>>(new Set());
-  const toggle = (id: string) =>
-    setClosed((c) => {
-      const next = new Set(c);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
   const vendors = d.vendors.filter((v) => v.scores);
   const inScope = d.requirements.filter((r) => r.scope === scope);
   const sections = SECTION_ORDER.filter((s) => inScope.some((r) => r.section === s));
@@ -119,6 +107,18 @@ export function ComplianceTab({
     focus && focus.scope === scope
       ? { proposalId: focus.proposalId ?? vendors[0]?.proposalId, section: focus.section }
       : null;
+  // Folded vendor cards, in both views. The tab opens with only the first vendor open (user,
+  // 2026-10-25); a risk's "see its points" opens its own vendor instead.
+  const [closed, setClosed] = useState<ReadonlySet<string>>(() => {
+    const first = target?.proposalId ?? vendors[0]?.proposalId;
+    return new Set(vendors.map((v) => v.proposalId).filter((id) => id !== first));
+  });
+  const toggle = (id: string) =>
+    setClosed((c) => {
+      const next = new Set(c);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
 
   useEffect(() => {
     if (!target?.proposalId) return;
@@ -160,6 +160,7 @@ export function ComplianceTab({
           )}
           <SegmentedControl
             size="sm"
+            tone="brand"
             aria-label="View"
             value={view}
             onValueChange={onView}
@@ -199,8 +200,6 @@ export function ComplianceTab({
           scope={scope}
           vendors={vendors}
           colors={colors}
-          filters={filters}
-          onFilters={onFilters}
           isOpen={(id) => !closed.has(id)}
           onToggle={toggle}
           onEvidence={onEvidence}

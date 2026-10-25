@@ -86,8 +86,15 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await page.getByRole("button", { name: "RFP compliance", exact: true }).click();
     await expect(page).toHaveURL(/tab=rfp/);
     await expect(page.getByRole("tab", { name: "RFP", selected: true })).toBeVisible();
-    // Vendor first: one card per vendor, its score per proposal section underneath
+    // Vendor first: one card per vendor, its score per proposal section underneath. Only the
+    // first vendor is open; the others fold out on demand, one by one or all at once.
     await expect(page.locator("section[id^=vendor-]")).toHaveCount(4);
+    const openLists = page.locator('section[id^=vendor-] ul[aria-label$=" by section"]');
+    await expect(openLists).toHaveCount(1);
+    await page.getByRole("button", { name: "Collapse all" }).click();
+    await expect(openLists).toHaveCount(0);
+    await page.getByRole("button", { name: "Expand all" }).click();
+    await expect(openLists).toHaveCount(4);
     const meridianCard = page.getByRole("region", { name: "Meridian Scan Technologies" });
     await expect(meridianCard.getByRole("list", { name: "Meridian Scan Technologies by section" })).toBeVisible();
     const meridian = meridianCard.locator("li > button[aria-expanded]");
@@ -108,47 +115,39 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await page.keyboard.press("Escape");
     await expect(page).not.toHaveURL(/reader=/);
 
-    // The vendor pills are hidden; each vendor card folds away, one by one or all at once
+    // The vendor pills are hidden; a vendor card folds away from its band
     await expect(page.getByRole("navigation", { name: "Vendors" })).toHaveCount(0);
     await meridianCard.getByRole("button", { name: "Collapse Meridian Scan Technologies" }).click();
     await expect(
       meridianCard.getByRole("list", { name: "Meridian Scan Technologies by section" }),
     ).toHaveCount(0);
     await meridianCard.getByRole("button", { name: "Expand Meridian Scan Technologies" }).click();
-    await page.getByRole("button", { name: "Collapse all" }).click();
-    await expect(page.locator('section[id^=vendor-] ul[aria-label$=" by section"]')).toHaveCount(0);
-    await page.getByRole("button", { name: "Expand all" }).click();
-    await expect(page.locator('section[id^=vendor-] ul[aria-label$=" by section"]')).toHaveCount(4);
 
-    // Point list: every point of a vendor in one list, worst first, filtered by status, type and
-    // section (kept in the URL); it opens on the non-compliant points; a choice with nothing in
-    // it says so
+    // Point list: each vendor's points in one list, worst first, with the vendor's own status,
+    // type and section dropdowns (opening on Non-compliant); a choice with nothing in it says so
     await page.getByRole("radio", { name: /Point list/ }).click();
     await expect(page).toHaveURL(/view=list/);
-    const statusFilter = page.getByRole("radiogroup", { name: "Status" });
-    await expect(statusFilter.getByRole("radio", { name: /^Non-compliant/ })).toHaveAttribute(
-      "aria-checked",
-      "true",
-    );
-    for (const li of await page.locator('ol[aria-label$=": points"] > li').all())
+    const filters = meridianCard.getByRole("group", { name: "Filters for Meridian Scan Technologies" });
+    const pick = async (box: string, option: RegExp) => {
+      await filters.getByRole("combobox", { name: box }).click();
+      await page.getByRole("option", { name: option }).click();
+    };
+    await expect(filters.getByRole("combobox", { name: "Status" })).toContainText("Non-compliant");
+    for (const li of await meridianCard.locator("ol > li").all())
       await expect(li).toContainText("Non-compliant");
-    await statusFilter.getByRole("radio", { name: /^All/ }).click();
-    await expect(page).toHaveURL(/status=all/);
-    const points = page.getByRole("list", { name: "Meridian Scan Technologies: points" });
+    await pick("Status", /^All statuses/);
+    const points = meridianCard.getByRole("list", { name: "Meridian Scan Technologies: points" });
     await expect(points.locator(":scope > li").first()).toBeVisible();
-    await page.getByRole("radio", { name: /^Commercial/ }).click();
-    await expect(page).toHaveURL(/type=commercial/);
-    await page.getByRole("combobox", { name: "Section" }).click();
-    await page.getByRole("option", { name: /Security & data/ }).click();
-    await expect(page).toHaveURL(/section=security/);
-    // Security & data is a technical section: nothing commercial in it, for any vendor
-    await expect(
-      page.getByRole("heading", { name: "No data related to Commercial · Security & data" }),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "Reset filters" }).first().click();
-    await expect(page).not.toHaveURL(/status=|type=|section=/);
+    await pick("Type", /^Commercial/);
+    await pick("Section", /^Security & data/);
+    // Security & data is a technical section: nothing commercial in it
+    await expect(meridianCard.getByText("No data related to Commercial · Security & data")).toBeVisible();
+    // The other vendors keep their own filters
+    await expect(page.getByRole("combobox", { name: "Type" }).filter({ hasText: "All types" })).toHaveCount(3);
+    await filters.getByRole("button", { name: "Reset" }).click();
+    await expect(filters.getByRole("combobox", { name: "Section" })).toContainText("All sections");
     // Details put the requirement and the offer side by side
-    await statusFilter.getByRole("radio", { name: /^All/ }).click();
+    await pick("Status", /^All statuses/);
     await points.getByRole("button", { name: "Details" }).first().click();
     await expect(points.getByText("The RFP requires").first()).toBeVisible();
     await page.getByRole("radio", { name: /By section/ }).click();
@@ -158,6 +157,9 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     // the page where it was. The full standard is one click away.
     await page.getByRole("tab", { name: "Standards" }).click();
     await expect(page).toHaveURL(/tab=standards/);
+    await expect(openLists).toHaveCount(1);
+    const unfold = meridianCard.getByRole("button", { name: "Expand Meridian Scan Technologies" });
+    if (await unfold.count()) await unfold.click();
     for (let i = 0; i < (await meridian.count()); i++) await meridian.nth(i).click();
     const rule = page.getByRole("button", { name: /CITS-2026 SEC-\d+/ }).first();
     const ruleCode = ((await rule.textContent()) ?? "").match(/SEC-\d+/)![0];

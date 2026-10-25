@@ -19,6 +19,8 @@ interface SegmentedControlProps<T extends string> {
   options: SegmentOption<T>[];
   "aria-label": string;
   size?: "sm" | "md";
+  /** "brand": the picked segment in the RTA red (e.g. the results' view switch). */
+  tone?: "neutral" | "brand";
   className?: string;
 }
 
@@ -31,6 +33,7 @@ export function SegmentedControl<T extends string>({
   onValueChange,
   options,
   size = "md",
+  tone = "neutral",
   className,
   ...aria
 }: SegmentedControlProps<T>) {
@@ -57,13 +60,22 @@ export function SegmentedControl<T extends string>({
               "relative inline-flex h-full items-center gap-2 rounded-md font-medium whitespace-nowrap outline-none",
               "transition-colors duration-150 focus-visible:ring-3 focus-visible:ring-ring/25",
               size === "md" ? "px-3 text-sm" : "px-2.5 text-xs",
-              active ? "text-ink" : "text-ink-muted hover:text-ink",
+              active
+                ? tone === "brand"
+                  ? "text-on-brand"
+                  : "text-ink"
+                : "text-ink-muted hover:text-ink",
             )}
           >
             {active && (
               <motion.span
                 layoutId={`seg-${layoutId}`}
-                className="absolute inset-0 rounded-md bg-surface shadow-xs"
+                className={cn(
+                  "absolute inset-0 rounded-md",
+                  tone === "brand"
+                    ? "bg-brand bg-rta shadow-[0_4px_12px_-4px_rgb(236_28_36/0.5)]"
+                    : "bg-surface shadow-xs",
+                )}
                 transition={{ type: "spring", stiffness: 420, damping: 34 }}
               />
             )}

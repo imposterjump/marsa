@@ -36,6 +36,7 @@
 | 2026-10-25 | **Document reader opens at 200 %** (full width if 200 % would not fit) | You |
 | 2026-10-25 | **Overview:** recommended vendor as a white RTA featured card (gradient border, overall score as the one gradient number), conditions before award removed; each vendor's number in a ring and a bar filled to it (green ≥ 70 %, blue ≥ 30 %, yellow below; risk keeps its level colours); order RFP → Standards → Risks; section titles open their tab | You |
 | 2026-10-25 | **RFP / Standards tabs:** vendor pills hidden (commented, restorable); every vendor card collapses (+ Collapse all); new **Point list** view beside By section, filtered by status (opens on Non-compliant), type (commercial = Commercial offer & pricing + Terms & deviations sections, the rest technical) and section, with "No data related" empty states | You |
+| 2026-10-25 | **Point list filters per vendor:** three compact red dropdowns (status, type, section) at the top of each open vendor card, right-aligned; view switch in red; the tab opens with the first vendor open and the others folded | You |
 | 2026-10-23 | **Product name shown to users: Mizan** (procurement name; "Marsa" meant harbour). Only the UI changes: code, database and docs keep the codename Marsa | You |
 | 2026-10-23 | **Logo: the Sharjah emblem** replaces the RTA logo (the RTA colours and fonts stay) | You |
 | 2026-10-23 | POC set 4 with three vendors (customs laboratory LIMS, category Quality) | You |
