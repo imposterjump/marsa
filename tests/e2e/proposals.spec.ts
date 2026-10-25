@@ -85,8 +85,13 @@ test.describe("vendor proposals (P4.4–P4.5, P5.1, P8 Add vendor)", () => {
     await reader.getByRole("tab", { name: "Technical" }).click();
     await expect(page).toHaveURL(/tab=technical/);
     await expect(reader.getByText("/ 11")).toBeVisible();
+    // Opens at 200 % (user, 2026-10-25); + goes to the next preset, the label resets
+    const zoomLabel = reader.getByRole("button", { name: /Reset zoom/ });
+    await expect(zoomLabel).toHaveText("200%");
     await reader.getByRole("button", { name: "Zoom in (+)" }).click();
-    await expect(reader.getByRole("button", { name: /Reset zoom/ })).toHaveText("125%");
+    await expect(zoomLabel).toHaveText("250%");
+    await zoomLabel.click();
+    await expect(zoomLabel).toHaveText("200%");
     await page.keyboard.press("Escape");
     await expect(reader).toBeHidden();
     await expect(page).not.toHaveURL(/reader=/);

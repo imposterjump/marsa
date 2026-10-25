@@ -58,6 +58,9 @@ interface DocumentReaderProps {
 type Fit = "page" | "width";
 type ReadySource = Extract<ReaderSource, { status: "ready" }>;
 const ZOOMS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 2.5, 3];
+/** Documents open at 200 % of "whole page" (user, 2026-10-25: pages looked too far away), or
+ * at full width when 200 % would be wider than the stage (landscape sheets, phones). */
+const OPEN_ZOOM = 2;
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 /**
@@ -144,7 +147,8 @@ function ReaderBody({
   const ready = source.status === "ready";
 
   const [fit, setFit] = useState<Fit>("page");
-  const [zoom, setZoom] = useState(1);
+  // null = the opening zoom (OPEN_ZOOM, capped to the width), worked out from the layout below.
+  const [zoomSet, setZoom] = useState<number | null>(null);
   const [dir, setDir] = useState(0);
   const [strip, setStrip] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
@@ -160,14 +164,15 @@ function ReaderBody({
   };
   const openDoc = (id: string) => {
     setDir(0);
-    setZoom(1);
+    setZoom(null);
     onNavigate(id, 1);
   };
+  // Next preset up or down from the current zoom (which may sit between presets).
   const zoomBy = (step: 1 | -1) =>
-    setZoom((z) => {
-      const i = ZOOMS.findIndex((x) => x >= z - 0.001);
-      return ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, (i < 0 ? 3 : i) + step))];
-    });
+    setZoom(
+      (step > 0 ? ZOOMS.find((x) => x > zoom + 0.001) : ZOOMS.findLast((x) => x < zoom - 0.001)) ??
+        zoom,
+    );
   const toggleFullscreen = () => {
     const root = stageRef.current?.closest<HTMLElement>("[role='dialog']");
     if (!root) return;
@@ -263,7 +268,7 @@ function ReaderBody({
       else if (e.key === "End") go(numPages);
       else if (e.key === "+" || e.key === "=") zoomBy(1);
       else if (e.key === "-") zoomBy(-1);
-      else if (e.key === "0") setZoom(1);
+      else if (e.key === "0") setZoom(null);
       else if (e.key === "f" || e.key === "F") toggleFullscreen();
       else return;
       e.preventDefault();
@@ -286,8 +291,10 @@ function ReaderBody({
   // Auto-width pages (tall) stay at a readable measure instead of filling a wide screen.
   const availW = Math.max(120, Math.min(stage.w - pad * 2, tall ? 880 : Infinity));
   const availH = Math.max(160, stage.h - pad - bannerSpace - toolbar);
-  const fitScale =
-    effectiveFit === "page" ? Math.min(availW / ps.w, availH / ps.h) : Math.min(availW / ps.w, 3);
+  const widthScale = Math.min(availW / ps.w, 3);
+  const fitScale = effectiveFit === "page" ? Math.min(availW / ps.w, availH / ps.h) : widthScale;
+  const zoom =
+    zoomSet ?? (effectiveFit === "page" ? Math.min(OPEN_ZOOM, widthScale / fitScale) : 1);
   const sheetW = Math.round(ps.w * fitScale * zoom);
   const sheetH = Math.round(ps.h * fitScale * zoom);
   const ghosts = Math.min(3, numPages - current);
@@ -578,7 +585,7 @@ function ReaderBody({
                 </StageButton>
                 <button
                   type="button"
-                  onClick={() => setZoom(1)}
+                  onClick={() => setZoom(null)}
                   title="Reset zoom (0)"
                   aria-label={`Zoom ${Math.round(zoom * 100)}%. Reset zoom`}
                   className="h-8 min-w-14 rounded-md px-1 text-xs font-medium text-stage-ink tabular-nums outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-brand"
@@ -758,7 +765,8 @@ function Scrubber({
   return (
     <div
       aria-hidden
-      className="pointer-events-auto hidden max-w-[min(560px,80%)] items-end gap-[3px] rounded-md px-2 py-1 sm:flex"
+      // Same frosted surface as the toolbar: at 200 % the page runs under it.
+      className="pointer-events-auto hidden max-w-[min(560px,80%)] items-end gap-[3px] rounded-full border border-stage-line bg-stage-raised/90 px-2.5 py-1.5 shadow-lg backdrop-blur-md sm:flex"
     >
       {Array.from({ length: numPages }, (_, i) => {
         const n = i + 1;

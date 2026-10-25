@@ -33,6 +33,7 @@
 | 2026-10-25 | **Run summary line (status · date · model · cost · steps) lives in AI quality**, not above the results; stopped or failed runs keep it on top with Resume | You |
 | 2026-10-25 | **pdf.js is preloaded while a page with a reader is idle**: first evidence open 0.40–0.46 s → 0.26–0.30 s; search and highlight unchanged | You |
 | 2026-10-25 | **A standard rule opens in a side panel** over the results (rule as analysed + the standard's rules, this one marked; "Open full standard" for the page), so closing it keeps your place | You |
+| 2026-10-25 | **Document reader opens at 200 %** (full width if 200 % would not fit) | You |
 | 2026-10-23 | **Product name shown to users: Mizan** (procurement name; "Marsa" meant harbour). Only the UI changes: code, database and docs keep the codename Marsa | You |
 | 2026-10-23 | **Logo: the Sharjah emblem** replaces the RTA logo (the RTA colours and fonts stay) | You |
 | 2026-10-23 | POC set 4 with three vendors (customs laboratory LIMS, category Quality) | You |
