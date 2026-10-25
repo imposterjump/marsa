@@ -435,7 +435,17 @@ function Results({ d }: { d: AnalysisResultsDto }) {
           ))}
         </TabsList>
         <TabsContent value="overview">
-          <OverviewTab d={d} colors={colors} />
+          <OverviewTab
+            d={d}
+            colors={colors}
+            onOpen={(t) => {
+              // A section title on the Overview opens its tab from the top (the shell's panel
+              // scrolls on desktop, the window on phones).
+              setQuery({ tab: t });
+              window.scrollTo({ top: 0 });
+              document.getElementById("app-scroll")?.scrollTo({ top: 0 });
+            }}
+          />
         </TabsContent>
         <TabsContent value="rfp">
           <ComplianceTab key={focus?.at ?? 0} scope="rfp" d={d} colors={colors} onEvidence={onEvidence} focus={focus} />

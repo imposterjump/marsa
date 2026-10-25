@@ -34,6 +34,7 @@
 | 2026-10-25 | **pdf.js is preloaded while a page with a reader is idle**: first evidence open 0.40–0.46 s → 0.26–0.30 s; search and highlight unchanged | You |
 | 2026-10-25 | **A standard rule opens in a side panel** over the results (rule as analysed + the standard's rules, this one marked; "Open full standard" for the page), so closing it keeps your place | You |
 | 2026-10-25 | **Document reader opens at 200 %** (full width if 200 % would not fit) | You |
+| 2026-10-25 | **Overview:** recommended vendor as a white RTA featured card (gradient border, overall score as the one gradient number), conditions before award removed; each vendor's number in a ring and a bar filled to it (blue ≥ 70 %, amber ≥ 30 %, red below; risk keeps its level colours); section titles open their tab | You |
 | 2026-10-23 | **Product name shown to users: Mizan** (procurement name; "Marsa" meant harbour). Only the UI changes: code, database and docs keep the codename Marsa | You |
 | 2026-10-23 | **Logo: the Sharjah emblem** replaces the RTA logo (the RTA colours and fonts stay) | You |
 | 2026-10-23 | POC set 4 with three vendors (customs laboratory LIMS, category Quality) | You |

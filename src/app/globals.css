@@ -377,6 +377,13 @@
   background-clip: text;
   color: transparent;
 }
+/* The featured card (one per page): a thin RTA-gradient border around the surface. */
+@utility rta-featured {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    var(--rta-gradient) border-box;
+}
 /* Angled gradient rule under editorial page titles. */
 @utility rta-rule {
   display: block;

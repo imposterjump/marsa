@@ -66,17 +66,26 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     const hero = page.getByRole("region", { name: "Recommended vendor" });
     await expect(hero).toContainText("Rank 1 of 4");
     await expect(hero).toContainText("AI-generated");
+    await expect(hero).toContainText("Overall score");
+    await expect(hero.getByText(/Conditions before an award/)).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Standards compliance" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "RFP compliance" })).toBeVisible();
     await expect(page.getByRole("list", { name: "Meridian Scan Technologies: rules" })).toContainText(
       "compliant",
     );
+    // Each vendor's number sits in a ring filled to its share of 100
+    await expect(
+      page.getByRole("meter", { name: "Meridian Scan Technologies: RFP compliance" }),
+    ).toHaveAttribute("aria-valuetext", /%$/);
+    await expect(page.getByRole("meter", { name: "Meridian Scan Technologies: risk score" })).toBeVisible();
 
     // RFP and Standards tabs, each with its own section cards (sections without points listed
     // once at the end); one row per vendor, points behind the dropdown
     await expect(page.getByRole("tab", { name: "Compliance" })).toHaveCount(0);
-    await page.getByRole("tab", { name: "RFP" }).click();
+    // A section title on the Overview opens its tab
+    await page.getByRole("button", { name: "RFP compliance", exact: true }).click();
     await expect(page).toHaveURL(/tab=rfp/);
+    await expect(page.getByRole("tab", { name: "RFP", selected: true })).toBeVisible();
     // Vendor first: one card per vendor, its score per proposal section underneath
     await expect(page.locator("section[id^=vendor-]")).toHaveCount(4);
     const meridianCard = page.getByRole("region", { name: "Meridian Scan Technologies" });
@@ -151,8 +160,19 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     expect(churn).toBe(0);
     await page.keyboard.press("Escape");
 
+    // Risks, from the bottom of the Overview: its section title opens the tab at the top
+    await page.getByRole("tab", { name: "Overview" }).click();
+    const risksTitle = page.getByRole("button", { name: "Risks", exact: true });
+    await risksTitle.scrollIntoViewIfNeeded();
+    await risksTitle.click();
+    await expect(page).toHaveURL(/tab=risks/);
+    await expect
+      .poll(() =>
+        page.evaluate(() => (document.getElementById("app-scroll")?.scrollTop ?? 0) + window.scrollY),
+      )
+      .toBe(0);
+
     // Risks: a 0–100 score per vendor, then the same numbered sections
-    await page.getByRole("tab", { name: "Risks" }).click();
     await expect(page.getByRole("region", { name: "Meridian Scan Technologies" })).toContainText("/100");
     await expect(page.locator("section[id^=risks-]")).toHaveCount(4);
     // A risk links to what it is about, and to its section's points in Compliance

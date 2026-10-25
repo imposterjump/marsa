@@ -1,6 +1,8 @@
 "use client";
 
+import { motion, useReducedMotion } from "motion/react";
 import { cn } from "cn";
+import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import type { VendorDocRef } from "@/components/results/finding-card";
 import { STATUS_FILL } from "@/components/results/gap-bar";
 import { InitialsAvatar } from "@/components/ui/initials-avatar";
@@ -180,6 +182,64 @@ export const RISK_FILL: Record<RiskSeverity, string> = {
   critical: "var(--fail-fill)",
 };
 export const SEVERITY_ORDER: RiskSeverity[] = ["critical", "high", "moderate", "low"];
+
+/** Bands for a compliance % (user, 2026-10-25): blue from 70, amber from 30, red below. */
+export const pctTone = (pct: number | null) =>
+  pct === null
+    ? "var(--missing-fill)"
+    : pct >= 70
+      ? "var(--chart-1)"
+      : pct >= 30
+        ? "var(--partial-fill)"
+        : "var(--fail-fill)";
+
+/**
+ * A 0–100 number inside a ring filled to its share (90 leaves a tenth of the ring empty). Flat ends,
+ * so a 97 never reads as a closed ring; the number inside carries the value, the colour repeats it.
+ */
+export function ScoreRing({
+  value,
+  color,
+  text,
+  label,
+}: {
+  value: number | null;
+  color: string;
+  text: string;
+  label: string;
+}) {
+  const reduce = useReducedMotion();
+  const v = value === null ? 0 : Math.max(0, Math.min(100, value));
+  return (
+    <span
+      role="meter"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={value ?? undefined}
+      aria-valuetext={text}
+      className="relative grid size-16 shrink-0 place-items-center"
+    >
+      <svg viewBox="0 0 64 64" aria-hidden className="absolute inset-0 size-full -rotate-90">
+        <circle cx="32" cy="32" r="28" fill="none" strokeWidth="5" className="stroke-border" />
+        {v > 0 && (
+          <motion.circle
+            cx="32"
+            cy="32"
+            r="28"
+            fill="none"
+            strokeWidth="5"
+            stroke={color}
+            initial={reduce ? false : { pathLength: 0 }}
+            animate={{ pathLength: v / 100 }}
+            transition={{ duration: 0.8, ease: EASE_OUT_QUINT }}
+          />
+        )}
+      </svg>
+      <span className="text-sm font-semibold tabular-nums text-ink">{text}</span>
+    </span>
+  );
+}
 
 const LEGEND_ORDER: FindingStatus[] = ["compliant", "partial", "non_compliant", "not_addressed"];
 
