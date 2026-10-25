@@ -35,6 +35,7 @@ To move your own projects to another machine, stop the app and copy the whole `d
 **Needs:** Node.js **24 or newer** (`node --version`) and npm. Developed and tested on Windows 11; nothing in it is Windows-specific.
 
 ```bash
+git config --global core.longpaths true   # Windows only: allows the long test-file names
 git clone https://github.com/imposterjump/marsa.git
 cd marsa
 npm install
@@ -159,6 +160,7 @@ All organisations, people and documents in `test-inputs/` are fictional.
 - `tests/`: unit, integration, E2E.
 
 ## Troubleshooting
+- **Windows: "Filename too long" while cloning:** one upload test file has a deliberately long name (the longest path in the repo is 144 characters), which fails inside a deep folder. Run `git config --global core.longpaths true` and clone again, or clone to a short path such as `C:\dev\marsa`.
 - **"PDF rendering needs Chromium"** when viewing or downloading a report: run `npx playwright install chromium`.
 - **"Live AI needs an Anthropic API key"**: see [Free demo AI or real AI](#free-demo-ai-or-real-ai). Check that `.env.local` has no empty `ANTHROPIC_API_KEY=` line.
 - **The page reloads every second in `npm run dev`** (Windows with Visual Studio open on the folder, HANDOFF G-84): close Visual Studio, or run a production build:
