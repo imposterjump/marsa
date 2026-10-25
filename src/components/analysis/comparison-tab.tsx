@@ -31,6 +31,7 @@ import type {
 } from "@/lib/api-types";
 import type { FindingStatus, ProposalSection, RiskSeverity } from "@/lib/domain";
 import { msg } from "@/lib/i18n/core";
+import { shortPrice } from "@/lib/price";
 import { maxSeverity } from "@/lib/scoring";
 import {
   COMPLIANCE_FILL,
@@ -38,6 +39,7 @@ import {
   type OpenEvidence,
   RISK_FILL,
   type Scope,
+  fullPrice,
   sectionOrder,
   VendorLabel,
   pctText,
@@ -463,7 +465,9 @@ function VendorHead({
   recommended: boolean;
 }) {
   const t = useT();
-  const price = cleanText(v.commercial.totalPrice);
+  // The amount only (2026-10-26); the AI's whole sentence is in the table and on hover.
+  const full = fullPrice(v);
+  const short = shortPrice(v.commercial.totalPrice, v.commercial.currency);
   return (
     <span className="flex flex-col gap-3">
       <span aria-hidden className="-mx-4 block h-1.5 rounded-t-xl" style={{ background: color }} />
@@ -483,9 +487,11 @@ function VendorHead({
           {v.vendor.name}
         </span>
       </span>
-      <span className="flex flex-col">
-        <span className="truncate text-2xl kpi text-ink">{price || "—"}</span>
-        <span className="text-xs text-ink-muted">{t("total bid price")}</span>
+      <span className="flex flex-col" title={full || undefined}>
+        <bdi className="truncate text-2xl kpi text-ink">{short?.amount ?? (full || "—")}</bdi>
+        <span className="text-xs text-ink-muted">
+          {short?.beforeVat ? t("total bid price, before VAT") : t("total bid price")}
+        </span>
       </span>
     </span>
   );

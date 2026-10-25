@@ -9,7 +9,7 @@ import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { InitialsAvatar } from "@/components/ui/initials-avatar";
 import type { AnalysisResultsDto, DocumentDto, VendorResultDto } from "@/lib/api-types";
 import { listSep } from "./risk-list";
-import { sectionOrder } from "./shared";
+import { priceLabel, sectionOrder } from "./shared";
 
 interface Step {
   title: string;
@@ -251,7 +251,7 @@ function buildSteps(
   }).length;
   const risks = vendors.reduce((n, v) => n + v.risks.length, 0);
   const prices = vendors.map((v) => {
-    const price = v.commercial.totalPrice?.replace(/[\s,;.]+$/, "");
+    const price = priceLabel(v, t);
     return price
       ? `${v.vendor.name}: ${price}`
       : t("{vendor}: price not stated", { vendor: v.vendor.name });

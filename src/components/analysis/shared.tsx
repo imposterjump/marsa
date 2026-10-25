@@ -4,7 +4,7 @@ import { useId } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "cn";
-import { useT } from "@/components/i18n-provider";
+import { type T, useT } from "@/components/i18n-provider";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import type { VendorDocRef } from "@/components/results/finding-card";
 import { STATUS_FILL } from "@/components/results/gap-bar";
@@ -24,6 +24,7 @@ import {
 import { msg } from "@/lib/i18n/core";
 import { FINDING_STATUS_LABEL, PROPOSAL_SECTION_LABEL } from "@/lib/labels";
 import { computeScore, emptyCounts } from "@/lib/scoring";
+import { shortPrice } from "@/lib/price";
 import { pointType, type PointType } from "@/lib/sections";
 
 /**
@@ -135,6 +136,20 @@ export function vendorDocRefs(v: VendorResultDto): VendorDocRef[] {
       envelope: msg("Commercial"),
     })),
   ];
+}
+
+/** The bid's full total as the AI copied it (the comparison table, hover text). */
+export const fullPrice = (v: VendorResultDto) =>
+  (v.commercial.totalPrice ?? "").replace(/[\s,;.]+$/, "").trim();
+
+/**
+ * The bid's total in a few words, for under a vendor's name (2026-10-26): "AED 480,200 before
+ * VAT" instead of the AI's whole sentence (src/lib/price.ts); the sentence when no amount is found.
+ */
+export function priceLabel(v: VendorResultDto, t: T): string {
+  const short = shortPrice(v.commercial.totalPrice, v.commercial.currency);
+  if (!short) return fullPrice(v);
+  return short.beforeVat ? t("{amount} before VAT", { amount: short.amount }) : short.amount;
 }
 
 export const pctText = (n: number | null | undefined) =>

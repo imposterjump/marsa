@@ -28,8 +28,10 @@ import {
   SEVERITY_ORDER,
   ScoreRing,
   VendorLabel,
+  fullPrice,
   pctText,
   pctTone,
+  priceLabel,
 } from "./shared";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
@@ -127,7 +129,7 @@ function Hero({ d, v }: { d: AnalysisResultsDto; v: VendorResultDto }) {
   const ranked = d.vendors.filter((x) => x.scores);
   const runnerUp = ranked.find((x) => x.proposalId !== v.proposalId);
   const lead = runnerUp ? Math.round((s.overall - runnerUp.scores!.overall) * 10) / 10 : null;
-  const price = v.commercial.totalPrice?.replace(/[\s,;.]+$/, "");
+  const price = priceLabel(v, t);
   return (
     <section
       aria-label={t("Recommended vendor")}
@@ -167,7 +169,7 @@ function Hero({ d, v }: { d: AnalysisResultsDto; v: VendorResultDto }) {
               >
                 {v.vendor.name}
               </h2>
-              <p className="text-sm text-ink-muted">
+              <p className="text-sm text-ink-muted" title={fullPrice(v) || undefined}>
                 {[v.vendor.country, price].filter(Boolean).join(" · ")}
               </p>
             </div>

@@ -130,6 +130,8 @@ export const comparison: Dictionary = {
   "Bid validity": "صلاحية العطاء",
   "Not stated": "غير مذكور",
   "total bid price": "إجمالي سعر العطاء",
+  "total bid price, before VAT": "إجمالي سعر العطاء قبل ضريبة القيمة المضافة",
+  "{amount} before VAT": "{amount} قبل ضريبة القيمة المضافة",
   "Best in this row": "الأفضل في هذا الصف",
   "Open a section to see where the vendors differ": "افتح قسمًا لمعرفة مواضع اختلاف الموردين",
   "Nothing to compare in: {sections}": "لا شيء للمقارنة في: {sections}",
