@@ -154,4 +154,38 @@ export const server: Dictionary = {
   "A file path is missing.": "مسار الملف مفقود.",
   "A file of the tender is larger than 300 MB.": "أحد ملفات المناقصة أكبر من 300 ميغابايت.",
   "The tender is larger than 2 GB.": "حجم المناقصة أكبر من 2 غيغابايت.",
+
+  // ── Why a run paused or is held (src/server/ai/client.ts pauseReason, runs/runner.ts) ──
+  "The server restarted while this analysis was running.":
+    "أُعيد تشغيل الخادم أثناء تشغيل هذا التحليل.",
+  "Could not reach the Anthropic API. Check the internet connection, then press Resume: finished steps are kept and not paid for again.":
+    "تعذّر الوصول إلى واجهة Anthropic. تحقّق من الاتصال بالإنترنت ثم اضغط «استئناف»: الخطوات المنجزة محفوظة ولن تُدفع تكلفتها مرة أخرى.",
+  "The connection to the Anthropic API was lost. Check the internet connection, then press Resume: finished steps are kept and not paid for again.":
+    "انقطع الاتصال بواجهة Anthropic. تحقّق من الاتصال بالإنترنت ثم اضغط «استئناف»: الخطوات المنجزة محفوظة ولن تُدفع تكلفتها مرة أخرى.",
+  "The Anthropic credit ran out. Add credit, then press Resume: finished steps are kept and not paid for again.":
+    "نفد رصيد Anthropic. أضف رصيدًا ثم اضغط «استئناف»: الخطوات المنجزة محفوظة ولن تُدفع تكلفتها مرة أخرى.",
+  "The Anthropic spending limit was reached. Raise it, then press Resume: finished steps are kept and not paid for again.":
+    "بلغ الإنفاق حدّه المسموح في Anthropic. ارفع الحد ثم اضغط «استئناف»: الخطوات المنجزة محفوظة ولن تُدفع تكلفتها مرة أخرى.",
+  "Anthropic's rate limit was reached. Wait a minute, then press Resume: finished steps are kept and not paid for again.":
+    "بلغت الطلبات الحد المسموح به في الدقيقة لدى Anthropic. انتظر دقيقة ثم اضغط «استئناف»: الخطوات المنجزة محفوظة ولن تُدفع تكلفتها مرة أخرى.",
+  "Anthropic's service is busy or down. Try again in a few minutes with Resume: finished steps are kept and not paid for again.":
+    "خدمة Anthropic مشغولة أو متوقفة. أعد المحاولة بعد بضع دقائق بالضغط على «استئناف»: الخطوات المنجزة محفوظة ولن تُدفع تكلفتها مرة أخرى.",
+  "The Anthropic API key was rejected (401). Check ANTHROPIC_API_KEY in .env, restart the app, then press Resume.":
+    "رُفض مفتاح Anthropic API ‏(401). تحقّق من ‏ANTHROPIC_API_KEY في ملف ‎.env، وأعد تشغيل التطبيق، ثم اضغط «استئناف».",
+  "This API key has no access to the selected model (403).":
+    "لا يملك مفتاح API هذا صلاحية الوصول إلى النموذج المحدد (403).",
+  "No Anthropic API key is configured (set ANTHROPIC_API_KEY in .env).":
+    "لم يُضبط مفتاح Anthropic API (اضبط ‏ANTHROPIC_API_KEY في ملف ‎.env).",
+  "{step} failed. Retry it so the recommendation and the reports cover every vendor, or press Resume to finish without it.":
+    "فشلت خطوة «{step}». أعد محاولتها لتشمل التوصية والتقارير جميع الموردين، أو اضغط «استئناف» لإكمال التحليل من دونها.",
+  "{n} checks failed. Retry them so the recommendation and the reports cover every vendor, or press Resume to finish without them.":
+    {
+      zero: "لم تفشل أي خطوة تحقق.",
+      one: "فشلت خطوة تحقق واحدة. أعد محاولتها لتشمل التوصية والتقارير جميع الموردين، أو اضغط «استئناف» لإكمال التحليل من دونها.",
+      two: "فشلت خطوتا تحقق. أعد محاولتهما لتشمل التوصية والتقارير جميع الموردين، أو اضغط «استئناف» لإكمال التحليل من دونهما.",
+      few: "فشلت {n} خطوات تحقق. أعد محاولتها لتشمل التوصية والتقارير جميع الموردين، أو اضغط «استئناف» لإكمال التحليل من دونها.",
+      many: "فشلت {n} خطوة تحقق. أعد محاولتها لتشمل التوصية والتقارير جميع الموردين، أو اضغط «استئناف» لإكمال التحليل من دونها.",
+      other:
+        "فشلت {n} خطوة تحقق. أعد محاولتها لتشمل التوصية والتقارير جميع الموردين، أو اضغط «استئناف» لإكمال التحليل من دونها.",
+    },
 };

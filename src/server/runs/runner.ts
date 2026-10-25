@@ -8,6 +8,14 @@
  * Every step is persisted when it finishes. A schema/parse failure or an expired Files API id
  * retries the step once; anything else marks it failed (Retry in the UI). Cancel aborts the live
  * requests through their AbortSignal. No `server-only`: tests drive it with an in-memory DB.
+ *
+ * Nothing paid for is lost (2026-10-26, user: "if smth stopped in the middle we can continue"):
+ * - an error about the account or the connection (credit, spending limit, rate limit, network,
+ *   Anthropic down) pauses the run: the step goes back to the queue, no new step starts, and the
+ *   run is `interrupted` with the reason; Resume carries on from there;
+ * - a failed check (standards, RFP, risk) holds the run before the recommendation, which would
+ *   otherwise be written, with every report, without that vendor and again after its Retry. Retry
+ *   the check, or Resume to finish without it.
  */
 import { eq, inArray } from "drizzle-orm";
 import type { Db } from "../db/connect";
@@ -15,7 +23,8 @@ import { analysisRuns, analysisSteps, projects } from "../db/schema";
 import { RUN_PHASES, sectionTemplateFor, type RunPhase } from "../../lib/domain";
 import type { BoqComparisonDto } from "../../lib/api-types";
 import { ApiError } from "../api-errors";
-import { describeError } from "../ai/client";
+import { describeError, pauseReason } from "../ai/client";
+import { usageOfError } from "../ai/parts";
 import { nativeDocsFor } from "../ai/content";
 import { AiError } from "../ai/result";
 import type {
@@ -43,6 +52,7 @@ import {
   markRunRunning,
   markStepCancelled,
   markStepFailed,
+  markStepQueued,
   markStepRunning,
   markStepSkipped,
   outcomeOf,
@@ -80,8 +90,25 @@ export interface RunnerDeps {
 interface Handle {
   runId: string;
   cancelled: boolean;
+  /** Why the run stopped starting steps (account/connection error, or a held check). */
+  paused: string | null;
+  /** Hold before the recommendation when a check failed (off after Resume on a hold). */
+  hold: boolean;
   controllers: Set<AbortController>;
   done: Promise<void>;
+}
+
+/** Checks whose failure leaves a vendor out of the recommendation and the reports. */
+const CHECK_PHASES = new Set<RunPhase>(["standards", "analyze", "risk"]);
+
+/** The reason a run is held before the recommendation, or null. */
+function heldReason(steps: StepRow[]): string | null {
+  if (!steps.some((s) => s.phase === "summary" && s.status === "queued")) return null;
+  const failed = steps.filter((s) => CHECK_PHASES.has(s.phase) && s.status === "failed");
+  if (!failed.length) return null;
+  return failed.length === 1
+    ? `${failed[0].label} failed. Retry it so the recommendation and the reports cover every vendor, or press Resume to finish without it.`
+    : `${failed.length} checks failed. Retry them so the recommendation and the reports cover every vendor, or press Resume to finish without them.`;
 }
 
 export type Runner = ReturnType<typeof createRunner>;
@@ -260,8 +287,14 @@ export function createRunner(deps: RunnerDeps) {
         persist(step, run, ctx, res.data, res.usage);
         return;
       } catch (err) {
-        const usage = err instanceof AiError ? err.usage : undefined;
+        const usage = usageOfError(err);
         if (handle.cancelled) return markStepCancelled(db, step, usage);
+        // The account or the connection, not this step: pause the run (Resume continues).
+        const pause = pauseReason(err);
+        if (pause) {
+          handle.paused ??= pause;
+          return markStepQueued(db, step, usage);
+        }
         const retryable =
           err instanceof AiError && (err.code === "invalid_output" || err.code === "file_missing");
         if (retryable && attempt === 0) {
@@ -289,7 +322,7 @@ export function createRunner(deps: RunnerDeps) {
     let next = 0;
     const worker = async (w: number) => {
       if (w > 0) await gate;
-      while (next < steps.length && !handle.cancelled) {
+      while (next < steps.length && !handle.cancelled && !handle.paused) {
         const step = steps[next++];
         await fn(step, release);
         release();
@@ -310,7 +343,11 @@ export function createRunner(deps: RunnerDeps) {
         ctx.boq = (await deps.pricesFor?.(run).catch(() => null)) ?? null;
       const engine = deps.engineFor(run);
       for (const phase of RUN_PHASES) {
-        if (handle.cancelled) break;
+        if (handle.cancelled || handle.paused) break;
+        if (phase === "summary" && handle.hold) {
+          handle.paused = heldReason(listSteps(db, run.id));
+          if (handle.paused) break;
+        }
         const queued = listSteps(db, run.id).filter(
           (s) => s.phase === phase && s.status === "queued",
         );
@@ -331,15 +368,19 @@ export function createRunner(deps: RunnerDeps) {
         if (s.status === "queued" || s.status === "running") markStepCancelled(db, s);
       return finishRun(db, run.id, "cancelled");
     }
+    // Paused: the steps not run yet stay queued for Resume.
+    if (handle.paused) return finishRun(db, run.id, "interrupted", handle.paused);
     const { status, error } = outcomeOf(steps);
     finishRun(db, run.id, status, error);
   }
 
-  function launch(runId: string) {
+  function launch(runId: string, hold = true) {
     if (live.has(runId)) return live.get(runId)!;
     const handle: Handle = {
       runId,
       cancelled: false,
+      paused: null,
+      hold,
       controllers: new Set(),
       done: Promise.resolve(),
     };
@@ -424,7 +465,10 @@ export function createRunner(deps: RunnerDeps) {
       return getRun(db, runId);
     },
 
-    /** Continue an interrupted or cancelled run; finished steps are never re-run (or re-billed). */
+    /**
+     * Continue an interrupted or cancelled run; finished steps are never re-run (or re-billed).
+     * On a run held for a failed check, Resume means "finish without it".
+     */
     resume(runId: string): RunRow {
       const run = getRun(db, runId);
       if (run.status !== "interrupted" && run.status !== "cancelled") {
@@ -435,7 +479,9 @@ export function createRunner(deps: RunnerDeps) {
         );
       }
       assertIdle(run);
-      const ids = listSteps(db, runId)
+      const steps = listSteps(db, runId);
+      const held = heldReason(steps);
+      const ids = steps
         .filter(
           (s) =>
             s.status === "queued" ||
@@ -445,7 +491,7 @@ export function createRunner(deps: RunnerDeps) {
         )
         .map((s) => s.id);
       requeue(run, ids);
-      launch(runId);
+      launch(runId, !(held && run.error === held));
       return getRun(db, runId);
     },
 

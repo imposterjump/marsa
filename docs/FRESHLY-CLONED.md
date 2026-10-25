@@ -164,6 +164,7 @@ All organisations, people and documents in `test-inputs/` are fictional.
 | `npx tsx scripts/tender-import.ts "<folder>" [--commit]` | Preview (or import into `DATA_DIR`) a tender exported by the e-procurement portal |
 | `npx tsx scripts/boq-check.ts --compare=<client.xlsx> <bids folder or zip>` | Read and compare bills of quantities from the command line |
 | `npx tsx scripts/translation-check.ts <runId>` | How much of a run's AI text has its Arabic translation |
+| `npx tsx scripts/count-tokens.ts <project code> [--model=sonnet\|haiku\|opus]` | Exact size of a project's documents (free token count) and what a run would cost |
 | `npm run test:e2e` | Playwright end-to-end tests (builds its own server on port 3200, demo AI) |
 | `npm run demo:load` / `npm run demo:save` | Load the team's demo data / save yours as the new demo data (see above) |
 | `npm run seed` / `npm run reset -- --yes` | Sample data / wipe everything (see above) |

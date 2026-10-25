@@ -13,6 +13,7 @@ import { getStorage } from "../storage";
 import type { LocalStorage } from "../storage/local";
 import { AiError, callStructured, uploadFile } from "./client";
 import { buildContent, nativeDocsFor } from "./content";
+import { checkInParts } from "./parts";
 import { createMockEngine, createPageLoader } from "./mock";
 import { reportSystemPrompt, systemPrompt } from "./prompts";
 import { translateTexts } from "./translate";
@@ -24,6 +25,7 @@ import {
   normalizeChecklist,
   normalizeReport,
   normalizeRisks,
+  requirementsFor,
   withStandardRules,
   type AnalysisOutput,
   type ChecklistOutput,
@@ -31,7 +33,7 @@ import {
   type StepOutput,
   type RiskOutput,
 } from "./schemas";
-import type { AiEngine, SourceDoc, StepInput } from "./types";
+import type { AiEngine, AnalysisStepInput, SourceDoc, StepInput } from "./types";
 
 /** Upload any native document of this step that has no Files API id yet (and remember it). */
 export async function ensureUploaded(db: Db, storage: LocalStorage, docs: SourceDoc[]) {
@@ -73,29 +75,44 @@ export function createLiveEngine(db: Db, storage: LocalStorage, model: string): 
         })) as never;
       }
       await ensureUploaded(db, storage, nativeDocsFor(i));
-      const res = await callStructured({
-        model,
-        system:
-          i.phase === "report"
-            ? reportSystemPrompt(i.ctx.reportLanguage)
-            : systemPrompt(i.ctx.reportLanguage),
-        content: buildContent(i),
-        // Shared output formats keep the cached prefix identical across phases (schemas.ts).
-        schema: OUTPUT_SCHEMA[i.phase],
-        signal: hooks.signal,
-        onStarted: hooks.onStarted,
-      });
-      const field = OUTPUT_FIELD[i.phase];
-      const answer = (res.data as Partial<StepOutput>)[field] ?? null;
-      if (answer === null) {
-        throw new AiError(
-          "invalid_output",
-          `The answer left the "${field}" field empty.`,
-          undefined,
-          res.usage,
-        );
+      /** One request; its answer is the step's field of the shared output object. */
+      const ask = async (input: AnalysisStepInput) => {
+        const res = await callStructured({
+          model,
+          system:
+            input.phase === "report"
+              ? reportSystemPrompt(input.ctx.reportLanguage)
+              : systemPrompt(input.ctx.reportLanguage),
+          content: buildContent(input),
+          // Shared output formats keep the cached prefix identical across phases (schemas.ts).
+          schema: OUTPUT_SCHEMA[input.phase],
+          signal: hooks.signal,
+          onStarted: hooks.onStarted,
+        });
+        const field = OUTPUT_FIELD[input.phase];
+        const answer = (res.data as Partial<StepOutput>)[field] ?? null;
+        if (answer === null) {
+          throw new AiError(
+            "invalid_output",
+            `The answer left the "${field}" field empty.`,
+            undefined,
+            res.usage,
+          );
+        }
+        return { ...res, data: fromWire(field, answer) as unknown };
+      };
+      if (i.phase === "standards" || i.phase === "analyze") {
+        // A long checklist is checked in parts, each answer well under the size limit (parts.ts).
+        const scope = i.phase === "standards" ? "standards" : "rfp";
+        const codes = requirementsFor(i.checklist, scope).map((r) => r.code);
+        const res = await checkInParts(model, codes, async (part) => {
+          const r = await ask({ ...i, part });
+          return { ...r, data: r.data as AnalysisOutput };
+        });
+        return { ...res, data: normalizeAnalysis(res.data) } as never;
       }
-      let data: unknown = fromWire(field, answer);
+      const res = await ask(i);
+      let data = res.data;
       const template = sectionTemplateFor(i.ctx.project.category);
       if (i.phase === "checklist") {
         // The model lists the RFP requirements; every standard rule is added as its own one.
@@ -104,8 +121,6 @@ export function createLiveEngine(db: Db, storage: LocalStorage, model: string): 
           i.ctx.standards,
           template,
         );
-      } else if (i.phase === "standards" || i.phase === "analyze") {
-        data = normalizeAnalysis(data as AnalysisOutput);
       } else if (i.phase === "risk") {
         data = normalizeRisks(data as RiskOutput, template);
       } else if (i.phase === "report") {

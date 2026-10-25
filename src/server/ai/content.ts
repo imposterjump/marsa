@@ -202,7 +202,8 @@ function stepBlocks(input: AnalysisStepInput): Block[] {
         text(
           standardsTask(
             input.vendor.name,
-            requirementsFor(input.checklist, "standards").map((r) => r.code),
+            input.part?.codes ?? requirementsFor(input.checklist, "standards").map((r) => r.code),
+            input.part,
           ),
         ),
       ];
@@ -215,7 +216,8 @@ function stepBlocks(input: AnalysisStepInput): Block[] {
         text(
           analyzeTask(
             input.vendor.name,
-            requirementsFor(input.checklist, "rfp").map((r) => r.code),
+            input.part?.codes ?? requirementsFor(input.checklist, "rfp").map((r) => r.code),
+            input.part,
           ),
         ),
       ];

@@ -10,6 +10,7 @@
  */
 import { sectionList } from "../../lib/sections";
 import type { SectionTemplate } from "../../lib/domain";
+import type { CheckPart } from "./types";
 import {
   CONFIDENCE_LEVELS,
   FINDING_STATUSES,
@@ -117,19 +118,29 @@ const findingRules = (
 - assessment: why this status, in detail. gap: the shortfall for "partial" or "non_compliant", otherwise empty.
 - confidence: one of ${list(CONFIDENCE_LEVELS)}.`;
 
-export function standardsTask(vendor: string, codes: string[]): string {
-  return `Task: check the proposal from ${vendor} (Section D) against each standard rule of the checklist (Section C: the requirements with sourceType "standard": ${codes.join(", ")}).
+/** A long check runs in parts (2026-10-26): say which part this is, and that only it is wanted. */
+const partNote = (part?: CheckPart) =>
+  part && part.total > 1
+    ? `\nThis is part ${part.index + 1} of ${part.total} of this check: answer only the requirements listed above; the others are checked in the other parts.\n`
+    : "";
 
+export function standardsTask(vendor: string, codes: string[], part?: CheckPart): string {
+  return `Task: check the proposal from ${vendor} (Section D) against each standard rule of the checklist (Section C: the requirements with sourceType "standard": ${codes.join(", ")}).
+${partNote(part)}
 ${findingRules(codes.length)}
 - summary: "" (empty). strengths and weaknesses: empty lists. commercial: all fields empty and no exclusions. Those are written in the RFP step.`;
 }
 
-export function analyzeTask(vendor: string, codes: string[]): string {
-  return `Task: check the proposal from ${vendor} (Section D) against each RFP requirement of the checklist (Section C: the requirements with sourceType "rfp" or "notes": ${codes.join(", ")}). The standard rules are checked in another step: leave them out.
-
-${findingRules(codes.length)}
-- summary: 2–4 sentences on the proposal overall. strengths and weaknesses: 3–6 short points each.
+export function analyzeTask(vendor: string, codes: string[], part?: CheckPart): string {
+  const overall =
+    part && part.index > 0
+      ? `- summary: "" (empty). strengths and weaknesses: empty lists. commercial: all fields empty and no exclusions. Those are written in part 1.`
+      : `- summary: 2–4 sentences on the proposal overall. strengths and weaknesses: 3–6 short points each.
 - commercial: the total price, currency, payment terms, delivery time, warranty and offer validity as the vendor states them (empty when not stated), and the listed exclusions. Copy values; do not compute or convert.`;
+  return `Task: check the proposal from ${vendor} (Section D) against each RFP requirement of the checklist (Section C: the requirements with sourceType "rfp" or "notes": ${codes.join(", ")}). The standard rules are checked in another step: leave them out.
+${partNote(part)}
+${findingRules(codes.length)}
+${overall}`;
 }
 
 export function compareTask(vendor: string, others: string[]): string {

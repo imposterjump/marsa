@@ -44,6 +44,7 @@
 | 2026-10-25 | **Agents made visible:** mission control shows the run as an agent team around an AI Orchestrator, with a ball passed agent → orchestrator → next agent; **Compare** plays the agents' steps (files handed over, comparison, assessment, results) under the vendor cards before the table appears | You |
 | 2026-10-25 | **No prices in the app** (AI quality, run confirmation, project panel, run menu, settings, standards); **a cancelled or failed run no longer hides the previous results**; mission control fits on screen (ring beside the agent team); AI confidence in green / blue / yellow; **AI vendor generation removed** | You |
 | 2026-10-25 | **Demo data in git** (`test-inputs/demo-data/`, `npm run demo:load`): a fresh clone shows the team's 3 projects with the real Haiku analyses and reports; fresh-clone guide and HANDOFF §1 refreshed | You |
+| 2026-10-26 | **Paid runs are safe to stop and continue**: long checks in parts, a run pauses on credit / limit / network errors and resumes without paying twice, a failed check holds the run before the recommendation (Retry, or Resume without it), the database is copied after every paid run; exact estimates from the free token count (Sonnet: $4–6 for the Amiri Diwan tender, $6.50–10 for the shops building) | You |
 | 2026-10-25 | **Every analysis in English and Arabic**: a Translator agent (Haiku) ends each run; screens and report PDFs follow the screen language; the Report language setting is gone; the two live runs were translated ($0.083) instead of rerun | You |
 | 2026-10-25 | **Building works tenders** (the supervisor's Public Works tenders): **Import tender** from the portal's folder/zip (lean: drawings, photos, maps, permits, IBAN letters, duplicates left out unless ticked), category *Construction & maintenance* with its own sections and an internal estimate, a **Prices** tab comparing the bills of quantities line by line; the real tenders stay out of git | You |
 | 2026-10-25 | **The whole UI in Arabic** with an **العربية / English** switch (top bar + Settings → Appearance), right-to-left layout, Arabic dates and plurals, server errors in the reader's language. Switching also sets the AI's report language for new analyses; finished results stay in their language. Documents can be in any language. Pasted rules accept إلزامي / مهم / مرغوب | You |
@@ -212,6 +213,7 @@
 | 2026-10-21 | Schema grouping probes | Sonnet 5.5 | < $0.01 | Two shared formats chosen |
 | 2026-10-21 | PCS + Phase 6 bids, 3 vendors, 11 steps | Sonnet 5.5 | $1.17 | Completed; cache reads 262k vs writes 90k |
 | 2026-10-21 | P7.5 generate 2 bids | Sonnet 5.5 | $0.19 | Strong + risky bids, DOCX + PDF |
+| 2026-10-26 | Token count of the two real tenders (`scripts/count-tokens.ts`) | count_tokens | $0.00 | Free endpoint; exact sizes for the estimate |
 | | **Total (my runs)** | | **≈ $6.17** | |
 | 2026-10-23 | Balance check | — | — | You: "about 1 dollar left" (your own runs on :3001 are not logged here). P8 used **no** credits: everything was verified with the free demo AI |
 | 2026-10-23 | You added $5 | — | — | ≈ $6 available |

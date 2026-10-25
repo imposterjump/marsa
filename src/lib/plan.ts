@@ -165,6 +165,19 @@ const OUTPUT_FACTOR: Record<AiModel, number> = {
   "claude-sonnet-5-5": 1,
   "claude-haiku-5-5": 2,
 };
+/**
+ * Requirements checked per request (2026-10-26). One answer holds at most MAX_TOKENS (thinking
+ * included) and the models write about 1,000 (Haiku), 450 (Sonnet) and 540 (Opus) tokens per
+ * finding, so a longer checklist is checked in parts of this size, each well under the limit.
+ */
+export const CHECK_PART_SIZE: Record<AiModel, number> = {
+  "claude-opus-5-5": 50,
+  "claude-sonnet-5-5": 60,
+  "claude-haiku-5-5": 30,
+};
+export const checkParts = (model: string, count: number) =>
+  Math.max(1, Math.ceil(count / (CHECK_PART_SIZE[model as AiModel] ?? 50)));
+
 /** The prompt cache lives 5 minutes from the request that last used it; keep a margin. */
 const CACHE_TTL_S = 270;
 
@@ -271,6 +284,12 @@ export function estimateRun(
   const withStd = Rstd > 0;
 
   let usd = stepUsd(model, { uncached: 900, read: 0, write: S, out: out.checklist });
+  // A long checklist is checked in parts: every part after the first re-reads ① ② ③ from the cache.
+  const extraParts = (withStd ? checkParts(model, Rstd) - 1 : 0) + checkParts(model, Rrfp) - 1;
+  V.forEach((v) => {
+    for (let k = 0; k < extraParts; k++)
+      usd += stepUsd(model, { uncached: 600, read: S + C + v, write: 0, out: 0 });
+  });
   // The first check of each vendor writes its documents (③) to the cache; the first of all also
   // writes the checklist (②). Standards and RFP checks of a vendor share that cache.
   const firstChecks = (outTokens: number) =>
@@ -470,10 +489,10 @@ export function etaSeconds(
  */
 export function costFromUsage(model: string, u: TokenUsage, promptTokens?: number): number {
   if (!MODEL_PRICES[model as AiModel]) return 0;
-  // One step's usage is one request (plus a retry at most), so its prompt size picks the tier.
+  // The tier follows the prompt of one request: a step's usage may add up several (parts, retries).
   const price = pricesFor(
     model as AiModel,
-    promptTokens ?? u.inputTokens + u.cacheReadTokens + u.cacheWriteTokens,
+    promptTokens ?? (u.inputTokens + u.cacheReadTokens + u.cacheWriteTokens) / requestsOf(u),
   );
   const usd =
     (u.inputTokens * price.input +
@@ -484,11 +503,20 @@ export function costFromUsage(model: string, u: TokenUsage, promptTokens?: numbe
   return Math.round(usd * 10_000) / 10_000;
 }
 
+/** Requests behind a usage record (records from before 2026-10-26 have no count: one, if any tokens). */
+export function requestsOf(u: TokenUsage): number {
+  if (u.requests != null) return Math.max(1, u.requests);
+  return 1;
+}
+
 export function addUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
+  const count = (u: TokenUsage) =>
+    u.requests ?? (u.inputTokens + u.outputTokens + u.cacheReadTokens + u.cacheWriteTokens ? 1 : 0);
   return {
     inputTokens: a.inputTokens + b.inputTokens,
     outputTokens: a.outputTokens + b.outputTokens,
     cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens,
     cacheWriteTokens: a.cacheWriteTokens + b.cacheWriteTokens,
+    requests: count(a) + count(b),
   };
 }

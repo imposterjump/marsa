@@ -480,6 +480,16 @@ function RunBar({ data }: { data: RunStatusDto }) {
           </span>
         </RunSummary>
       )}
+      {/* Why it stopped (2026-10-26): credit, rate limit, connection, a held check, a restart. */}
+      {run.status === "interrupted" && run.error && (
+        <p
+          role="status"
+          className="flex items-start gap-3 rounded-lg bg-partial-soft p-4 text-[13px] text-ink-2"
+        >
+          <CircleAlert className="mt-0.5 size-4 shrink-0 text-partial" aria-hidden />
+          <span>{t.auto(run.error)}</span>
+        </p>
+      )}
       {(run.status === "completed_with_errors" || run.status === "failed") && (
         <div
           role="alert"

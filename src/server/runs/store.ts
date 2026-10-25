@@ -461,6 +461,19 @@ export const markStepSkipped = (db: Db, step: StepRow, reason: string) =>
 export const markStepCancelled = (db: Db, step: StepRow, usage?: TokenUsage | null) =>
   finishStep(db, step, "cancelled", { usage });
 
+/**
+ * The run paused while this step was being asked (2026-10-26: credit, rate limit, connection): it
+ * goes back to the queue and runs on Resume. Tokens already billed stay recorded.
+ */
+export function markStepQueued(db: Db, step: StepRow, usage?: TokenUsage | null) {
+  if (usage) addStepUsage(db, step, usage);
+  db.update(analysisSteps)
+    .set({ status: "queued", startedAt: null, finishedAt: null, durationMs: null, error: null })
+    .where(eq(analysisSteps.id, step.id))
+    .run();
+  refreshRunTotals(db, step.runId);
+}
+
 // ─── Persist step results (normalized rows) ──────────────────────────────────
 export function saveChecklist(
   db: Db,

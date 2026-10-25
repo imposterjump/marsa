@@ -23,6 +23,7 @@ import {
 } from "@/server/db/schema";
 import { computeVendorScores } from "@/server/runs/scores";
 import { createMockEngine, createPageLoader } from "@/server/ai/mock";
+import Anthropic from "@anthropic-ai/sdk";
 import { AiError } from "@/server/ai/result";
 import type { ReportOutput } from "@/server/ai/schemas";
 import type { AiEngine } from "@/server/ai/types";
@@ -237,11 +238,11 @@ describe("analysis runner (mock engine)", () => {
     expect(xray(db).status).toBe("evaluated");
   }, 120_000);
 
-  it("retries a parse failure once, fails other errors, and Retry re-runs the step and what it unblocked", async () => {
+  it("retries a parse failure once; a failed check holds the run before the recommendation, and Retry finishes it with every vendor", async () => {
     const db = freshDb();
     let atlasCalls = 0;
     const { engine: e, calls } = engine((phase, vendor) => {
-      if (phase === "analyze" && vendor?.startsWith("Nile")) return new Error("Network down");
+      if (phase === "analyze" && vendor?.startsWith("Nile")) return new Error("Model said no");
       if (phase === "analyze" && vendor?.startsWith("Atlas") && ++atlasCalls === 1) {
         return new AiError("invalid_output", "bad json");
       }
@@ -257,25 +258,38 @@ describe("analysis runner (mock engine)", () => {
     expect(atlas.status).toBe("done");
     expect(atlas.attempt).toBe(2);
     expect(nile.status).toBe("failed");
-    expect(nile.error).toContain("Network down");
-    // Its standards check succeeded; only its risk step and its report had to be skipped.
+    expect(nile.error).toContain("Model said no");
+    // Its standards check succeeded; its risk step had to be skipped.
     expect(
       steps
         .filter((s) => s.proposalId === nile.proposalId && s.status === "skipped")
         .map((s) => s.phase),
-    ).toEqual(["risk", "report"]);
-    expect(getRun(db, run.id).status).toBe("completed_with_errors");
-    expect(getRunResults(db, run.id).summary?.ranking).toHaveLength(3);
+    ).toEqual(["risk"]);
+    // Held (2026-10-26): no recommendation or report is written without Nile Gate, which would
+    // have to be paid for again after its Retry.
+    const held = getRun(db, run.id);
+    expect(held.status).toBe("interrupted");
+    expect(held.error).toMatch(/^Checking Nile.* failed\. Retry it so the recommendation/);
+    expect(calls.some((c) => c === "summary" || c.startsWith("report:"))).toBe(false);
+    expect(
+      steps
+        .filter((s) => ["summary", "report", "translate"].includes(s.phase))
+        .every((s) => s.status === "queued"),
+    ).toBe(true);
+    expect(xray(db).status).toBe("open");
 
-    // Fix the "network" and retry: the RFP check + risk for Nile Gate, then the summary and
-    // every report again (the scores changed).
+    // Fix it and retry: the RFP check + risk for Nile Gate, then the summary and every report,
+    // once each.
     const before = calls.length;
-    const fixed = runner(db, engine().engine);
-    fixed.retryStep(run.id, nile.id);
-    await fixed.wait(run.id);
+    const fixed = engine();
+    const retried = runner(db, fixed.engine);
+    retried.retryStep(run.id, nile.id);
+    await retried.wait(run.id);
     expect(getRun(db, run.id).status).toBe("completed");
     expect(listSteps(db, run.id).every((s) => s.status === "done")).toBe(true);
     expect(calls.length).toBe(before); // the old engine was not called again
+    expect(fixed.calls.filter((c) => c === "summary")).toHaveLength(1);
+    expect(fixed.calls.filter((c) => c.startsWith("report:"))).toHaveLength(4);
     expect(getRunResults(db, run.id).summary?.ranking).toHaveLength(4);
 
     // A failed report retries alone (and the Translator after it, so both languages agree).
@@ -291,6 +305,101 @@ describe("analysis runner (mock engine)", () => {
     expect(counted.calls).toHaveLength(2);
     expect(counted.calls[0]).toMatch(/^report:/);
     expect(counted.calls[1]).toBe("translate");
+  }, 120_000);
+
+  it("finishes without the failed vendor when a held run is resumed", async () => {
+    const db = freshDb();
+    const { engine: e } = engine((phase, vendor) =>
+      phase === "analyze" && vendor?.startsWith("Nile") ? new Error("Model said no") : null,
+    );
+    const r = runner(db, e);
+    const run = r.start(xray(db).id);
+    await r.wait(run.id);
+    expect(getRun(db, run.id).status).toBe("interrupted");
+
+    r.resume(run.id);
+    await r.wait(run.id);
+    expect(getRun(db, run.id).status).toBe("completed_with_errors");
+    expect(getRunResults(db, run.id).summary?.ranking).toHaveLength(3);
+    const nile = listSteps(db, run.id).filter((s) => s.label.includes("Nile"));
+    expect(nile.find((s) => s.phase === "analyze")!.status).toBe("failed");
+    expect(nile.filter((s) => s.status === "skipped").map((s) => s.phase)).toEqual([
+      "risk",
+      "report",
+    ]);
+  }, 120_000);
+
+  it("pauses when the credit runs out and resumes without paying twice", async () => {
+    const db = freshDb();
+    const credit = () =>
+      Anthropic.APIError.generate(
+        400,
+        {
+          type: "error",
+          error: {
+            type: "invalid_request_error",
+            message: "Your credit balance is too low to access the Anthropic API.",
+          },
+        },
+        undefined,
+        new Headers(),
+      );
+    const first = engine((phase) => (phase === "analyze" ? credit() : null));
+    const r1 = runner(db, first.engine);
+    const run = r1.start(xray(db).id);
+    await r1.wait(run.id);
+
+    const paused = getRun(db, run.id);
+    expect(paused.status).toBe("interrupted");
+    expect(paused.error).toMatch(/credit ran out.*Resume/);
+    const steps = listSteps(db, run.id);
+    // Nothing failed: the RFP checks went back to the queue, and nothing after them started.
+    expect(steps.some((s) => s.status === "failed")).toBe(false);
+    expect(steps.filter((s) => s.phase === "analyze").every((s) => s.status === "queued")).toBe(
+      true,
+    );
+    expect(first.calls.some((c) => c.startsWith("risk:") || c === "summary")).toBe(false);
+    const doneBefore = steps.filter((s) => s.status === "done").length;
+    expect(doneBefore).toBe(5); // the checklist and the four standards checks
+    expect(xray(db).status).toBe("open");
+
+    // Credit added: Resume runs only what is left.
+    const second = engine();
+    const r2 = runner(db, second.engine);
+    r2.resume(run.id);
+    await r2.wait(run.id);
+    expect(getRun(db, run.id).status).toBe("completed");
+    expect(second.calls).toHaveLength(19 - doneBefore);
+    expect(second.calls.some((c) => c === "checklist" || c.startsWith("standards:"))).toBe(false);
+  }, 120_000);
+
+  it("pauses on a lost connection and keeps the steps that finished meanwhile", async () => {
+    const db = freshDb();
+    let analyses = 0;
+    const first = engine((phase) =>
+      phase === "analyze" && ++analyses === 2
+        ? new Anthropic.APIConnectionError({ message: "Connection error." })
+        : null,
+    );
+    const r1 = runner(db, first.engine);
+    const run = r1.start(xray(db).id);
+    await r1.wait(run.id);
+    const paused = getRun(db, run.id);
+    expect(paused.status).toBe("interrupted");
+    expect(paused.error).toMatch(/^Could not reach the Anthropic API/);
+    const steps = listSteps(db, run.id);
+    expect(steps.some((s) => s.status === "failed")).toBe(false);
+    const doneBefore = steps.filter((s) => s.status === "done").length;
+    expect(
+      steps.filter((s) => s.phase === "analyze" && s.status === "done").length,
+    ).toBeGreaterThan(0);
+
+    const second = engine();
+    const r2 = runner(db, second.engine);
+    r2.resume(run.id);
+    await r2.wait(run.id);
+    expect(getRun(db, run.id).status).toBe("completed");
+    expect(second.calls).toHaveLength(19 - doneBefore);
   }, 120_000);
 
   it("adds the reports to a run that finished without them, once", async () => {

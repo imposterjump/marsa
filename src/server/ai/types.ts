@@ -104,8 +104,20 @@ export interface VendorScores {
 
 export type StepInput =
   | { phase: "checklist"; ctx: RunContext }
-  | { phase: "standards"; ctx: RunContext; checklist: ChecklistOutput; vendor: VendorContext }
-  | { phase: "analyze"; ctx: RunContext; checklist: ChecklistOutput; vendor: VendorContext }
+  | {
+      phase: "standards";
+      ctx: RunContext;
+      checklist: ChecklistOutput;
+      vendor: VendorContext;
+      part?: CheckPart;
+    }
+  | {
+      phase: "analyze";
+      ctx: RunContext;
+      checklist: ChecklistOutput;
+      vendor: VendorContext;
+      part?: CheckPart;
+    }
   | {
       phase: "compare";
       ctx: RunContext;
@@ -159,6 +171,16 @@ export type StepInput =
 
 /** The steps that read the tender (every phase but the Translator, which only has text). */
 export type AnalysisStepInput = Exclude<StepInput, { phase: "translate" }>;
+
+/**
+ * One request of a check that runs in parts (2026-10-26, long checklists): the requirement codes
+ * it answers, and its place (index 0 also writes the summary, strengths and commercial terms).
+ */
+export interface CheckPart {
+  codes: string[];
+  index: number;
+  total: number;
+}
 
 export interface StepOutputs {
   checklist: ChecklistOutput;

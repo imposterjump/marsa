@@ -160,6 +160,12 @@ export interface TokenUsage {
   outputTokens: number;
   cacheReadTokens: number;
   cacheWriteTokens: number;
+  /**
+   * API requests these tokens add up (2026-10-26: a long check runs in parts, a failed attempt adds
+   * its own). Haiku's price tier depends on each request's prompt size, not their sum. Missing in
+   * records from before: one request when there are tokens.
+   */
+  requests?: number;
 }
 export const EMPTY_USAGE: TokenUsage = {
   inputTokens: 0,
