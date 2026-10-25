@@ -10,6 +10,7 @@ import {
   StickyNote,
 } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,12 +23,32 @@ import type {
   RequirementDto,
   RequirementSourceDto,
 } from "@/lib/api-types";
-import { FINDING_STATUSES, type FindingStatus } from "@/lib/domain";
-import { FINDING_STATUS_LABEL } from "@/lib/labels";
+import { FINDING_STATUSES, type FindingStatus, type RiskCategory } from "@/lib/domain";
+import { msg } from "@/lib/i18n/core";
 
 export type AnalysisTab = "compliance" | "comparison" | "risk";
 
 const card = "rounded-xl border border-border bg-surface shadow-xs";
+
+/** "3 compliant": the count chips above the findings. */
+const STATUS_COUNT: Record<FindingStatus, string> = {
+  compliant: msg("{n} compliant"),
+  partial: msg("{n} partially compliant"),
+  non_compliant: msg("{n} non-compliant"),
+  not_addressed: msg("{n} not addressed"),
+};
+
+const RISK_CATEGORY: Record<RiskCategory, string> = {
+  technical: msg("technical"),
+  infrastructure: msg("infrastructure"),
+  security: msg("security"),
+  commercial: msg("commercial"),
+  legal: msg("legal"),
+  schedule: msg("schedule"),
+  operational: msg("operational"),
+  vendor_capability: msg("vendor capability"),
+  compliance: msg("compliance"),
+};
 
 /**
  * One vendor's analysis results (P6 basic view; P8 designs the full results UX): numbered
@@ -45,6 +66,7 @@ export function ProposalResults({
   /** Open the reader at the quoted sentence. */
   onEvidence: (docId: string, page: number | null, quote: string) => void;
 }) {
+  const t = useT();
   const { data, isLoading } = useProposalResult(runId, proposalId);
   if (isLoading) return <Skeleton className="h-64 w-full rounded-xl" />;
   if (!data?.evaluation) {
@@ -52,8 +74,10 @@ export function ProposalResults({
       <div className={cn(card, "border-dashed")}>
         <EmptyState
           art={<CircleAlert className="size-10 text-ink-faint" strokeWidth={1.5} />}
-          title="No analysis for this vendor"
-          description="Its analysis step failed or was skipped. Retry it from the Evaluation tab."
+          title={t("No analysis for this vendor")}
+          description={t(
+            "Its analysis step failed or was skipped. Retry it from the Evaluation tab.",
+          )}
         />
       </div>
     );
@@ -70,6 +94,7 @@ function Compliance({
   data: ProposalResultDto;
   onEvidence: (docId: string, page: number | null, quote: string) => void;
 }) {
+  const t = useT();
   const ev = data.evaluation!;
   const reqs = new Map(data.requirements.map((r) => [r.id, r]));
   const groups = FINDING_STATUSES.map((s) => ({
@@ -84,20 +109,22 @@ function Compliance({
             <span className="font-heading text-4xl font-semibold tracking-tight text-ink tabular-nums">
               {ev.scorePct}%
             </span>
-            <span className="text-xs text-ink-muted">weighted compliance</span>
+            <span className="text-xs text-ink-muted">{t("weighted compliance")}</span>
           </div>
-          <ul className="flex flex-wrap gap-2" aria-label="Findings by status">
+          <ul className="flex flex-wrap gap-2" aria-label={t("Findings by status")}>
             {groups.map((g) => (
               <li key={g.status}>
                 <FindingStatusPill
                   status={g.status}
-                  label={`${g.items.length} ${FINDING_STATUS_LABEL[g.status].toLowerCase()}`}
+                  label={t(STATUS_COUNT[g.status], { n: g.items.length })}
                 />
               </li>
             ))}
             {ev.mandatoryFailures > 0 && (
               <li>
-                <Pill tone="fail">{ev.mandatoryFailures} mandatory not met</Pill>
+                <Pill tone="fail">
+                  {t.plural(ev.mandatoryFailures, "{n} mandatory not met", "{n} mandatory not met")}
+                </Pill>
               </li>
             )}
           </ul>
@@ -155,6 +182,7 @@ function FindingRow({
   status: FindingStatus;
   onEvidence: (docId: string, page: number | null, quote: string) => void;
 }) {
+  const t = useT();
   // Short form for compliant findings; the explanation block for everything that falls short.
   const explain = status !== "compliant";
   return (
@@ -169,10 +197,12 @@ function FindingRow({
 
         {explain ? (
           <dl className="grid gap-x-4 gap-y-2 rounded-lg border border-border/70 bg-surface-muted/40 p-3 sm:grid-cols-[7.5rem_1fr]">
-            <dt className="text-xs font-semibold text-ink-muted">In the proposal</dt>
+            <dt className="text-xs font-semibold text-ink-muted">{t("In the proposal")}</dt>
             <dd className="flex flex-col gap-1.5 text-ink-2">
               {status === "not_addressed" ? (
-                <span className="italic">Nothing in the proposal addresses this requirement.</span>
+                <span className="italic">
+                  {t("Nothing in the proposal addresses this requirement.")}
+                </span>
               ) : (
                 <span>{f.vendorResponse || f.assessment}</span>
               )}
@@ -188,23 +218,24 @@ function FindingRow({
                       variant="ghost"
                       onClick={() => onEvidence(f.evidenceDocId!, f.evidencePage, f.evidenceQuote!)}
                     >
-                      <BookOpen /> {f.evidencePage ? `Page ${f.evidencePage}` : "Open"}
+                      <BookOpen />{" "}
+                      {f.evidencePage ? t("Page {page}", { page: f.evidencePage }) : t("Open")}
                     </Button>
                   )}
                 </span>
               )}
             </dd>
-            <dt className="text-xs font-semibold text-ink-muted">Required</dt>
-            <dd className="text-ink">{req?.description || "See the source below."}</dd>
+            <dt className="text-xs font-semibold text-ink-muted">{t("Required")}</dt>
+            <dd className="text-ink">{req?.description || t("See the source below.")}</dd>
             {(f.gap || (status !== "not_addressed" && f.assessment)) && (
               <>
                 <dt className="text-xs font-semibold text-ink-muted">
-                  {status === "partial" ? "What is missing" : "Why it falls short"}
+                  {status === "partial" ? t("What is missing") : t("Why it falls short")}
                 </dt>
                 <dd className="text-ink-2">{f.gap || f.assessment}</dd>
               </>
             )}
-            <dt className="text-xs font-semibold text-ink-muted">Breaks</dt>
+            <dt className="text-xs font-semibold text-ink-muted">{t("Breaks")}</dt>
             <dd>
               <SourceChips sources={sources} fallback={req?.sourceRef} onOpen={onEvidence} />
             </dd>
@@ -224,13 +255,15 @@ function FindingRow({
                     variant="ghost"
                     onClick={() => onEvidence(f.evidenceDocId!, f.evidencePage, f.evidenceQuote!)}
                   >
-                    <BookOpen /> {f.evidencePage ? `Page ${f.evidencePage}` : "Open"}
+                    <BookOpen />{" "}
+                    {f.evidencePage ? t("Page {page}", { page: f.evidencePage }) : t("Open")}
                   </Button>
                 )}
               </div>
             )}
             <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
-              Source <SourceChips sources={sources} fallback={req?.sourceRef} onOpen={onEvidence} />
+              {t("Source")}{" "}
+              <SourceChips sources={sources} fallback={req?.sourceRef} onOpen={onEvidence} />
             </div>
           </>
         )}
@@ -252,6 +285,7 @@ function SourceChips({
   fallback?: string;
   onOpen: (docId: string, page: number | null, quote: string) => void;
 }) {
+  const t = useT();
   const chip =
     "inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink-2";
   const link =
@@ -271,20 +305,20 @@ function SourceChips({
             <StandardRuleChip key={i} source={s} className={cn(chip, link)}>
               <ShieldCheck className="size-3.5 text-brand" aria-hidden />
               <span className="font-mono">{s.label}</span>
-              <ArrowUpRight className="size-3 text-ink-faint" aria-hidden />
+              <ArrowUpRight className="size-3 text-ink-faint rtl:-scale-x-100" aria-hidden />
             </StandardRuleChip>
           );
         }
         if (s.kind === "notes") {
           return (
             <span key={i} className={chip}>
-              <StickyNote className="size-3.5 text-ink-faint" aria-hidden /> {s.label}
+              <StickyNote className="size-3.5 text-ink-faint" aria-hidden /> {t.auto(s.label)}
             </span>
           );
         }
         if (!s.documentId) {
           return (
-            <span key={i} className={chip} title="Not found in the RFP documents">
+            <span key={i} className={chip} title={t("Not found in the RFP documents")}>
               <FileText className="size-3.5 text-ink-faint" aria-hidden /> {s.label}
             </span>
           );
@@ -295,12 +329,23 @@ function SourceChips({
             type="button"
             onClick={() => onOpen(s.documentId!, s.page, s.needle ?? "")}
             className={cn(chip, link)}
-            title={`Open ${s.documentName}${s.page ? `, page ${s.page}` : ""}`}
+            title={
+              s.page
+                ? t("Open {document}, page {page}", {
+                    document: s.documentName ?? "",
+                    page: s.page,
+                  })
+                : t("Open {document}", { document: s.documentName ?? "" })
+            }
           >
             <FileText className="size-3.5 text-brand" aria-hidden />
             <span className="truncate">{s.label}</span>
-            {s.page && <span className="text-ink-muted tabular-nums">p. {s.page}</span>}
-            <ArrowUpRight className="size-3 text-ink-faint" aria-hidden />
+            {s.page && (
+              <span className="text-ink-muted tabular-nums">
+                {t("p. {page}", { page: s.page })}
+              </span>
+            )}
+            <ArrowUpRight className="size-3 text-ink-faint rtl:-scale-x-100" aria-hidden />
           </button>
         );
       })}
@@ -309,23 +354,25 @@ function SourceChips({
 }
 
 function Comparison({ data }: { data: ProposalResultDto }) {
+  const t = useT();
   const c = data.comparison;
+  const names = (list: string[]) => list.join(t.locale === "ar" ? "، " : ", ");
   if (!c) {
     return (
       <div className={cn(card, "border-dashed")}>
         <EmptyState
           art={<CircleAlert className="size-10 text-ink-faint" strokeWidth={1.5} />}
-          title="No comparison"
-          description="The comparison needs at least two analysed proposals."
+          title={t("No comparison")}
+          description={t("The comparison needs at least two analysed proposals.")}
         />
       </div>
     );
   }
   const PRICE = {
-    lowest: "Lowest price",
-    mid: "Mid-range price",
-    highest: "Highest price",
-    unknown: "Price not comparable",
+    lowest: t("Lowest price"),
+    mid: t("Mid-range price"),
+    highest: t("Highest price"),
+    unknown: t("Price not comparable"),
   };
   return (
     <div className="flex flex-col gap-5">
@@ -346,35 +393,34 @@ function Comparison({ data }: { data: ProposalResultDto }) {
       </section>
       <div className="grid gap-5 lg:grid-cols-2">
         <PointList
-          title="Advantages"
-          items={c.advantages.map((a) => ({ point: a.point, who: a.versus, prefix: "vs" }))}
+          title={t("Advantages")}
+          items={c.advantages.map((a) => ({
+            point: a.point,
+            note: a.versus.length ? t("(vs {names})", { names: names(a.versus) }) : "",
+          }))}
         />
         <PointList
-          title="Disadvantages"
+          title={t("Disadvantages")}
           items={c.disadvantages.map((d) => ({
             point: d.point,
-            who: d.betterVendors,
-            prefix: "better:",
+            note: d.betterVendors.length
+              ? t("(better: {names})", { names: names(d.betterVendors) })
+              : "",
           }))}
         />
       </div>
       {c.uniqueOffers.length > 0 && (
         <PointList
-          title="Unique offers"
-          items={c.uniqueOffers.map((u) => ({ point: u, who: [], prefix: "" }))}
+          title={t("Unique offers")}
+          items={c.uniqueOffers.map((u) => ({ point: u, note: "" }))}
         />
       )}
     </div>
   );
 }
 
-function PointList({
-  title,
-  items,
-}: {
-  title: string;
-  items: { point: string; who: string[]; prefix: string }[];
-}) {
+function PointList({ title, items }: { title: string; items: { point: string; note: string }[] }) {
+  const t = useT();
   return (
     <section className={cn(card, "p-5")}>
       <h3 className="mb-3 text-sm font-semibold text-ink">{title}</h3>
@@ -383,28 +429,27 @@ function PointList({
           {items.map((x) => (
             <li key={x.point} className="leading-relaxed">
               {x.point}
-              {x.who.length > 0 && (
-                <span className="ms-1 text-xs text-ink-muted">
-                  ({x.prefix} {x.who.join(", ")})
-                </span>
-              )}
+              {x.note && <span className="ms-1 text-xs text-ink-muted">{x.note}</span>}
             </li>
           ))}
         </ol>
       ) : (
-        <p className="text-[13px] text-ink-muted">None.</p>
+        <p className="text-[13px] text-ink-muted">{t("None.")}</p>
       )}
     </section>
   );
 }
 
 function Risks({ data }: { data: ProposalResultDto }) {
+  const t = useT();
   const overall = data.evaluation?.overallRisk;
   return (
     <div className="flex flex-col gap-5">
       {overall && (
         <section className={cn(card, "flex items-center gap-3 p-5 text-sm")}>
-          <span className="font-medium text-ink">Overall risk of awarding to this vendor</span>
+          <span className="font-medium text-ink">
+            {t("Overall risk of awarding to this vendor")}
+          </span>
           <RiskPill severity={overall} />
         </section>
       )}
@@ -416,28 +461,35 @@ function Risks({ data }: { data: ProposalResultDto }) {
               <span className="font-medium text-ink">{r.title}</span>
               <RiskPill severity={r.severity} size="sm" />
               <span className="text-xs text-ink-muted tabular-nums">
-                L{r.likelihood} × I{r.impact} = {r.likelihood * r.impact} ·{" "}
-                {r.category.replace(/_/g, " ")}
+                {t("L{likelihood} × I{impact} = {score}", {
+                  likelihood: r.likelihood,
+                  impact: r.impact,
+                  score: r.likelihood * r.impact,
+                })}{" "}
+                ·{" "}
+                {RISK_CATEGORY[r.category]
+                  ? t(RISK_CATEGORY[r.category])
+                  : r.category.replace(/_/g, " ")}
               </span>
             </div>
             <p className="leading-relaxed text-ink-2">{r.description}</p>
             <dl className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
               <div>
                 <dt className="text-2xs font-semibold tracking-[0.06em] text-ink-muted uppercase">
-                  If it happens
+                  {t("If it happens")}
                 </dt>
                 <dd className="text-ink-2">{r.consequence}</dd>
               </div>
               <div>
                 <dt className="text-2xs font-semibold tracking-[0.06em] text-ink-muted uppercase">
-                  Mitigation
+                  {t("Mitigation")}
                 </dt>
                 <dd className="text-ink-2">{r.mitigation}</dd>
               </div>
             </dl>
             {r.evidence && (
               <p className="text-xs text-ink-muted italic" dir="auto">
-                Evidence: {r.evidence}
+                {t("Evidence: {evidence}", { evidence: r.evidence })}
               </p>
             )}
           </li>

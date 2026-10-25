@@ -1,4 +1,5 @@
 import type { Theme } from "./domain";
+import { LOCALE_STORAGE_KEY } from "./i18n/core";
 
 export const THEME_STORAGE_KEY = "marsa-theme";
 export const SIDEBAR_STORAGE_KEY = "marsa-sidebar";
@@ -8,7 +9,7 @@ export const SIDEBAR_STORAGE_KEY = "marsa-sidebar";
  * hydration). Applies the saved theme (`.dark` + data-theme) and sidebar state
  * (data-sidebar) so the server-rendered HTML never flashes. Inlined as a string — keep tiny.
  */
-export const bootScript = `(function(){var e=document.documentElement;try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})||"system";var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);e.classList.toggle("dark",d);e.dataset.theme=d?"dark":"light";e.dataset.themePref=t;if(localStorage.getItem(${JSON.stringify(SIDEBAR_STORAGE_KEY)})==="collapsed")e.dataset.sidebar="collapsed"}catch(_){}})()`;
+export const bootScript = `(function(){var e=document.documentElement;try{var t=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})||"system";var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);e.classList.toggle("dark",d);e.dataset.theme=d?"dark":"light";e.dataset.themePref=t;if(localStorage.getItem(${JSON.stringify(SIDEBAR_STORAGE_KEY)})==="collapsed")e.dataset.sidebar="collapsed";if(localStorage.getItem(${JSON.stringify(LOCALE_STORAGE_KEY)})==="ar"){e.lang="ar";e.dir="rtl";e.dataset.locale="ar";e.dataset.localePending="";setTimeout(function(){delete e.dataset.localePending},3000)}}catch(_){}})()`;
 
 export function resolveTheme(pref: Theme): "light" | "dark" {
   if (pref !== "system") return pref;

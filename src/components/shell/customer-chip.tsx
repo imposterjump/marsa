@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChevronDown, Settings, UserPen } from "lucide-react";
+import { useT } from "@/components/i18n-provider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,11 +18,13 @@ import { useShell } from "./shell-context";
 
 /** PRD FR-1.3: the customer's name and organization in the header. */
 export function CustomerChip() {
+  const t = useT();
   const { data } = useSettings();
   const { openProfile } = useShell();
 
   if (!data) return <Skeleton className="h-10 w-40 rounded-lg" />;
-  const name = data.customerName || "Guest";
+  // "Guest" is stored when the welcome is skipped: shown in the reader's language.
+  const name = !data.customerName || data.customerName === "Guest" ? t("Guest") : data.customerName;
 
   return (
     <DropdownMenu>
@@ -29,7 +32,11 @@ export function CustomerChip() {
         <button
           type="button"
           className="group/chip flex h-10 max-w-64 items-center gap-2.5 rounded-lg ps-1 pe-2 transition-colors outline-none hover:bg-surface-muted focus-visible:ring-3 focus-visible:ring-ring/25 aria-expanded:bg-surface-muted"
-          aria-label={`Account: ${name}${data.organization ? `, ${data.organization}` : ""}`}
+          aria-label={
+            data.organization
+              ? t("Account: {name}, {organization}", { name, organization: data.organization })
+              : t("Account: {name}", { name })
+          }
         >
           <InitialsAvatar name={name} size="sm" tint={0} />
           <span className="hidden min-w-0 flex-col text-start leading-tight sm:flex">
@@ -54,16 +61,16 @@ export function CustomerChip() {
             {name}
           </span>
           <span className="truncate text-xs font-normal text-ink-muted" dir="auto">
-            {data.organization || "No organization set"}
+            {data.organization || t("No organization set")}
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={openProfile} className="gap-2.5">
-          <UserPen className="size-4 text-ink-muted" aria-hidden /> Edit profile
+          <UserPen className="size-4 text-ink-muted" aria-hidden /> {t("Edit profile")}
         </DropdownMenuItem>
         <DropdownMenuItem asChild className="gap-2.5">
           <Link href="/settings">
-            <Settings className="size-4 text-ink-muted" aria-hidden /> Settings
+            <Settings className="size-4 text-ink-muted" aria-hidden /> {t("Settings")}
           </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>

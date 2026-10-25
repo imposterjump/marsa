@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, RotateCcw, ShieldAlert } from "lucide-react";
 import { ProgressRing } from "@/components/data/progress-ring";
+import { useT } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FindingStatusPill, PriorityPill } from "@/components/ui/status-pill";
@@ -16,40 +17,44 @@ import {
   type Priority,
   type Weights,
 } from "@/lib/domain";
+import { msg } from "@/lib/i18n/core";
 import { PRIORITY_LABEL } from "@/lib/labels";
 import { computeScore, creditFor } from "@/lib/scoring";
 import { SaveStatus, Section } from "./settings-section";
-import { APP_NAME } from "@/lib/brand";
 
 const PRIORITY_HINT: Record<Priority, string> = {
-  mandatory: "Must be met. Failing one also flags the vendor at the mandatory gate.",
-  important: "Strongly influences the score.",
-  desirable: "Nice to have; small influence.",
+  mandatory: msg("Must be met. Failing one also flags the vendor at the mandatory gate."),
+  important: msg("Strongly influences the score."),
+  desirable: msg("Nice to have; small influence."),
 };
 
 /** Fixed sample so the effect of every setting is visible at a glance. */
 const SAMPLE: { code: string; priority: Priority; status: FindingStatus }[] = [
-  { code: "REQ-001", priority: "mandatory", status: "compliant" },
-  { code: "REQ-002", priority: "mandatory", status: "compliant" },
-  { code: "REQ-003", priority: "mandatory", status: "partial" },
-  { code: "REQ-004", priority: "mandatory", status: "non_compliant" },
-  { code: "REQ-005", priority: "important", status: "compliant" },
-  { code: "REQ-006", priority: "important", status: "partial" },
-  { code: "REQ-007", priority: "important", status: "compliant" },
-  { code: "REQ-008", priority: "desirable", status: "not_addressed" },
-  { code: "REQ-009", priority: "desirable", status: "compliant" },
-  { code: "REQ-010", priority: "desirable", status: "partial" },
+  { code: "REQ-001", priority: "mandatory", status: "compliant" }, // i18n-ignore
+  { code: "REQ-002", priority: "mandatory", status: "compliant" }, // i18n-ignore
+  { code: "REQ-003", priority: "mandatory", status: "partial" }, // i18n-ignore
+  { code: "REQ-004", priority: "mandatory", status: "non_compliant" }, // i18n-ignore
+  { code: "REQ-005", priority: "important", status: "compliant" }, // i18n-ignore
+  { code: "REQ-006", priority: "important", status: "partial" }, // i18n-ignore
+  { code: "REQ-007", priority: "important", status: "compliant" }, // i18n-ignore
+  { code: "REQ-008", priority: "desirable", status: "not_addressed" }, // i18n-ignore
+  { code: "REQ-009", priority: "desirable", status: "compliant" }, // i18n-ignore
+  { code: "REQ-010", priority: "desirable", status: "partial" }, // i18n-ignore
 ];
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, ""));
 
 export function ScoringSection() {
+  const t = useT();
   const { data } = useSettings();
   return (
     <Section
       id="scoring"
-      title="Scoring"
-      description={`How a vendor's compliance % is calculated from its findings. ${APP_NAME} computes it; the AI never picks the number.`}
+      title={t("Scoring")}
+      description={t(
+        "How a vendor's compliance % is calculated from its findings. {app} computes it; the AI never picks the number.",
+        { app: t.appName },
+      )}
     >
       {/* Mounted once when settings load; later saves don't remount (keeps focus while editing). */}
       {data ? <ScoringEditor initial={data} /> : <Skeleton className="h-96 w-full" />}
@@ -58,6 +63,7 @@ export function ScoringSection() {
 }
 
 function ScoringEditor({ initial }: { initial: SettingsDto }) {
+  const t = useT();
   const save = useUpdateSettings();
   const [weights, setWeights] = useState<Weights>(initial.weights);
   const [partial, setPartial] = useState(initial.partialCredit);
@@ -69,13 +75,13 @@ function ScoringEditor({ initial }: { initial: SettingsDto }) {
   // Debounced auto-save (sync to the server = external system, allowed in an effect).
   useEffect(() => {
     if (!dirty) return;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       save.mutate(
         { weights, partialCredit: partial },
         { onSuccess: () => setSaved({ weights, partial }) },
       );
     }, 600);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- save identity is stable enough; avoid re-arming on each render
   }, [weights, partial, dirty]);
 
@@ -99,13 +105,13 @@ function ScoringEditor({ initial }: { initial: SettingsDto }) {
             setPartial(DEFAULT_PARTIAL_CREDIT);
           }}
         >
-          <RotateCcw /> Reset to defaults
+          <RotateCcw /> {t("Reset to defaults")}
         </Button>
       </div>
 
       {/* Weights */}
       <fieldset className="flex flex-col gap-1">
-        <legend className="mb-3 font-medium text-ink">Weight per priority</legend>
+        <legend className="mb-3 font-medium text-ink">{t("Weight per priority")}</legend>
         {PRIORITIES.map((p) => (
           <div
             key={p}
@@ -114,11 +120,11 @@ function ScoringEditor({ initial }: { initial: SettingsDto }) {
             <div className="flex min-w-0 items-center gap-3">
               <PriorityPill priority={p} />
               <span className="hidden text-[13px] text-ink-muted md:inline">
-                {PRIORITY_HINT[p]}
+                {t(PRIORITY_HINT[p])}
               </span>
             </div>
             <Stepper
-              label={`${PRIORITY_LABEL[p]} weight`}
+              label={t("{priority} weight", { priority: t(PRIORITY_LABEL[p]) })}
               value={weights[p]}
               onChange={(v) => setWeights((w) => ({ ...w, [p]: v }))}
             />
@@ -126,7 +132,7 @@ function ScoringEditor({ initial }: { initial: SettingsDto }) {
         ))}
         {allZero && (
           <p className="text-xs text-fail">
-            At least one weight must be above 0, otherwise every score is 0%.
+            {t("At least one weight must be above 0, otherwise every score is 0%.")}
           </p>
         )}
       </fieldset>
@@ -135,7 +141,7 @@ function ScoringEditor({ initial }: { initial: SettingsDto }) {
       <div className="flex flex-col gap-3">
         <div className="flex items-baseline justify-between gap-4">
           <label htmlFor="partial-credit" className="font-medium text-ink">
-            Credit for “partially compliant”
+            {t("Credit for “partially compliant”")}
           </label>
           <span className="font-heading text-lg font-semibold text-ink tabular-nums">
             {Math.round(partial * 100)}%
@@ -150,32 +156,33 @@ function ScoringEditor({ initial }: { initial: SettingsDto }) {
           value={Math.round(partial * 100)}
           onChange={(e) => setPartial(Number(e.target.value) / 100)}
           className="h-2 w-full cursor-pointer accent-[var(--brand)]"
-          aria-valuetext={`${Math.round(partial * 100)} percent`}
+          aria-valuetext={t("{n} percent", { n: Math.round(partial * 100) })}
         />
         <p className="text-[13px] text-ink-muted">
-          A requirement that is only partly met earns this share of its weight. Example: 27″ display
-          requested at 2K, offered at HD → partial.
+          {t(
+            "A requirement that is only partly met earns this share of its weight. Example: 27″ display requested at 2K, offered at HD → partial.",
+          )}
         </p>
       </div>
 
       {/* Live example */}
       <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface-muted/40 p-5">
         <div className="flex flex-col gap-1">
-          <h3 className="font-semibold text-ink">Live example</h3>
+          <h3 className="font-semibold text-ink">{t("Live example")}</h3>
           <p className="text-[13px] text-ink-muted">
-            A vendor with 10 findings. Change the settings above and watch the score.
+            {t("A vendor with 10 findings. Change the settings above and watch the score.")}
           </p>
         </div>
         <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_200px]">
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
-              <caption className="sr-only">Sample findings and points</caption>
+              <caption className="sr-only">{t("Sample findings and points")}</caption>
               <thead>
                 <tr className="text-xs text-ink-muted">
-                  <th className="py-1.5 pe-3 text-start font-medium">Req.</th>
-                  <th className="py-1.5 pe-3 text-start font-medium">Priority</th>
-                  <th className="py-1.5 pe-3 text-start font-medium">Finding</th>
-                  <th className="py-1.5 text-end font-medium">Points</th>
+                  <th className="py-1.5 pe-3 text-start font-medium">{t("Req.")}</th>
+                  <th className="py-1.5 pe-3 text-start font-medium">{t("Priority")}</th>
+                  <th className="py-1.5 pe-3 text-start font-medium">{t("Finding")}</th>
+                  <th className="py-1.5 text-end font-medium">{t("Points")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -201,7 +208,7 @@ function ScoringEditor({ initial }: { initial: SettingsDto }) {
               <tfoot>
                 <tr className="border-t-2 border-border-strong font-semibold text-ink">
                   <td colSpan={3} className="py-2">
-                    Total
+                    {t("Total")}
                   </td>
                   <td className="py-2 text-end tabular-nums">
                     {fmt(result.earned)} / {fmt(result.possible)}
@@ -216,8 +223,8 @@ function ScoringEditor({ initial }: { initial: SettingsDto }) {
               value={result.scorePct}
               decimals={1}
               size={120}
-              caption="compliance"
-              label="Example compliance score"
+              caption={t("compliance")}
+              label={t("Example compliance score")}
             />
             <p className="text-center text-xs text-ink-muted tabular-nums">
               {fmt(result.earned)} ÷ {fmt(result.possible)} × 100
@@ -225,7 +232,11 @@ function ScoringEditor({ initial }: { initial: SettingsDto }) {
             {result.mandatoryFailures > 0 && (
               <p className="flex items-center gap-1.5 text-center text-xs font-medium text-fail">
                 <ShieldAlert className="size-3.5" aria-hidden />
-                {result.mandatoryFailures} mandatory failure: flagged at the gate
+                {t.plural(
+                  result.mandatoryFailures,
+                  "{n} mandatory failure: flagged at the gate",
+                  "{n} mandatory failures: flagged at the gate",
+                )}
               </p>
             )}
           </div>
@@ -244,6 +255,7 @@ function Stepper({
   value: number;
   onChange: (v: number) => void;
 }) {
+  const t = useT();
   const clamp = (v: number) => Math.max(0, Math.min(10, Math.round(v)));
   return (
     <div className="flex items-center gap-1" role="group" aria-label={label}>
@@ -251,7 +263,7 @@ function Stepper({
         type="button"
         variant="secondary"
         size="icon-sm"
-        aria-label={`Decrease ${label}`}
+        aria-label={t("Decrease {label}", { label })}
         disabled={value <= 0}
         onClick={() => onChange(clamp(value - 1))}
       >
@@ -271,7 +283,7 @@ function Stepper({
         type="button"
         variant="secondary"
         size="icon-sm"
-        aria-label={`Increase ${label}`}
+        aria-label={t("Increase {label}", { label })}
         disabled={value >= 10}
         onClick={() => onChange(clamp(value + 1))}
       >

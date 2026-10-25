@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { Check, FileText, Plus, Receipt, Trash2, UserPlus } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -32,7 +33,6 @@ import { useSettings } from "@/hooks/use-settings";
 import { ApiClientError } from "@/lib/api-client";
 import type { ProposalSummaryDto, VendorDto } from "@/lib/api-types";
 import { PROPOSAL_SECTION_LABEL } from "@/lib/labels";
-import { APP_NAME } from "@/lib/brand";
 import { PROPOSAL_SECTIONS } from "@/lib/domain";
 
 const EMPTY: VendorInput = { name: "", country: "", contactName: "", contactEmail: "" };
@@ -55,6 +55,7 @@ export function VendorsEditor({
   /** Dialog use: only the form, no list of saved vendors. */
   compact?: boolean;
 }) {
+  const t = useT();
   const { data: proposals } = useProposals(projectId);
   const [adding, setAdding] = useState(true);
   const list = proposals ?? [];
@@ -62,7 +63,7 @@ export function VendorsEditor({
   return (
     <div className="flex flex-col gap-4">
       {!compact && projectId && list.length > 0 && (
-        <ul aria-label="Vendors added" className="flex flex-col gap-2">
+        <ul aria-label={t("Vendors added")} className="flex flex-col gap-2">
           {list.map((p) => (
             <SavedVendor key={p.id} p={p} projectId={projectId} />
           ))}
@@ -91,7 +92,7 @@ export function VendorsEditor({
         ) : (
           <motion.div key="add" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Button variant="brand" onClick={() => setAdding(true)}>
-              <Plus /> Add another vendor
+              <Plus /> {t("Add another vendor")}
             </Button>
           </motion.div>
         )}
@@ -101,6 +102,7 @@ export function VendorsEditor({
 }
 
 function SavedVendor({ p, projectId }: { p: ProposalSummaryDto; projectId: string }) {
+  const t = useT();
   const remove = useDeleteProposal(projectId);
   const [confirm, setConfirm] = useState(false);
   const c = p.documentCounts;
@@ -112,13 +114,23 @@ function SavedVendor({ p, projectId }: { p: ProposalSummaryDto; projectId: strin
           {p.vendor.name}
         </span>
         <span className="flex flex-wrap items-center gap-x-3 text-xs text-ink-muted">
-          <span className={cn("inline-flex items-center gap-1", c.commercial ? "text-ok" : "text-partial")}>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1",
+              c.commercial ? "text-ok" : "text-partial",
+            )}
+          >
             {c.commercial ? <Check className="size-3" aria-hidden /> : null}
-            Commercial {c.commercial}
+            {t("Commercial {n}", { n: c.commercial })}
           </span>
-          <span className={cn("inline-flex items-center gap-1", c.technical ? "text-ok" : "text-partial")}>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1",
+              c.technical ? "text-ok" : "text-partial",
+            )}
+          >
             {c.technical ? <Check className="size-3" aria-hidden /> : null}
-            Technical {c.technical}
+            {t("Technical {n}", { n: c.technical })}
           </span>
           {p.vendor.country && <span>{p.vendor.country}</span>}
         </span>
@@ -126,7 +138,7 @@ function SavedVendor({ p, projectId }: { p: ProposalSummaryDto; projectId: strin
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={`Remove ${p.vendor.name}`}
+        aria-label={t("Remove {vendor}", { vendor: p.vendor.name })}
         onClick={() => setConfirm(true)}
       >
         <Trash2 />
@@ -134,12 +146,12 @@ function SavedVendor({ p, projectId }: { p: ProposalSummaryDto; projectId: strin
       <ConfirmDialog
         open={confirm}
         onOpenChange={setConfirm}
-        title={`Remove ${p.vendor.name}?`}
-        description="Its proposal files are deleted from this project."
-        confirmLabel="Remove vendor"
+        title={t("Remove {vendor}?", { vendor: p.vendor.name })}
+        description={t("Its proposal files are deleted from this project.")}
+        confirmLabel={t("Remove vendor")}
         onConfirm={async () => {
           await remove.mutateAsync(p.id);
-          toast.success(`${p.vendor.name} removed.`);
+          toast.success(t("{vendor} removed.", { vendor: p.vendor.name }));
         }}
       />
     </li>
@@ -159,6 +171,7 @@ function VendorForm({
   onSaved: (vendorName: string) => void;
   onCancel?: () => void;
 }) {
+  const t = useT();
   const reduce = useReducedMotion();
   const { data: settings } = useSettings();
   const { data: vendors } = useVendors();
@@ -179,24 +192,26 @@ function VendorForm({
   // A name typed again (a vendor from an earlier tender) reuses that vendor instead of failing.
   const typed = vendor.name.trim().toLowerCase();
   const match =
-    mode === "new" && typed ? (vendors ?? []).find((v) => v.name.trim().toLowerCase() === typed) : undefined;
+    mode === "new" && typed
+      ? (vendors ?? []).find((v) => v.name.trim().toLowerCase() === typed)
+      : undefined;
 
   const errors = {
     vendor:
       mode === "existing"
         ? !chosen
-          ? "Choose the vendor."
+          ? t("Choose the vendor.")
           : null
         : vendor.name.trim().length < 2
-          ? "Enter the vendor's company name."
+          ? t("Enter the vendor's company name.")
           : match && taken.includes(match.id)
-            ? `${match.name} is already on this project.`
+            ? t("{vendor} is already on this project.", { vendor: match.name })
             : vendor.contactEmail && !/^\S+@\S+\.\S+$/.test(vendor.contactEmail)
-              ? "Enter a valid email address."
+              ? t("Enter a valid email address.")
               : nameError,
     files:
       commercial.length + technical.length === 0
-        ? "Add the commercial and the technical proposal."
+        ? t("Add the commercial and the technical proposal.")
         : null,
   };
   const show = (e: string | null) => (touched ? e : null);
@@ -208,14 +223,18 @@ function VendorForm({
     try {
       // The guided form may have no draft yet: create it now (it needs the project name first).
       const target = projectId ?? (await ensureProject?.()) ?? null;
-      if (!target) throw new Error("Save the project first.");
+      if (!target) throw new Error(t("Save the project first."));
       let v: VendorDto | undefined = mode === "new" ? match : chosen;
       if (mode === "new" && !v) {
         try {
           v = await createVendor.mutateAsync({ ...vendor, name: vendor.name.trim() });
         } catch (err) {
           if (err instanceof ApiClientError && err.status === 409) {
-            setNameError(`${vendor.name.trim()} already exists: pick it under "Existing vendor".`);
+            setNameError(
+              t('{vendor} already exists: pick it under "Existing vendor".', {
+                vendor: vendor.name.trim(),
+              }),
+            );
             return;
           }
           throw err;
@@ -231,9 +250,22 @@ function VendorForm({
         ],
       });
       if (res.failed.length) {
-        toast.error(`${res.failed.length} file(s) failed: ${res.failed.map((f) => f.name).join(", ")}`);
+        toast.error(
+          t.plural(
+            res.failed.length,
+            "{n} file(s) failed: {names}",
+            "{n} file(s) failed: {names}",
+            {
+              names: res.failed.map((f) => f.name).join(", "),
+            },
+          ),
+        );
       } else {
-        toast.success(`${v.name} added · ${res.uploaded.length} file${res.uploaded.length === 1 ? "" : "s"}`);
+        toast.success(
+          t.plural(res.uploaded.length, "{vendor} added · {n} file", "{vendor} added · {n} files", {
+            vendor: v.name,
+          }),
+        );
       }
       setVendor(EMPTY);
       setVendorId("");
@@ -244,7 +276,7 @@ function VendorForm({
       setFormKey((k) => k + 1);
       onSaved(v.name);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't save the vendor.");
+      toast.error(err instanceof Error ? err.message : t("Couldn't save the vendor."));
     } finally {
       setBusy(false);
     }
@@ -252,21 +284,21 @@ function VendorForm({
 
   return (
     <section
-      aria-label="Add a vendor"
+      aria-label={t("Add a vendor")}
       className="flex flex-col gap-5 rounded-xl border border-border bg-surface p-5 shadow-sm"
     >
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="flex items-center gap-2 font-heading text-base font-semibold text-ink">
-          <UserPlus className="size-4 text-brand" aria-hidden /> Vendor
+          <UserPlus className="size-4 text-brand" aria-hidden /> {t("Vendor")}
         </h3>
         {choices.length > 0 && (
           <SegmentedControl
-            aria-label="Vendor"
+            aria-label={t("Vendor")}
             value={mode}
             onValueChange={(v) => setMode(v)}
             options={[
-              { value: "new", label: "New vendor" },
-              { value: "existing", label: "Existing vendor" },
+              { value: "new", label: t("New vendor") },
+              { value: "existing", label: t("Existing vendor") },
             ]}
           />
         )}
@@ -281,10 +313,10 @@ function VendorForm({
           transition={{ duration: 0.18 }}
         >
           {mode === "existing" ? (
-            <Field label="Vendor" error={show(errors.vendor)}>
+            <Field label={t("Vendor")} error={show(errors.vendor)}>
               <Select value={vendorId} onValueChange={setVendorId}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Choose a vendor" />
+                  <SelectValue placeholder={t("Choose a vendor")} />
                 </SelectTrigger>
                 <SelectContent>
                   {choices.map((v) => (
@@ -299,9 +331,16 @@ function VendorForm({
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
-                label="Company name"
+                label={t("Company name")}
                 error={show(errors.vendor)}
-                hint={match && !taken.includes(match.id) ? `${match.name} is already in ${APP_NAME}: its details are reused.` : undefined}
+                hint={
+                  match && !taken.includes(match.id)
+                    ? t("{vendor} is already in {app}: its details are reused.", {
+                        vendor: match.name,
+                        app: t.appName,
+                      })
+                    : undefined
+                }
                 className="sm:col-span-2"
               >
                 <Input
@@ -310,23 +349,23 @@ function VendorForm({
                     setVendor({ ...vendor, name: e.target.value });
                     setNameError(null);
                   }}
-                  placeholder="e.g. Trakom Security Solutions"
+                  placeholder={t("e.g. {company}", { company: "Trakom Security Solutions" })}
                   dir="auto"
                 />
               </Field>
-              <Field label="Country" optional>
+              <Field label={t("Country")} optional>
                 <Input
                   value={vendor.country}
                   onChange={(e) => setVendor({ ...vendor, country: e.target.value })}
                 />
               </Field>
-              <Field label="Contact name" optional>
+              <Field label={t("Contact name")} optional>
                 <Input
                   value={vendor.contactName}
                   onChange={(e) => setVendor({ ...vendor, contactName: e.target.value })}
                 />
               </Field>
-              <Field label="Contact email" optional className="sm:col-span-2">
+              <Field label={t("Contact email")} optional className="sm:col-span-2">
                 <Input
                   type="email"
                   value={vendor.contactEmail}
@@ -341,10 +380,11 @@ function VendorForm({
       <div key={formKey} className="grid gap-5 lg:grid-cols-2 [&>*]:min-w-0">
         <div className="flex flex-col gap-2">
           <Dropzone
-            label="Commercial proposal"
+            label={t("Commercial proposal")}
             description={
               <span className="flex items-center gap-1.5">
-                <Receipt className="size-3.5" aria-hidden /> Prices, payment and terms (sections 6–7)
+                <Receipt className="size-3.5" aria-hidden />{" "}
+                {t("Prices, payment and terms (sections 6–7)")}
               </span>
             }
             maxSizeMb={maxMb}
@@ -354,10 +394,11 @@ function VendorForm({
         </div>
         <div className="flex flex-col gap-2">
           <Dropzone
-            label="Technical proposal"
+            label={t("Technical proposal")}
             description={
               <span className="flex items-center gap-1.5">
-                <FileText className="size-3.5" aria-hidden /> Solution, plan and support (sections 1–5)
+                <FileText className="size-3.5" aria-hidden />{" "}
+                {t("Solution, plan and support (sections 1–5)")}
               </span>
             }
             maxSizeMb={maxMb}
@@ -367,10 +408,12 @@ function VendorForm({
         </div>
       </div>
       <details className="text-xs text-ink-muted">
-        <summary className="cursor-pointer select-none">Proposal template (7 sections)</summary>
+        <summary className="cursor-pointer select-none">
+          {t("Proposal template (7 sections)")}
+        </summary>
         <ol className="mt-2 grid list-decimal gap-1 ps-5 sm:grid-cols-2">
           {PROPOSAL_SECTIONS.map((s) => (
-            <li key={s}>{PROPOSAL_SECTION_LABEL[s]}</li>
+            <li key={s}>{t(PROPOSAL_SECTION_LABEL[s])}</li>
           ))}
         </ol>
       </details>
@@ -379,11 +422,11 @@ function VendorForm({
       <div className="flex flex-wrap items-center justify-end gap-3">
         {onCancel && (
           <Button variant="ghost" onClick={onCancel}>
-            Cancel
+            {t("Cancel")}
           </Button>
         )}
         <Button onClick={() => void save()} loading={busy}>
-          <Check /> Save vendor
+          <Check /> {t("Save vendor")}
         </Button>
       </div>
     </section>

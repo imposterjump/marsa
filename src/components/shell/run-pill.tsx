@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
+import { useT } from "@/components/i18n-provider";
 import { useHydrationSafe } from "@/hooks/hydration-safe";
 import { projectKey, projectsKey } from "@/hooks/use-projects";
 import { activeRunsKey } from "@/hooks/use-runs";
@@ -18,6 +19,7 @@ import { EASE_OUT_QUINT } from "@/components/motion/reveal";
  * completion toast with "View results" (wherever the user is when the run ends).
  */
 export function RunPill() {
+  const t = useT();
   const router = useRouter();
   const qc = useQueryClient();
   const reduce = useReducedMotion();
@@ -46,25 +48,31 @@ export function RunPill() {
         const s = await api<RunStatusDto>(`/api/runs/${id}`).catch(() => null);
         const status = s?.run.status;
         const view = {
-          label: "View results",
+          label: t("View results"),
           onClick: () => router.push(`/analysis/${r.projectId}`),
         };
         if (status === "completed") {
-          toast.success(`Analysis complete · ${r.projectCode}`, { action: view, duration: 10_000 });
+          toast.success(t("Analysis complete · {code}", { code: r.projectCode }), {
+            action: view,
+            duration: 10_000,
+          });
         } else if (status === "completed_with_errors") {
-          toast.warning(`Analysis finished with errors · ${r.projectCode}`, {
+          toast.warning(t("Analysis finished with errors · {code}", { code: r.projectCode }), {
             action: view,
             duration: 10_000,
           });
         } else if (status === "failed") {
-          toast.error(`Analysis failed · ${r.projectCode}`, { action: view, duration: 10_000 });
+          toast.error(t("Analysis failed · {code}", { code: r.projectCode }), {
+            action: view,
+            duration: 10_000,
+          });
         } else if (status === "cancelled") {
-          toast(`Analysis cancelled · ${r.projectCode}`);
+          toast(t("Analysis cancelled · {code}", { code: r.projectCode }));
         }
       })();
     }
     seen.current = now;
-  }, [data, qc, router]);
+  }, [data, qc, router, t]);
 
   const run = data?.[0];
   const pct = run && run.totalSteps ? run.doneSteps / run.totalSteps : 0;
@@ -86,7 +94,7 @@ export function RunPill() {
           <Link
             href={`/analysis/${run.projectId}`}
             className="flex h-9 items-center gap-2 rounded-full border border-brand/30 bg-brand-soft ps-2 pe-3 text-[13px] font-medium text-brand-ink transition-colors hover:border-brand/50 focus-visible:ring-3 focus-visible:ring-ring/25 focus-visible:outline-none"
-            title={run.currentLabel ?? undefined}
+            title={run.currentLabel ? t.auto(run.currentLabel) : undefined}
           >
             <svg viewBox="0 0 18 18" className="size-[18px] -rotate-90" aria-hidden>
               <circle
@@ -110,9 +118,14 @@ export function RunPill() {
               />
             </svg>
             <span aria-live="polite" className="whitespace-nowrap tabular-nums">
-              <span className="hidden sm:inline">Analysing · </span>
-              {run.doneSteps}/{run.totalSteps}
-              <span className="sr-only"> steps finished for {run.projectCode}</span>
+              <span className="hidden sm:inline">{t("Analysing")} · </span>
+              <span dir="ltr">
+                {run.doneSteps}/{run.totalSteps}
+              </span>
+              <span className="sr-only">
+                {" "}
+                {t("steps finished for {code}", { code: run.projectCode })}
+              </span>
             </span>
             {data.length > 1 && (
               <span className="rounded-full bg-brand/15 px-1.5 text-2xs tabular-nums">

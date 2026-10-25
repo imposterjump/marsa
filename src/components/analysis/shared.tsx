@@ -4,6 +4,7 @@ import { useId } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import type { VendorDocRef } from "@/components/results/finding-card";
 import { STATUS_FILL } from "@/components/results/gap-bar";
@@ -20,6 +21,7 @@ import {
   type ProposalSection,
   type RiskSeverity,
 } from "@/lib/domain";
+import { msg } from "@/lib/i18n/core";
 import { FINDING_STATUS_LABEL, PROPOSAL_SECTION_LABEL } from "@/lib/labels";
 import { computeScore, emptyCounts } from "@/lib/scoring";
 import { pointType, type PointType } from "@/lib/sections";
@@ -39,8 +41,9 @@ export function vendorColors(vendors: VendorResultDto[]): Map<string, string> {
 
 /** Template order, then "Not assigned" for runs from before P8. */
 export const SECTION_ORDER: (ProposalSection | null)[] = [...PROPOSAL_SECTIONS, null];
+/** The section's English label, msg()-marked: show it with t(sectionLabel(s)). */
 export const sectionLabel = (s: ProposalSection | null) =>
-  s ? PROPOSAL_SECTION_LABEL[s] : "Not assigned to a section";
+  s ? PROPOSAL_SECTION_LABEL[s] : msg("Not assigned to a section");
 /**
  * The sections a results tab shows: always all 7 of the template (an empty one says so), plus
  * "Not assigned" only when an older run has points without a section.
@@ -60,7 +63,10 @@ export function SectionTitle({
   section: ProposalSection | null;
   as?: "h3" | "span";
 }) {
-  return <Tag className="font-heading text-lg font-semibold text-ink">{sectionLabel(section)}</Tag>;
+  const t = useT();
+  return (
+    <Tag className="font-heading text-lg font-semibold text-ink">{t(sectionLabel(section))}</Tag>
+  );
 }
 
 export type Scope = "standard" | "rfp";
@@ -118,12 +124,12 @@ export function vendorDocRefs(v: VendorResultDto): VendorDocRef[] {
     ...v.technicalDocuments.map((d) => ({
       id: d.id,
       name: d.originalName,
-      envelope: "Technical" as const,
+      envelope: msg("Technical"),
     })),
     ...v.commercialDocuments.map((d) => ({
       id: d.id,
       name: d.originalName,
-      envelope: "Commercial" as const,
+      envelope: msg("Commercial"),
     })),
   ];
 }
@@ -188,7 +194,8 @@ export function MeterBar({
       className={cn("h-2 w-full overflow-hidden rounded-full bg-surface-muted", className)}
     >
       <div
-        className="h-full rounded-full transition-[width] duration-500 ease-out-quint"
+        // Mirrored in Arabic so a gradient still runs from the bar's start to its end.
+        className="h-full rounded-full transition-[width] duration-500 ease-out-quint rtl:-scale-x-100"
         style={{ width: `${v}%`, background: value === null ? "transparent" : fill }}
       />
     </div>
@@ -275,6 +282,7 @@ export function CountsLegend({
   label: string;
   className?: string;
 }) {
+  const t = useT();
   return (
     <ul
       className={cn("flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink-2", className)}
@@ -284,7 +292,7 @@ export function CountsLegend({
         <li key={st} className="inline-flex items-center gap-1.5">
           <span aria-hidden className={cn("size-2 rounded-full", STATUS_FILL[st])} />
           <span className="font-semibold tabular-nums">{counts[st]}</span>
-          {FINDING_STATUS_LABEL[st].toLowerCase()}
+          {t(FINDING_STATUS_LABEL[st]).toLowerCase()}
         </li>
       ))}
     </ul>
@@ -312,6 +320,7 @@ export function VendorCardShell({
   header: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const t = useT();
   const reduce = useReducedMotion();
   const bodyId = useId();
   return (
@@ -339,7 +348,9 @@ export function VendorCardShell({
           className="absolute end-4 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-lg border border-border bg-surface text-ink-muted shadow-xs transition-colors hover:text-ink"
         >
           <span className="sr-only">
-            {open ? "Collapse" : "Expand"} {v.vendor.name}
+            {open
+              ? t("Collapse {name}", { name: v.vendor.name })
+              : t("Expand {name}", { name: v.vendor.name })}
           </span>
           <ChevronDown
             aria-hidden
@@ -370,11 +381,13 @@ export function VendorCardShell({
 
 /** "VENDOR 2" over a vendor's card, with a rule, so the cards read as separate blocks. */
 export function VendorDivider({ n, total }: { n: number; total: number }) {
+  const t = useT();
   return (
     <div className="flex items-center gap-3" aria-hidden>
+      {/* Two parts in two tones ("VENDOR 2" + a faint "of 3"); Arabic keeps the same order. */}
       <span className="caption-caps text-ink-muted">
-        Vendor {n}
-        <span className="text-ink-faint"> of {total}</span>
+        {t("Vendor {n}", { n })}
+        <span className="text-ink-faint"> {t("of {total}", { total })}</span>
       </span>
       <span className="h-px flex-1 bg-border" />
     </div>

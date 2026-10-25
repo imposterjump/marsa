@@ -1,5 +1,8 @@
+"use client";
+
 import { Sparkles } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 
 /**
  * RTA "AI narrative panel": an analyst's brief in a frame, never a chat bubble. Always marked
@@ -20,6 +23,7 @@ export function AiPanel({
   actions?: React.ReactNode;
   className?: string;
 }) {
+  const t = useT();
   return (
     <section
       aria-label={title}
@@ -43,7 +47,8 @@ export function AiPanel({
                 {title}
               </h3>
               <span className="text-xs text-ink-muted">
-                AI-generated{model ? ` · ${model}` : ""}
+                {t("AI-generated")}
+                {model ? ` · ${model}` : ""}
                 {when ? ` · ${when}` : ""}
               </span>
             </div>

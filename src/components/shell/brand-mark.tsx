@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- static brand asset from public/brand */
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { APP_NAME, APP_TAGLINE } from "@/lib/brand";
 
 /**
@@ -16,10 +17,11 @@ export function Emblem({
   className?: string;
   decorative?: boolean;
 }) {
+  const t = useT();
   return (
     <img
       src="/brand/sharjah-emblem.png"
-      alt={decorative ? "" : "Emblem of Sharjah"}
+      alt={decorative ? "" : t("Emblem of Sharjah")}
       aria-hidden={decorative || undefined}
       width={size}
       height={size}
@@ -44,6 +46,7 @@ export function Wordmark({
   tagline?: boolean;
   onDark?: boolean;
 }) {
+  const t = useT();
   return (
     <span className="flex min-w-0 flex-col leading-none">
       <span
@@ -61,7 +64,7 @@ export function Wordmark({
             onDark ? "text-rail-muted" : "text-ink-muted",
           )}
         >
-          {APP_TAGLINE}
+          {t(APP_TAGLINE)}
         </span>
       )}
     </span>

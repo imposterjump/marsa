@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ChevronDown, Sparkles, ThumbsDown, ThumbsUp, type LucideIcon } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 
 /**
@@ -25,6 +26,7 @@ export function InsightCard({
   icon?: LucideIcon;
   defaultOpen?: boolean;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(defaultOpen);
   const reduce = useReducedMotion();
   const id = useId();
@@ -64,7 +66,7 @@ export function InsightCard({
               aria-controls={id}
               className="mt-1 inline-flex w-fit items-center gap-1 rounded-sm text-xs font-medium text-brand-ink outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
             >
-              {open ? "View less" : "View more"}
+              {open ? t("View less") : t("View more")}
               <ChevronDown
                 aria-hidden
                 className={cn("size-3.5 transition-transform", open && "rotate-180")}

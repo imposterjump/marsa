@@ -2,7 +2,8 @@
  * Bulk "Paste rules" parser (Standards → rules editor).
  * One rule per line:   CODE | rule text | priority
  *   - separator: "|" or a TAB (so rows pasted from Excel/Word tables work)
- *   - priority: mandatory / important / desirable, or M / I / D (case-insensitive); defaults to important
+ *   - priority: mandatory / important / desirable, or M / I / D (case-insensitive), or the Arabic
+ *     إلزامي / مهم / مرغوب; defaults to important
  *   - CODE may be omitted ("rule text | priority" or just "rule text"): a code is generated
  *   - blank lines and lines starting with "#" are ignored
  */
@@ -30,6 +31,12 @@ const PRIORITY_ALIASES: Record<string, Priority> = {
   d: "desirable",
   desirable: "desirable",
   optional: "desirable",
+  // Arabic (2026-10-25): rules pasted or uploaded from an Arabic standard.
+  إلزامي: "mandatory",
+  الزامي: "mandatory",
+  مهم: "important",
+  مرغوب: "desirable",
+  اختياري: "desirable",
 };
 
 const CODE_RE = /^[A-Za-z][A-Za-z0-9._-]{0,23}$/;

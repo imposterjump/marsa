@@ -5,6 +5,7 @@ import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 import { toast } from "sonner";
 import { CircleCheck, CircleX, Send, ShieldAlert, Star } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -14,13 +15,25 @@ import { useCreateReview, useRunReviews, type ReviewInput } from "@/hooks/use-ai
 import { useSettings } from "@/hooks/use-settings";
 import type { RunReviewDto } from "@/lib/api-types";
 import type { ReviewVerdict } from "@/lib/domain";
-import { formatDateTime } from "@/lib/format";
+import { msg } from "@/lib/i18n/core";
 
 const DIMENSIONS = [
-  { key: "accuracy", label: "Accuracy", hint: "Are the compliance calls right?" },
-  { key: "evidence", label: "Evidence", hint: "Do the quotes and pages support them?" },
-  { key: "completeness", label: "Completeness", hint: "Did it miss requirements or risks?" },
-  { key: "usefulness", label: "Usefulness", hint: "Would the summary help a committee decide?" },
+  { key: "accuracy", label: msg("Accuracy"), hint: msg("Are the compliance calls right?") },
+  {
+    key: "evidence",
+    label: msg("Evidence"),
+    hint: msg("Do the quotes and pages support them?"),
+  },
+  {
+    key: "completeness",
+    label: msg("Completeness"),
+    hint: msg("Did it miss requirements or risks?"),
+  },
+  {
+    key: "usefulness",
+    label: msg("Usefulness"),
+    hint: msg("Would the summary help a committee decide?"),
+  },
 ] as const;
 type Dimension = (typeof DIMENSIONS)[number]["key"];
 
@@ -30,9 +43,14 @@ const VERDICTS: {
   tone: "ok" | "partial" | "fail";
   icon: typeof CircleCheck;
 }[] = [
-  { id: "trust", label: "Trust it", tone: "ok", icon: CircleCheck },
-  { id: "trust_with_edits", label: "Trust with corrections", tone: "partial", icon: ShieldAlert },
-  { id: "do_not_trust", label: "Don't trust it", tone: "fail", icon: CircleX },
+  { id: "trust", label: msg("Trust it"), tone: "ok", icon: CircleCheck },
+  {
+    id: "trust_with_edits",
+    label: msg("Trust with corrections"),
+    tone: "partial",
+    icon: ShieldAlert,
+  },
+  { id: "do_not_trust", label: msg("Don't trust it"), tone: "fail", icon: CircleX },
 ];
 
 /** 1–5 stars as an accessible radio group (arrow keys move, Space/Enter selects). */
@@ -47,6 +65,7 @@ function Stars({
   label: string;
   size?: "md" | "lg";
 }) {
+  const t = useT();
   return (
     <RadioGroupPrimitive.Root
       aria-label={label}
@@ -59,7 +78,7 @@ function Stars({
         <RadioGroupPrimitive.Item
           key={n}
           value={String(n)}
-          aria-label={`${n} of 5`}
+          aria-label={t("{n} of 5", { n })}
           className="rounded-md p-0.5 outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
         >
           <Star
@@ -77,8 +96,13 @@ function Stars({
 }
 
 function StarsReadOnly({ value, label }: { value: number; label: string }) {
+  const t = useT();
   return (
-    <span className="flex items-center gap-0.5" role="img" aria-label={`${label}: ${value} of 5`}>
+    <span
+      className="flex items-center gap-0.5"
+      role="img"
+      aria-label={t("{label}: {n} of 5", { label, n: value })}
+    >
       {[1, 2, 3, 4, 5].map((n) => (
         <Star
           key={n}
@@ -94,6 +118,7 @@ function StarsReadOnly({ value, label }: { value: number; label: string }) {
  * Human review of one run (saved with a snapshot of the run's metrics, for improving the system).
  */
 export function ReviewPanel({ projectId, runId }: { projectId: string; runId: string }) {
+  const t = useT();
   const { data: settings } = useSettings();
   const { data: reviews } = useRunReviews(runId);
   const create = useCreateReview(projectId, runId);
@@ -117,14 +142,14 @@ export function ReviewPanel({ projectId, runId }: { projectId: string; runId: st
     const input: ReviewInput = { reviewer: name, overall, ...dims, verdict, comment };
     try {
       await create.mutateAsync(input);
-      toast.success("Review saved");
+      toast.success(t("Review saved"));
       setOverall(null);
       setDims({ accuracy: null, evidence: null, completeness: null, usefulness: null });
       setVerdict(null);
       setComment("");
       setTried(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't save the review.");
+      toast.error(err instanceof Error ? err.message : t("Couldn't save the review."));
     }
   };
 
@@ -135,32 +160,36 @@ export function ReviewPanel({ projectId, runId }: { projectId: string; runId: st
     >
       <div className="flex flex-col gap-1">
         <h3 id="review-title" className="font-heading text-base font-semibold text-ink">
-          Your review of this analysis
+          {t("Your review of this analysis")}
         </h3>
         <p className="text-[13px] text-ink-muted">
-          Rate the AI’s work after checking its findings. Reviews are stored with this run’s metrics
-          and can be exported to improve prompts, models and scoring.
+          {t(
+            "Rate the AI’s work after checking its findings. Reviews are stored with this run’s metrics and can be exported to improve prompts, models and scoring.",
+          )}
         </p>
       </div>
 
       <form onSubmit={submit} noValidate className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-ink">Overall rating</span>
-          <Stars value={overall} onChange={setOverall} label="Overall rating" size="lg" />
-          {tried && !overall && <p className="text-xs text-fail">Choose an overall rating.</p>}
+          <span className="text-sm font-medium text-ink">{t("Overall rating")}</span>
+          <Stars value={overall} onChange={setOverall} label={t("Overall rating")} size="lg" />
+          {tried && !overall && (
+            <p className="text-xs text-fail">{t("Choose an overall rating.")}</p>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           {DIMENSIONS.map((d) => (
             <div key={d.key} className="flex flex-col gap-1">
               <span className="text-[13px] font-medium text-ink">
-                {d.label} <span className="font-normal text-ink-faint">(optional)</span>
+                {t(d.label)}{" "}
+                <span className="font-normal text-ink-faint">({t("Optional").toLowerCase()})</span>
               </span>
-              <span className="text-xs text-ink-muted">{d.hint}</span>
+              <span className="text-xs text-ink-muted">{t(d.hint)}</span>
               <Stars
                 value={dims[d.key]}
                 onChange={(v) => setDims((x) => ({ ...x, [d.key]: v }))}
-                label={d.label}
+                label={t(d.label)}
               />
             </div>
           ))}
@@ -168,7 +197,7 @@ export function ReviewPanel({ projectId, runId }: { projectId: string; runId: st
 
         <div className="flex flex-col gap-2">
           <span id="verdict-label" className="text-sm font-medium text-ink">
-            Would you rely on it for the award decision?
+            {t("Would you rely on it for the award decision?")}
           </span>
           <RadioGroupPrimitive.Root
             aria-labelledby="verdict-label"
@@ -202,17 +231,17 @@ export function ReviewPanel({ projectId, runId }: { projectId: string; runId: st
                         : "text-fail",
                   )}
                 />
-                {v.label}
+                {t(v.label)}
               </RadioGroupPrimitive.Item>
             ))}
           </RadioGroupPrimitive.Root>
-          {tried && !verdict && <p className="text-xs text-fail">Choose one.</p>}
+          {tried && !verdict && <p className="text-xs text-fail">{t("Choose one.")}</p>}
         </div>
 
         <Field
-          label="Comments"
+          label={t("Comments")}
           optional
-          hint="What was wrong or missing? Which findings did you have to correct?"
+          hint={t("What was wrong or missing? Which findings did you have to correct?")}
         >
           <Textarea
             value={comment}
@@ -221,13 +250,13 @@ export function ReviewPanel({ projectId, runId }: { projectId: string; runId: st
             maxLength={4000}
           />
         </Field>
-        <Field label="Reviewer" optional>
+        <Field label={t("Reviewer")} optional>
           <Input value={name} onChange={(e) => setReviewer(e.target.value)} maxLength={120} />
         </Field>
 
         <div>
           <Button type="submit" disabled={create.isPending}>
-            <Send /> Submit review
+            <Send /> {t("Submit review")}
           </Button>
         </div>
       </form>
@@ -235,7 +264,7 @@ export function ReviewPanel({ projectId, runId }: { projectId: string; runId: st
       {!!reviews?.length && (
         <div className="flex flex-col gap-3 border-t border-border pt-5">
           <h4 className="text-2xs font-semibold tracking-[0.06em] text-ink-muted uppercase">
-            Reviews of this run ({reviews.length})
+            {t("Reviews of this run ({n})", { n: reviews.length })}
           </h4>
           <ul className="flex flex-col gap-3">
             {reviews.map((r) => (
@@ -249,23 +278,24 @@ export function ReviewPanel({ projectId, runId }: { projectId: string; runId: st
 }
 
 function ReviewItem({ r }: { r: RunReviewDto }) {
+  const t = useT();
   const v = VERDICTS.find((x) => x.id === r.verdict)!;
   return (
     <li className="flex flex-col gap-2 rounded-lg border border-border/70 p-4 text-[13px]">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <StarsReadOnly value={r.overall} label="Overall" />
+        <StarsReadOnly value={r.overall} label={t("Overall")} />
         <Pill tone={v.tone} icon={v.icon} size="sm">
-          {v.label}
+          {t(v.label)}
         </Pill>
         <span className="text-xs text-ink-muted">
-          {r.reviewer || "Anonymous"} · {formatDateTime(r.createdAt)}
+          {r.reviewer || t("Anonymous")} · {t.dateTime(r.createdAt)}
         </span>
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-muted">
         {DIMENSIONS.map((d) =>
           r[d.key] ? (
             <span key={d.key} className="flex items-center gap-1">
-              {d.label} <StarsReadOnly value={r[d.key]!} label={d.label} />
+              {t(d.label)} <StarsReadOnly value={r[d.key]!} label={t(d.label)} />
             </span>
           ) : null,
         )}

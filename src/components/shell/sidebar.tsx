@@ -6,21 +6,22 @@ import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import { FlaskConical, KeyRound, PanelLeftClose, PanelLeftOpen, Sparkles } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSettings } from "@/hooks/use-settings";
 import { Emblem, Wordmark } from "./brand-mark";
 import { isActive, NAV_ITEMS } from "./nav";
 import { AI_MODEL_LABEL } from "@/lib/labels";
-import { APP_NAME } from "@/lib/brand";
 
 /**
  * Desktop sidebar (≥ lg): the deep-ink rail of the RTA shell, the single standing dark element.
  * Width comes from --sidebar-w, toggled pre-paint via data-sidebar.
  */
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  const t = useT();
   return (
     <aside
-      aria-label="Sidebar"
+      aria-label={t("Sidebar")}
       className="sidebar-rail sticky top-0 hidden h-dvh shrink-0 flex-col bg-rail transition-[width] duration-200 ease-out-quint lg:flex"
       style={{ width: "var(--sidebar-w)" }}
     >
@@ -31,20 +32,24 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
             <button
               type="button"
               onClick={onToggle}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={collapsed ? t("Expand sidebar") : t("Collapse sidebar")}
               aria-expanded={!collapsed}
               className="flex h-9 w-full items-center gap-3 rounded-lg px-3 text-rail-muted transition-colors hover:bg-rail-raised hover:text-rail-ink focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none collapsed:justify-center collapsed:px-0"
             >
               {collapsed ? (
-                <PanelLeftOpen className="size-[18px]" />
+                <PanelLeftOpen className="size-[18px] rtl:-scale-x-100" />
               ) : (
-                <PanelLeftClose className="size-[18px]" />
+                <PanelLeftClose className="size-[18px] rtl:-scale-x-100" />
               )}
-              <span className="text-[13px] collapsed:hidden">Collapse</span>
+              <span className="text-[13px] collapsed:hidden">{t("Collapse")}</span>
             </button>
           </TooltipTrigger>
-          <TooltipContent side="right" className={cn(!collapsed && "hidden")}>
-            Expand sidebar
+          {/* Tooltips open towards the page: right of the rail, left of it in Arabic. */}
+          <TooltipContent
+            side={t.dir === "rtl" ? "left" : "right"}
+            className={cn(!collapsed && "hidden")}
+          >
+            {t("Expand sidebar")}
           </TooltipContent>
         </Tooltip>
       </div>
@@ -54,19 +59,20 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
 
 /** Shared by the desktop rail and the mobile drawer. */
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+  const t = useT();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-8 px-3 pt-6">
       <Link
         href="/projects"
         onClick={onNavigate}
-        aria-label={`${APP_NAME}: projects`}
+        aria-label={t("{app}: projects", { app: t.appName })}
         className="flex flex-col gap-4 rounded-lg px-2 py-1 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none collapsed:items-center collapsed:px-0"
       >
         <Emblem size={56} className="collapsed:hidden" />
         <Emblem size={34} className="hidden collapsed:block" decorative />
         <span className="collapsed:hidden">
-          <Wordmark appName={APP_NAME} onDark />
+          <Wordmark appName={t.appName} onDark />
         </span>
       </Link>
 
@@ -78,7 +84,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <AiModeChip />
         <span className="inline-flex w-fit items-center gap-2 rounded-full border border-sidebar-border px-3 py-1 text-[10px] font-bold tracking-[0.1em] text-rail-muted uppercase collapsed:hidden">
           <span aria-hidden className="size-1.5 rounded-full bg-rta" />
-          PoC — Demo environment
+          {t("PoC — Demo environment")}
         </span>
       </div>
     </div>
@@ -91,10 +97,11 @@ function LiveNavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 /** pathname = null while suspended (prerender of dynamic routes): no item is marked active. */
 function NavLinks({ pathname, onNavigate }: { pathname: string | null; onNavigate?: () => void }) {
+  const t = useT();
   return (
-    <nav aria-label="Main navigation" className="flex flex-col gap-1">
+    <nav aria-label={t("Main navigation")} className="flex flex-col gap-1">
       <span className="px-3 pb-2 text-2xs font-semibold tracking-[0.1em] text-rail-muted/70 uppercase collapsed:hidden">
-        Workspace
+        {t("Workspace")}
       </span>
       {NAV_ITEMS.map((item) => {
         const active = pathname !== null && isActive(pathname, item.href);
@@ -132,15 +139,15 @@ function NavLinks({ pathname, onNavigate }: { pathname: string | null; onNavigat
                   )}
                   strokeWidth={active ? 2.1 : 1.8}
                 />
-                <span className="relative collapsed:sr-only">{item.label}</span>
+                <span className="relative collapsed:sr-only">{t(item.label)}</span>
               </Link>
             </TooltipTrigger>
             <TooltipContent
-              side="right"
+              side={t.dir === "rtl" ? "left" : "right"}
               className="hidden [[data-sidebar=collapsed]_&]:inline-flex"
             >
-              <span className="font-medium">{item.label}</span>
-              <span className="opacity-70">· {item.hint}</span>
+              <span className="font-medium">{t(item.label)}</span>
+              <span className="opacity-70">· {t(item.hint)}</span>
             </TooltipContent>
           </Tooltip>
         );
@@ -150,6 +157,7 @@ function NavLinks({ pathname, onNavigate }: { pathname: string | null; onNavigat
 }
 
 function AiModeChip() {
+  const t = useT();
   const { data } = useSettings();
   if (!data) return <div className="h-14" />;
   const { aiMode, apiKeyConfigured } = data.runtime;
@@ -158,16 +166,16 @@ function AiModeChip() {
     aiMode === "mock"
       ? {
           icon: FlaskConical,
-          title: "Demo AI",
-          sub: "Mock mode",
+          title: t("Demo AI"),
+          sub: t("Mock mode"),
           tone: "text-[#7cb0f0]",
         }
       : apiKeyConfigured
-        ? { icon: Sparkles, title: model, sub: "Live · Anthropic API", tone: "text-[#ff5a47]" }
+        ? { icon: Sparkles, title: model, sub: t("Live · Anthropic API"), tone: "text-[#ff5a47]" }
         : {
             icon: KeyRound,
-            title: "API key missing",
-            sub: "Add ANTHROPIC_API_KEY to .env",
+            title: t("API key missing"),
+            sub: t("Add ANTHROPIC_API_KEY to .env"),
             tone: "text-[#f7b955]",
           };
   const Icon = state.icon;
@@ -182,7 +190,10 @@ function AiModeChip() {
           </span>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="right" className="hidden [[data-sidebar=collapsed]_&]:inline-flex">
+      <TooltipContent
+        side={t.dir === "rtl" ? "left" : "right"}
+        className="hidden [[data-sidebar=collapsed]_&]:inline-flex"
+      >
         {state.title} · {state.sub}
       </TooltipContent>
     </Tooltip>

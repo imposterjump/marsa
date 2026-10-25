@@ -7,6 +7,7 @@ import { Check, Pencil, ShieldCheck } from "lucide-react";
 import { cn } from "cn";
 import { DocumentRow } from "@/components/documents/document-row";
 import { KeyValueList } from "@/components/data/key-value-list";
+import { useT } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Dropzone, type UploadFn } from "@/components/ui/dropzone";
 import { Pill } from "@/components/ui/status-pill";
@@ -14,7 +15,6 @@ import { useDeleteProjectDocument, useInvalidateProject } from "@/hooks/use-proj
 import { useSettings } from "@/hooks/use-settings";
 import type { DocumentDto, ProjectDetailDto } from "@/lib/api-types";
 import { middleTruncate } from "@/lib/files";
-import { deadlineLabel, formatDateTime, formatYmd } from "@/lib/format";
 import { PROJECT_CATEGORY_LABEL } from "@/lib/labels";
 import { uploadFile } from "@/lib/upload";
 import { ProjectStandardsDialog } from "./project-edit-dialog";
@@ -47,6 +47,7 @@ function CardHeader({
 }
 
 export function ProjectOverview() {
+  const t = useT();
   const p = useProjectContext();
   return (
     <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px] [&>*]:min-w-0">
@@ -54,7 +55,7 @@ export function ProjectOverview() {
         <RfpDocuments project={p} />
         {p.notes && (
           <section aria-labelledby="notes-title" className={card}>
-            <CardHeader id="notes-title" title="Key requirements / notes" />
+            <CardHeader id="notes-title" title={t("Key requirements / notes")} />
             <p className="text-[13px] leading-relaxed whitespace-pre-line text-ink-2" dir="auto">
               {p.notes}
             </p>
@@ -71,6 +72,7 @@ export function ProjectOverview() {
 }
 
 function RfpDocuments({ project: p }: { project: ProjectDetailDto }) {
+  const t = useT();
   const { data: settings } = useSettings();
   const invalidate = useInvalidateProject(p.id);
   const remove = useDeleteProjectDocument(p.id);
@@ -82,10 +84,8 @@ function RfpDocuments({ project: p }: { project: ProjectDetailDto }) {
   const upload: UploadFn = async (file, onProgress) => {
     const doc = await uploadFile<DocumentDto>(`/api/projects/${p.id}/documents`, file, onProgress);
     await invalidate();
-    toast.success(`${middleTruncate(doc.originalName, 40)} uploaded`, {
-      description: doc.pageCount
-        ? `${doc.pageCount} page${doc.pageCount === 1 ? "" : "s"}`
-        : undefined,
+    toast.success(t("{name} uploaded", { name: middleTruncate(doc.originalName, 40) }), {
+      description: doc.pageCount ? t.plural(doc.pageCount, "{n} page", "{n} pages") : undefined,
     });
   };
 
@@ -93,11 +93,13 @@ function RfpDocuments({ project: p }: { project: ProjectDetailDto }) {
     <section aria-labelledby="rfp-title" className={card}>
       <CardHeader
         id="rfp-title"
-        title={`RFP documents (${docs.length})`}
-        description="What vendors respond to. The AI reads every file to build the requirement checklist."
+        title={t("RFP documents ({n})", { n: docs.length })}
+        description={t(
+          "What vendors respond to. The AI reads every file to build the requirement checklist.",
+        )}
       />
       {docs.length > 0 ? (
-        <ul className="flex flex-col gap-2" aria-label="RFP documents">
+        <ul className="flex flex-col gap-2" aria-label={t("RFP documents")}>
           {docs.map((d) => (
             <DocumentRow
               key={d.id}
@@ -105,24 +107,27 @@ function RfpDocuments({ project: p }: { project: ProjectDetailDto }) {
               nameMax={52}
               onDelete={
                 canDelete
-                  ? () => remove.mutateAsync(d.id).then(() => toast.success("Document removed."))
+                  ? () => remove.mutateAsync(d.id).then(() => toast.success(t("Document removed.")))
                   : undefined
               }
               deleteDescription={
                 p.status === "open"
-                  ? `Vendors can already see “${d.originalName}”. Removing it changes the tender for everyone.`
-                  : `“${d.originalName}” will be removed from this project.`
+                  ? t(
+                      "Vendors can already see “{name}”. Removing it changes the tender for everyone.",
+                      { name: d.originalName },
+                    )
+                  : t("“{name}” will be removed from this project.", { name: d.originalName })
               }
             />
           ))}
         </ul>
       ) : (
         // While uploads are allowed the dropzone below is the empty state.
-        !canUpload && <p className="text-[13px] text-ink-muted">No RFP documents.</p>
+        !canUpload && <p className="text-[13px] text-ink-muted">{t("No RFP documents.")}</p>
       )}
       {canUpload && (
         <Dropzone
-          label={docs.length ? "Add an addendum or annex" : "Upload the RFP"}
+          label={docs.length ? t("Add an addendum or annex") : t("Upload the RFP")}
           maxSizeMb={settings?.runtime.maxUploadMb ?? 50}
           upload={upload}
           removeOnDone
@@ -133,20 +138,21 @@ function RfpDocuments({ project: p }: { project: ProjectDetailDto }) {
 }
 
 function Details({ project: p }: { project: ProjectDetailDto }) {
+  const t = useT();
   return (
     <section aria-labelledby="details-title" className={card}>
-      <CardHeader id="details-title" title="Details" />
+      <CardHeader id="details-title" title={t("Details")} />
       <KeyValueList
         className="-my-3"
         items={[
-          { label: "Reference", value: <span className="font-mono">{p.code}</span> },
-          { label: "Category", value: PROJECT_CATEGORY_LABEL[p.category] },
+          { label: t("Reference"), value: <span className="font-mono">{p.code}</span> },
+          { label: t("Category"), value: t(PROJECT_CATEGORY_LABEL[p.category]) },
           {
-            label: "Submission deadline",
+            label: t("Submission deadline"),
             value: p.deadline ? (
               <span className="flex flex-col items-end">
-                {formatYmd(p.deadline)}
-                <span className="text-xs text-ink-muted">{deadlineLabel(p.deadline)}</span>
+                {t.ymd(p.deadline)}
+                <span className="text-xs text-ink-muted">{t.deadline(p.deadline)}</span>
               </span>
             ) : (
               "—"
@@ -154,9 +160,9 @@ function Details({ project: p }: { project: ProjectDetailDto }) {
           },
           // "Create project" publishes; the draft before it is not the project's creation.
           p.publishedAt
-            ? { label: "Created", value: formatDateTime(p.publishedAt) }
-            : { label: "Draft started", value: formatDateTime(p.createdAt) },
-          { label: "Last activity", value: formatDateTime(p.updatedAt) },
+            ? { label: t("Created"), value: t.dateTime(p.publishedAt) }
+            : { label: t("Draft started"), value: t.dateTime(p.createdAt) },
+          { label: t("Last activity"), value: t.dateTime(p.updatedAt) },
         ]}
       />
     </section>
@@ -164,17 +170,21 @@ function Details({ project: p }: { project: ProjectDetailDto }) {
 }
 
 function Standards({ project: p }: { project: ProjectDetailDto }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const editable = p.status === "draft" || p.status === "open";
   return (
     <section aria-labelledby="standards-title" className={card}>
       <CardHeader
         id="standards-title"
-        title={`Standards (${p.standards.length})`}
+        title={t("Standards ({n})", { n: p.standards.length })}
         description={
           p.category === "General"
-            ? "Rules checked alongside the RFP. Any standard can apply."
-            : `Rules checked alongside the RFP. Only “${p.category}” and “General” standards can apply.`
+            ? t("Rules checked alongside the RFP. Any standard can apply.")
+            : t(
+                "Rules checked alongside the RFP. Only “{category}” and “General” standards can apply.",
+                { category: t(PROJECT_CATEGORY_LABEL[p.category]) },
+              )
         }
         action={
           editable && (
@@ -182,9 +192,9 @@ function Standards({ project: p }: { project: ProjectDetailDto }) {
               variant="ghost"
               size="xs"
               onClick={() => setOpen(true)}
-              aria-label="Edit standards"
+              aria-label={t("Edit standards")}
             >
-              <Pencil /> Edit
+              <Pencil /> {t("Edit")}
             </Button>
           )
         }
@@ -204,7 +214,7 @@ function Standards({ project: p }: { project: ProjectDetailDto }) {
                 </span>
                 {!s.isActive && (
                   <Pill tone="partial" size="sm" className="ms-auto">
-                    Inactive
+                    {t("Inactive")}
                   </Pill>
                 )}
               </Link>
@@ -213,7 +223,7 @@ function Standards({ project: p }: { project: ProjectDetailDto }) {
         </ul>
       ) : (
         <p className="text-[13px] text-ink-muted">
-          None. Proposals will be checked against the RFP only.
+          {t("None. Proposals will be checked against the RFP only.")}
         </p>
       )}
       <ProjectStandardsDialog open={open} onOpenChange={setOpen} project={p} />
@@ -222,32 +232,33 @@ function Standards({ project: p }: { project: ProjectDetailDto }) {
 }
 
 function Timeline({ project: p }: { project: ProjectDetailDto }) {
+  const t = useT();
   const steps = [
     {
-      label: "Project created",
+      label: t("Project created"),
       done: !!p.publishedAt,
-      detail: p.publishedAt ? formatDateTime(p.publishedAt) : "Setup not finished",
+      detail: p.publishedAt ? t.dateTime(p.publishedAt) : t("Setup not finished"),
     },
     {
-      label: "Vendors added",
+      label: t("Vendors added"),
       done: p.proposalCount > 0,
       detail: p.proposalCount
-        ? `${p.proposalCount} vendor${p.proposalCount === 1 ? "" : "s"}`
+        ? t.plural(p.proposalCount, "{n} vendor", "{n} vendors")
         : p.deadline
-          ? `Submission deadline ${formatYmd(p.deadline)}`
-          : "Add them in the Proposals tab",
+          ? t("Submission deadline {date}", { date: t.ymd(p.deadline) })
+          : t("Add them in the Proposals tab"),
     },
     {
-      label: "AI analysis done",
+      label: t("AI analysis done"),
       done: p.status === "evaluated",
-      detail: p.status === "evaluated" ? "Results ready" : "Run it once vendors are added",
+      detail: p.status === "evaluated" ? t("Results ready") : t("Run it once vendors are added"),
     },
   ];
   const current = steps.findIndex((s) => !s.done);
 
   return (
     <section aria-labelledby="timeline-title" className={card}>
-      <CardHeader id="timeline-title" title="Progress" />
+      <CardHeader id="timeline-title" title={t("Progress")} />
       <ol className="flex flex-col">
         {steps.map((s, i) => (
           <li key={s.label} className="relative flex gap-3 pb-5 last:pb-0">
@@ -286,7 +297,7 @@ function Timeline({ project: p }: { project: ProjectDetailDto }) {
               >
                 {s.label}
                 <span className="sr-only">
-                  {s.done ? " (done)" : i === current ? " (current)" : ""}
+                  {s.done ? ` ${t("(done)")}` : i === current ? ` ${t("(current)")}` : ""}
                 </span>
               </span>
               <span className="text-xs text-ink-muted">{s.detail}</span>

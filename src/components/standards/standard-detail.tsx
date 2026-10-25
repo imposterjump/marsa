@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeft, Info, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { useT } from "@/components/i18n-provider";
 import { SetBreadcrumbs } from "@/components/shell/breadcrumbs";
 import { StandardsArt } from "@/components/illustrations";
 import { Button } from "@/components/ui/button";
@@ -23,12 +24,13 @@ import { Switch } from "@/components/ui/switch";
 import { KeyValueList } from "@/components/data/key-value-list";
 import { useDeleteStandard, useStandard, useUpdateStandard } from "@/hooks/use-standards";
 import { ApiClientError } from "@/lib/api-client";
-import { formatDateTime } from "@/lib/format";
+import { PROJECT_CATEGORY_LABEL } from "@/lib/labels";
 import { RulesEditor } from "./rules-editor";
 import { StandardDocuments } from "./standard-documents";
 import { StandardFormDialog } from "./standard-form-dialog";
 
 export function StandardDetail({ standardId }: { standardId: string }) {
+  const t = useT();
   const router = useRouter();
   const { data: s, isLoading, error } = useStandard(standardId);
   const update = useUpdateStandard(standardId);
@@ -43,14 +45,14 @@ export function StandardDetail({ standardId }: { standardId: string }) {
       <EmptyState
         size="lg"
         art={<StandardsArt />}
-        title={notFound ? "Standard not found" : "Couldn't load this standard"}
+        title={notFound ? t("Standard not found") : t("Couldn't load this standard")}
         description={
-          notFound ? "It may have been deleted." : "Check your connection and try again."
+          notFound ? t("It may have been deleted.") : t("Check your connection and try again.")
         }
         actions={
           <Button asChild variant="secondary">
             <Link href="/standards">
-              <ArrowLeft /> Back to standards
+              <ArrowLeft className="rtl:rotate-180" /> {t("Back to standards")}
             </Link>
           </Button>
         }
@@ -60,21 +62,21 @@ export function StandardDetail({ standardId }: { standardId: string }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <SetBreadcrumbs crumbs={[{ label: "Standards", href: "/standards" }, { label: s.code }]} />
+      <SetBreadcrumbs crumbs={[{ label: t("Standards"), href: "/standards" }, { label: s.code }]} />
       <PageHeader
         eyebrow={
           <span className="flex items-center gap-2">
             <span className="font-mono tracking-normal normal-case">{s.code}</span>
             <span aria-hidden>·</span>
-            <span>{s.category}</span>
+            <span>{t(PROJECT_CATEGORY_LABEL[s.category])}</span>
           </span>
         }
-        title={s.title}
-        description={s.description || undefined}
+        title={<bdi>{s.title}</bdi>}
+        description={s.description ? <bdi>{s.description}</bdi> : undefined}
         actions={
           <>
             <label className="flex h-9 items-center gap-2.5 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-ink-2 shadow-xs">
-              {s.isActive ? "Active" : "Inactive"}
+              {s.isActive ? t("Active") : t("Inactive")}
               <Switch
                 checked={s.isActive}
                 onCheckedChange={(v) =>
@@ -82,19 +84,19 @@ export function StandardDetail({ standardId }: { standardId: string }) {
                     { isActive: v },
                     {
                       onSuccess: () =>
-                        toast.success(v ? "Standard activated." : "Standard deactivated."),
+                        toast.success(v ? t("Standard activated.") : t("Standard deactivated.")),
                     },
                   )
                 }
-                aria-label="Standard active"
+                aria-label={t("Standard active")}
               />
             </label>
             <Button variant="secondary" onClick={() => setEditOpen(true)}>
-              <Pencil /> Edit
+              <Pencil /> {t("Edit")}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="More actions">
+                <Button variant="ghost" size="icon" aria-label={t("More actions")}>
                   <MoreHorizontal />
                 </Button>
               </DropdownMenuTrigger>
@@ -104,7 +106,7 @@ export function StandardDetail({ standardId }: { standardId: string }) {
                   onSelect={() => setDeleteOpen(true)}
                   className="gap-2.5"
                 >
-                  <Trash2 className="size-4" /> Delete standard
+                  <Trash2 className="size-4" /> {t("Delete standard")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -115,8 +117,9 @@ export function StandardDetail({ standardId }: { standardId: string }) {
       {!s.isActive && (
         <div className="flex items-start gap-3 rounded-xl border border-partial/30 bg-partial-soft/50 px-4 py-3 text-[13px] text-ink-2">
           <Info className="mt-0.5 size-4 shrink-0 text-partial" aria-hidden />
-          This standard is inactive: it won&apos;t be pre-selected for new projects. Projects can
-          still apply it manually.
+          {t(
+            "This standard is inactive: it won't be pre-selected for new projects. Projects can still apply it manually.",
+          )}
         </div>
       )}
 
@@ -126,24 +129,24 @@ export function StandardDetail({ standardId }: { standardId: string }) {
           <StandardDocuments standard={s} />
           <section className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-6 shadow-xs">
             <h2 className="font-heading text-base font-semibold tracking-tight text-ink">
-              How it&apos;s used
+              {t("How it's used")}
             </h2>
             <p className="text-[13px] leading-relaxed text-ink-muted">
-              When a project applies this standard, every rule above becomes part of the evaluation
-              checklist. Each vendor is checked against it alongside the RFP, and the uploaded
-              documents give the AI the full context.
+              {t(
+                "When a project applies this standard, every rule above becomes part of the evaluation checklist. Each vendor is checked against it alongside the RFP, and the uploaded documents give the AI the full context.",
+              )}
             </p>
             <KeyValueList
               items={[
-                { label: "Created", value: formatDateTime(s.createdAt) },
-                { label: "Last updated", value: formatDateTime(s.updatedAt) },
+                { label: t("Created"), value: t.dateTime(s.createdAt) },
+                { label: t("Last updated"), value: t.dateTime(s.updatedAt) },
                 ...(s.isSample
                   ? [
                       {
-                        label: "Source",
+                        label: t("Source"),
                         value: (
                           <Pill tone="info" size="sm">
-                            Sample data
+                            {t("Sample data")}
                           </Pill>
                         ),
                       },
@@ -159,18 +162,20 @@ export function StandardDetail({ standardId }: { standardId: string }) {
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title={`Delete ${s.code}?`}
-        description={
-          <>
-            This permanently deletes <strong>{s.title}</strong>, its {s.rules.length} rules and{" "}
-            {s.documents.length} documents.
-          </>
-        }
+        title={t("Delete {code}?", { code: s.code })}
+        description={t(
+          "This permanently deletes {title}, its {rules} rules and {docs} documents.",
+          {
+            title: <strong>{s.title}</strong>,
+            rules: s.rules.length,
+            docs: s.documents.length,
+          },
+        )}
         typeToConfirm={s.code}
-        confirmLabel="Delete standard"
+        confirmLabel={t("Delete standard")}
         onConfirm={async () => {
           await remove.mutateAsync(s.id);
-          toast.success(`${s.code} deleted.`);
+          toast.success(t("{code} deleted.", { code: s.code }));
           router.push("/standards");
         }}
       />

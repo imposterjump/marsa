@@ -1,3 +1,4 @@
+import { useT } from "@/components/i18n-provider";
 import { Pill } from "@/components/ui/status-pill";
 
 export function Section({
@@ -38,10 +39,11 @@ export function Section({
 }
 
 export function PhaseNote({ phase, text }: { phase: number; text: string }) {
+  const t = useT();
   return (
     <div className="flex items-start gap-3 rounded-lg bg-surface-muted/70 px-4 py-3 text-[13px] text-ink-2">
       <Pill tone="neutral" size="sm">
-        Phase {phase}
+        {t("Phase {phase}", { phase })}
       </Pill>
       <span className="leading-relaxed">{text}</span>
     </div>
@@ -50,10 +52,11 @@ export function PhaseNote({ phase, text }: { phase: number; text: string }) {
 
 /** Small inline save status for auto-saving sections. */
 export function SaveStatus({ pending, saved }: { pending: boolean; saved: boolean }) {
+  const t = useT();
   if (!pending && !saved) return null;
   return (
     <span className="shrink-0 text-xs text-ink-muted" aria-live="polite">
-      {pending ? "Saving…" : "Saved ✓"}
+      {pending ? t("Saving…") : t("Saved ✓")}
     </span>
   );
 }

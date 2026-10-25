@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSidebarCollapsed } from "@/hooks/use-client-store";
 import { usePathname } from "next/navigation";
+import { useT } from "@/components/i18n-provider";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useSettings } from "@/hooks/use-settings";
 import { setSidebarCollapsed } from "@/lib/theme";
@@ -46,6 +47,7 @@ function ScrollReset() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const t = useT();
   const { data: settings } = useSettings();
   const collapsed = useSidebarCollapsed();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -81,14 +83,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           href="#main"
           className="sr-only z-50 rounded-lg bg-surface px-4 py-2 font-medium text-ink shadow-md focus:not-sr-only focus:fixed focus:start-4 focus:top-4"
         >
-          Skip to content
+          {t("Skip to content")}
         </a>
         <div className="relative flex min-h-dvh bg-frame lg:h-dvh lg:overflow-hidden">
           <Sidebar collapsed={collapsed} onToggle={toggle} />
 
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetContent side="left" className="sidebar-drawer w-[280px] border-none bg-rail p-0">
-              <SheetTitle className="sr-only">Navigation</SheetTitle>
+              <SheetTitle className="sr-only">{t("Navigation")}</SheetTitle>
               <div className="flex h-full flex-col pb-4">
                 <SidebarContent onNavigate={() => setMobileOpen(false)} />
               </div>

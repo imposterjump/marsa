@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { cn } from "cn";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useT } from "@/components/i18n-provider";
 
 export interface Column<T> {
   id: string;
@@ -45,6 +46,7 @@ export function DataTable<T>({
   onRowClick,
   className,
 }: DataTableProps<T>) {
+  const t = useT();
   const [sort, setSort] = useState(initialSort);
 
   const sorted = useMemo(() => {
@@ -153,7 +155,7 @@ export function DataTable<T>({
         </tbody>
       </table>
       {!loading && rows.length === 0 && (
-        <div className="border-t border-border/70">{empty ?? <p className="p-8 text-center text-ink-muted">No rows</p>}</div>
+        <div className="border-t border-border/70">{empty ?? <p className="p-8 text-center text-ink-muted">{t("No rows")}</p>}</div>
       )}
     </div>
   );

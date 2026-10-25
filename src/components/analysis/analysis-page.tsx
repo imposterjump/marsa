@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 import { RunQuality } from "@/components/ai-review/ai-review-view";
+import { type T, useT } from "@/components/i18n-provider";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { MissionControl } from "@/components/evaluation/mission-control";
 import { RunIcon, StepTimeline } from "@/components/evaluation/run-parts";
@@ -51,7 +52,7 @@ import {
 } from "@/hooks/use-runs";
 import type { AnalysisResultsDto, RunDto, RunStatusDto } from "@/lib/api-types";
 import type { AiModel, ProposalSection, RunStatus } from "@/lib/domain";
-import { formatDateTime } from "@/lib/format";
+import { msg } from "@/lib/i18n/core";
 import { AI_MODEL_LABEL } from "@/lib/labels";
 import { setSidebarCollapsed } from "@/lib/theme";
 import { ComparisonTab } from "./comparison-tab";
@@ -61,36 +62,35 @@ import { ReportsTab } from "./reports-tab";
 import type { ComplianceView } from "./point-list";
 import { RisksTab } from "./risks-tab";
 import { type OpenEvidence, type Scope, vendorColors } from "./shared";
-import { APP_NAME } from "@/lib/brand";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
 
 // RFP and Standards are separate tabs (user, 2026-10-23: "remove the compliances tab and replace
 // them with rfp and standards each one has its own tab").
 const TABS = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "rfp", label: "RFP", icon: FileText },
-  { id: "standards", label: "Standards", icon: ShieldCheck },
-  { id: "risks", label: "Risks", icon: ShieldAlert },
-  { id: "comparison", label: "Comparison", icon: Columns3 },
-  { id: "reports", label: "Reports", icon: ScrollText },
-  { id: "quality", label: "AI quality", icon: ClipboardCheck },
+  { id: "overview", label: msg("Overview"), icon: LayoutDashboard },
+  { id: "rfp", label: msg("RFP"), icon: FileText },
+  { id: "standards", label: msg("Standards"), icon: ShieldCheck },
+  { id: "risks", label: msg("Risks"), icon: ShieldAlert },
+  { id: "comparison", label: msg("Comparison"), icon: Columns3 },
+  { id: "reports", label: msg("Reports"), icon: ScrollText },
+  { id: "quality", label: msg("AI quality"), icon: ClipboardCheck },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
 const RUN_TITLE: Record<RunStatus, string> = {
-  queued: "Starting the analysis…",
-  running: "Analysing proposals",
-  completed: "Analysis complete",
-  completed_with_errors: "Analysis complete, with errors",
-  failed: "Analysis failed",
-  cancelled: "Analysis cancelled",
-  interrupted: "Analysis interrupted",
+  queued: msg("Starting the analysis…"),
+  running: msg("Analysing proposals"),
+  completed: msg("Analysis complete"),
+  completed_with_errors: msg("Analysis complete, with errors"),
+  failed: msg("Analysis failed"),
+  cancelled: msg("Analysis cancelled"),
+  interrupted: msg("Analysis interrupted"),
 };
 
 // No prices on screen (user, 2026-10-25): the client never sees what a run cost.
-const modelText = (r: RunDto) =>
-  r.mode === "mock" ? "Demo AI" : (AI_MODEL_LABEL[r.model as AiModel] ?? r.model);
+const modelText = (r: RunDto, t: T) =>
+  r.mode === "mock" ? t("Demo AI") : (AI_MODEL_LABEL[r.model as AiModel] ?? r.model);
 
 const isFinished = (s: RunStatus) => s === "completed" || s === "completed_with_errors";
 /** Runs that stopped before giving results; they never hide the results before them. */
@@ -104,6 +104,7 @@ const STOPPED: RunStatus[] = ["cancelled", "interrupted", "failed"];
  * · &v=<proposalId> (whose finding opened the RFP, so the reader keeps that vendor's envelopes).
  */
 export function AnalysisPage() {
+  const t = useT();
   const p = useProjectContext();
   const params = useSearchParams();
   const runs = useProjectRuns(p.id);
@@ -124,9 +125,9 @@ export function AnalysisPage() {
     <div className="flex flex-col gap-6">
       <SetBreadcrumbs
         crumbs={[
-          { label: "Projects", href: "/projects" },
+          { label: t("Projects"), href: "/projects" },
           { label: p.code, href: `/projects/${p.id}` },
-          { label: "AI analysis" },
+          { label: t("AI analysis") },
         ]}
       />
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -142,7 +143,7 @@ export function AnalysisPage() {
             </span>
           </Link>
           <h1 className="font-heading text-[28px] leading-tight font-semibold tracking-tight text-ink">
-            AI analysis results
+            {t("AI analysis results")}
           </h1>
           <span aria-hidden className="rta-rule w-16" />
         </div>
@@ -165,6 +166,7 @@ export function AnalysisPage() {
 
 /** Above the previous results: the newer run that was stopped, with Resume and a link to it. */
 function StoppedNotice({ run }: { run: RunDto }) {
+  const t = useT();
   const p = useProjectContext();
   const router = useRouter();
   const action = useRunAction(p.id);
@@ -172,27 +174,29 @@ function StoppedNotice({ run }: { run: RunDto }) {
   const resume = async () => {
     try {
       await action.mutateAsync({ runId: run.id, action: "resume" });
-      toast.success("Analysis resumed");
+      toast.success(t("Analysis resumed"));
       router.push(`/analysis/${p.id}?run=${run.id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong.");
+      toast.error(err instanceof Error ? err.message : t("Something went wrong."));
     }
   };
   return (
     <div
       role="status"
-      aria-label="A newer analysis was stopped"
+      aria-label={t("A newer analysis was stopped")}
       className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border bg-surface px-5 py-3.5 text-[13px] text-ink-2 shadow-xs"
     >
       <RunIcon status={run.status} />
       <span className="min-w-0 flex-1">
-        <span className="font-medium text-ink">{RUN_TITLE[run.status]}.</span> The newer analysis of{" "}
-        {formatDateTime(run.startedAt ?? run.createdAt)} stopped before it finished, so these are
-        the results of the previous analysis.
+        <span className="font-medium text-ink">{t(RUN_TITLE[run.status])}.</span>{" "}
+        {t(
+          "The newer analysis of {date} stopped before it finished, so these are the results of the previous analysis.",
+          { date: t.dateTime(run.startedAt ?? run.createdAt) },
+        )}
       </span>
       <span className="flex shrink-0 items-center gap-2">
         <Button variant="ghost" size="sm" asChild>
-          <Link href={`/analysis/${p.id}?run=${run.id}`}>Open it</Link>
+          <Link href={`/analysis/${p.id}?run=${run.id}`}>{t("Open it")}</Link>
         </Button>
         {resumable && (
           <Button
@@ -201,7 +205,7 @@ function StoppedNotice({ run }: { run: RunDto }) {
             onClick={() => void resume()}
             disabled={action.isPending}
           >
-            <Play /> Resume it
+            <Play /> {t("Resume it")}
           </Button>
         )}
       </span>
@@ -222,6 +226,7 @@ function useCollapsedSidebar() {
 }
 
 function NoRunYet() {
+  const t = useT();
   const p = useProjectContext();
   const canRun = p.status === "open" || p.status === "evaluated";
   return (
@@ -235,18 +240,25 @@ function NoRunYet() {
             <Lock className="size-12 text-ink-faint" strokeWidth={1.25} />
           )
         }
-        title={p.proposalCount ? "Not analysed yet" : "No vendors yet"}
+        title={p.proposalCount ? t("Not analysed yet") : t("No vendors yet")}
         description={
           p.proposalCount
-            ? `${APP_NAME} checks each of the ${p.proposalCount} vendor${p.proposalCount === 1 ? "" : "s"} against the standards and, separately, the RFP, section by section, then builds a risk register and recommends one.`
-            : "Add at least one vendor with its proposal in the Proposals tab, then run the analysis."
+            ? t.plural(
+                p.proposalCount,
+                "{app} checks each of the {n} vendor against the standards and, separately, the RFP, section by section, then builds a risk register and recommends one.",
+                "{app} checks each of the {n} vendors against the standards and, separately, the RFP, section by section, then builds a risk register and recommends one.",
+                { app: t.appName },
+              )
+            : t(
+                "Add at least one vendor with its proposal in the Proposals tab, then run the analysis.",
+              )
         }
         actions={
           p.proposalCount && canRun ? (
             <StartRunButton projectId={p.id} />
           ) : (
             <Button asChild variant="secondary">
-              <Link href={`/projects/${p.id}/proposals`}>Go to Proposals</Link>
+              <Link href={`/projects/${p.id}/proposals`}>{t("Go to Proposals")}</Link>
             </Button>
           )
         }
@@ -257,6 +269,7 @@ function NoRunYet() {
 
 /** Earlier analyses (a menu) and "Run a new analysis", e.g. after adding a vendor. */
 function RunActions({ runs, selected }: { runs: RunDto[]; selected: RunDto }) {
+  const t = useT();
   const p = useProjectContext();
   const router = useRouter();
   const canRun = (p.status === "open" || p.status === "evaluated") && p.proposalCount > 0;
@@ -267,12 +280,12 @@ function RunActions({ runs, selected }: { runs: RunDto[]; selected: RunDto }) {
           <DropdownMenuTrigger asChild>
             <Button variant="secondary">
               <History />{" "}
-              {runs[0].id === selected.id ? "Latest analysis" : formatDateTime(selected.createdAt)}
+              {runs[0].id === selected.id ? t("Latest analysis") : t.dateTime(selected.createdAt)}
               <ChevronDown className="text-ink-muted" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-72">
-            <DropdownMenuLabel>Analyses of this project</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("Analyses of this project")}</DropdownMenuLabel>
             {runs.map((r, i) => (
               <DropdownMenuItem
                 key={r.id}
@@ -282,10 +295,10 @@ function RunActions({ runs, selected }: { runs: RunDto[]; selected: RunDto }) {
                 <RunIcon status={r.status} />
                 <span className="flex min-w-0 flex-col">
                   <span className="text-sm text-ink">
-                    {formatDateTime(r.createdAt)}
-                    {i === 0 && <span className="text-ink-muted"> · latest</span>}
+                    {t.dateTime(r.createdAt)}
+                    {i === 0 && <span className="text-ink-muted"> · {t("latest")}</span>}
                   </span>
-                  <span className="text-xs text-ink-muted">{modelText(r)}</span>
+                  <span className="text-xs text-ink-muted">{modelText(r, t)}</span>
                 </span>
               </DropdownMenuItem>
             ))}
@@ -300,6 +313,7 @@ function RunActions({ runs, selected }: { runs: RunDto[]; selected: RunDto }) {
 }
 
 function RunArea({ runId }: { runId: string }) {
+  const t = useT();
   const p = useProjectContext();
   const reduce = useReducedMotion();
   const { data, isLoading } = useRunStatus(runId);
@@ -352,7 +366,7 @@ function RunArea({ runId }: { runId: string }) {
               <Results d={results.data} />
             ) : results.isError ? (
               <p role="alert" className="text-sm text-fail">
-                Couldn&apos;t load the results. Reload the page to try again.
+                {t("Couldn't load the results. Reload the page to try again.")}
               </p>
             ) : (
               <Skeleton className="h-96 w-full rounded-xl" />
@@ -368,18 +382,21 @@ function RunArea({ runId }: { runId: string }) {
 
 /** One line about the run: status, when, which model and cost, steps (+ an action, e.g. Resume). */
 function RunSummary({ run, children }: { run: RunDto; children?: React.ReactNode }) {
+  const t = useT();
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-ink-muted">
       <span className="inline-flex items-center gap-1.5 font-medium text-ink">
-        <RunIcon status={run.status} /> {RUN_TITLE[run.status]}
+        <RunIcon status={run.status} /> {t(RUN_TITLE[run.status])}
       </span>
       <span aria-hidden>·</span>
-      <span>{formatDateTime(run.startedAt ?? run.createdAt)}</span>
+      <span>{t.dateTime(run.startedAt ?? run.createdAt)}</span>
       <span aria-hidden>·</span>
-      <span>{modelText(run)}</span>
+      <span>{modelText(run, t)}</span>
       <span aria-hidden>·</span>
       <span className="tabular-nums">
-        {run.doneSteps} of {run.totalSteps} steps
+        {t.plural(run.totalSteps, "{done} of {n} steps", "{done} of {n} steps", {
+          done: run.doneSteps,
+        })}
       </span>
       {children}
     </div>
@@ -392,6 +409,7 @@ function RunSummary({ run, children }: { run: RunDto; children?: React.ReactNode
  * run has no tabs, so it keeps the line here with Resume and the error note.
  */
 function RunBar({ data }: { data: RunStatusDto }) {
+  const t = useT();
   const p = useProjectContext();
   const action = useRunAction(p.id);
   const { data: runs } = useProjectRuns(p.id);
@@ -406,9 +424,9 @@ function RunBar({ data }: { data: RunStatusDto }) {
   const resume = async () => {
     try {
       await action.mutateAsync({ runId: run.id, action: "resume" });
-      toast.success("Analysis resumed");
+      toast.success(t("Analysis resumed"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong.");
+      toast.error(err instanceof Error ? err.message : t("Something went wrong."));
     }
   };
 
@@ -420,12 +438,14 @@ function RunBar({ data }: { data: RunStatusDto }) {
           <span className="ms-auto flex items-center gap-2">
             {previous && STOPPED.includes(run.status) && (
               <Button variant="secondary" size="sm" asChild>
-                <Link href={`/analysis/${p.id}?run=${previous.id}`}>Show the previous results</Link>
+                <Link href={`/analysis/${p.id}?run=${previous.id}`}>
+                  {t("Show the previous results")}
+                </Link>
               </Button>
             )}
             {(run.status === "interrupted" || run.status === "cancelled") && (
               <Button size="sm" onClick={() => void resume()} disabled={action.isPending}>
-                <Play /> Resume
+                <Play /> {t("Resume")}
               </Button>
             )}
           </span>
@@ -440,13 +460,17 @@ function RunBar({ data }: { data: RunStatusDto }) {
           <div className="flex flex-col gap-1">
             <span className="font-medium text-ink">
               {failed.length
-                ? `${failed.length} step${failed.length === 1 ? "" : "s"} failed`
-                : "The analysis stopped early"}
+                ? t.plural(failed.length, "{n} step failed", "{n} steps failed")
+                : t("The analysis stopped early")}
             </span>
             <span>
               {run.status === "completed_with_errors"
-                ? "The results leave out what those steps would have added. Retry them under AI quality → Steps; finished steps are not re-run."
-                : (run.error ?? "Retry the failed step in the step list.")}
+                ? t(
+                    "The results leave out what those steps would have added. Retry them under AI quality → Steps; finished steps are not re-run.",
+                  )
+                : run.error != null
+                  ? t.auto(run.error)
+                  : t("Retry the failed step in the step list.")}
             </span>
           </div>
         </div>
@@ -456,6 +480,7 @@ function RunBar({ data }: { data: RunStatusDto }) {
 }
 
 function Results({ d }: { d: AnalysisResultsDto }) {
+  const t = useT();
   const p = useProjectContext();
   const router = useRouter();
   const pathname = usePathname();
@@ -467,9 +492,9 @@ function Results({ d }: { d: AnalysisResultsDto }) {
   const [focus, setFocus] = useState<ComplianceFocus | null>(null);
 
   // Old links said ?tab=compliance: that is the RFP tab now. No standards applied: no Standards tab.
-  const tabs = TABS.filter((t) => t.id !== "standards" || d.hasStandards);
+  const tabs = TABS.filter((x) => x.id !== "standards" || d.hasStandards);
   const tabParam = params.get("tab") === "compliance" ? "rfp" : params.get("tab");
-  const tab: TabId = tabs.some((t) => t.id === tabParam) ? (tabParam as TabId) : "overview";
+  const tab: TabId = tabs.some((x) => x.id === tabParam) ? (tabParam as TabId) : "overview";
   const setQuery = (next: Record<string, string | null>) => {
     const q = new URLSearchParams(params);
     for (const [k, v] of Object.entries(next)) {
@@ -494,11 +519,11 @@ function Results({ d }: { d: AnalysisResultsDto }) {
   const groups = [
     ...(owner
       ? [
-          { id: "commercial", label: "Commercial", docs: owner.commercialDocuments },
-          { id: "technical", label: "Technical", docs: owner.technicalDocuments },
+          { id: "commercial", label: t("Commercial"), docs: owner.commercialDocuments },
+          { id: "technical", label: t("Technical"), docs: owner.technicalDocuments },
         ]
       : []),
-    { id: "rfp", label: "RFP", docs: p.rfpDocuments },
+    { id: "rfp", label: t("RFP"), docs: p.rfpDocuments },
   ];
   const readerOpen = !!readerId && groups.some((g) => g.docs.some((x) => x.id === readerId));
   const onSection = (section: ProposalSection | null, scope?: Scope, proposalId?: string) => {
@@ -527,9 +552,9 @@ function Results({ d }: { d: AnalysisResultsDto }) {
           variant="line"
           className="w-full justify-start overflow-x-auto border-b border-border"
         >
-          {tabs.map((t) => (
-            <TabsTrigger key={t.id} value={t.id}>
-              <t.icon aria-hidden /> {t.label}
+          {tabs.map((x) => (
+            <TabsTrigger key={x.id} value={x.id}>
+              <x.icon aria-hidden /> {t(x.label)}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -537,10 +562,10 @@ function Results({ d }: { d: AnalysisResultsDto }) {
           <OverviewTab
             d={d}
             colors={colors}
-            onOpen={(t) => {
+            onOpen={(target) => {
               // A section title on the Overview opens its tab from the top (the shell's panel
               // scrolls on desktop, the window on phones).
-              setQuery({ tab: t });
+              setQuery({ tab: target });
               window.scrollTo({ top: 0 });
               document.getElementById("app-scroll")?.scrollTo({ top: 0 });
             }}
@@ -598,8 +623,8 @@ function Results({ d }: { d: AnalysisResultsDto }) {
       <DocumentReader
         open={readerOpen}
         onOpenChange={(o) => !o && setQuery({ reader: null, page: null, q: null, v: null })}
-        title={owner ? owner.vendor.name : `${p.code} · RFP`}
-        subtitle={owner ? `${p.code} · proposal` : p.name}
+        title={owner ? owner.vendor.name : t("{code} · RFP", { code: p.code })}
+        subtitle={owner ? t("{code} · proposal", { code: p.code }) : p.name}
         groups={groups}
         docId={readerOpen ? readerId : null}
         quote={params.get("q")}

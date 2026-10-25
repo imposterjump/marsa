@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { useT } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +17,7 @@ import { useSetProjectStandards, useUpdateProject, type ProjectInput } from "@/h
 import { ApiClientError } from "@/lib/api-client";
 import type { ProjectDetailDto } from "@/lib/api-types";
 import { standardFitsProject } from "@/lib/domain";
+import { PROJECT_CATEGORY_LABEL } from "@/lib/labels";
 import {
   CategoryChangeNote,
   hasErrors,
@@ -45,6 +47,7 @@ export function ProjectEditDialog({
 }
 
 function EditForm({ project, onDone }: { project: ProjectDetailDto; onDone: () => void }) {
+  const t = useT();
   const update = useUpdateProject(project.id);
   const [value, setValue] = useState<ProjectInput>({
     name: project.name,
@@ -55,7 +58,9 @@ function EditForm({ project, onDone }: { project: ProjectDetailDto; onDone: () =
   });
   const [touched, setTouched] = useState(false);
   const [serverErrors, setServerErrors] = useState<ProjectErrors>({});
-  const local = validateProject(value, { allowPastDeadline: value.deadline === project.deadline });
+  const local = validateProject(value, t, {
+    allowPastDeadline: value.deadline === project.deadline,
+  });
   const errors: ProjectErrors = touched ? { ...local, ...serverErrors } : {};
 
   const submit = async (e: React.FormEvent) => {
@@ -73,9 +78,12 @@ function EditForm({ project, onDone }: { project: ProjectDetailDto; onDone: () =
       const removed = project.standards.filter(
         (s) => !standardFitsProject(s.category, value.category),
       );
-      toast.success("Project updated.", {
+      toast.success(t("Project updated."), {
         description: removed.length
-          ? `${removed.map((s) => s.code).join(", ")} no longer applied (category “${value.category}”).`
+          ? t("{codes} no longer applied (category “{category}”).", {
+              codes: removed.map((s) => s.code).join(", "),
+              category: t(PROJECT_CATEGORY_LABEL[value.category]),
+            })
           : undefined,
       });
       onDone();
@@ -87,7 +95,7 @@ function EditForm({ project, onDone }: { project: ProjectDetailDto; onDone: () =
           ),
         );
       } else {
-        toast.error(err instanceof Error ? err.message : "Couldn't save the project.");
+        toast.error(err instanceof Error ? err.message : t("Couldn't save the project."));
       }
     }
   };
@@ -95,11 +103,11 @@ function EditForm({ project, onDone }: { project: ProjectDetailDto; onDone: () =
   return (
     <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
       <DialogHeader>
-        <DialogTitle>Edit project</DialogTitle>
+        <DialogTitle>{t("Edit project")}</DialogTitle>
         <DialogDescription>
           {project.status === "draft"
-            ? "Vendors see these details once the tender is published."
-            : "Vendors already see this tender. Changes apply to everyone right away."}
+            ? t("Vendors see these details once the tender is published.")
+            : t("Vendors already see this tender. Changes apply to everyone right away.")}
         </DialogDescription>
       </DialogHeader>
       <DialogBody>
@@ -114,10 +122,10 @@ function EditForm({ project, onDone }: { project: ProjectDetailDto; onDone: () =
       </DialogBody>
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={onDone}>
-          Cancel
+          {t("Cancel")}
         </Button>
         <Button type="submit" loading={update.isPending}>
-          Save changes
+          {t("Save changes")}
         </Button>
       </DialogFooter>
     </form>
@@ -144,15 +152,17 @@ export function ProjectStandardsDialog({
 }
 
 function StandardsForm({ project, onDone }: { project: ProjectDetailDto; onDone: () => void }) {
+  const t = useT();
   const save = useSetProjectStandards(project.id);
   const [selected, setSelected] = useState(project.standards.map((s) => s.id));
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <DialogHeader>
-        <DialogTitle>Applied standards</DialogTitle>
+        <DialogTitle>{t("Applied standards")}</DialogTitle>
         <DialogDescription>
-          Every rule of the selected standards joins the RFP requirements in this project&apos;s
-          evaluation checklist.
+          {t(
+            "Every rule of the selected standards joins the RFP requirements in this project's evaluation checklist.",
+          )}
         </DialogDescription>
       </DialogHeader>
       <DialogBody>
@@ -160,21 +170,21 @@ function StandardsForm({ project, onDone }: { project: ProjectDetailDto; onDone:
       </DialogBody>
       <DialogFooter>
         <Button variant="ghost" onClick={onDone}>
-          Cancel
+          {t("Cancel")}
         </Button>
         <Button
           loading={save.isPending}
           onClick={async () => {
             try {
               await save.mutateAsync(selected);
-              toast.success("Standards updated.");
+              toast.success(t("Standards updated."));
               onDone();
             } catch (err) {
-              toast.error(err instanceof Error ? err.message : "Couldn't save the standards.");
+              toast.error(err instanceof Error ? err.message : t("Couldn't save the standards."));
             }
           }}
         >
-          Save standards
+          {t("Save standards")}
         </Button>
       </DialogFooter>
     </div>

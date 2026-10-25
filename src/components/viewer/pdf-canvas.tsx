@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 
 /**
  * One PDF page rendered to a canvas `width` CSS pixels wide, sharp on high-DPI screens.
@@ -22,6 +23,7 @@ export function PdfCanvas({
   className?: string;
   label?: string;
 }) {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [shown, setShown] = useState<number | null>(null); // page currently painted
 
@@ -64,7 +66,7 @@ export function PdfCanvas({
     <canvas
       ref={canvasRef}
       role="img"
-      aria-label={label ?? `Page ${pageNumber}`}
+      aria-label={label ?? t("Page {n}", { n: pageNumber })}
       className={cn(
         "block size-full bg-white transition-opacity duration-300",
         shown === pageNumber ? "opacity-100" : "opacity-0",

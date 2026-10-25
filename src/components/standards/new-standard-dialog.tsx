@@ -27,15 +27,15 @@ import {
 } from "@/components/ui/select";
 import { PriorityPill } from "@/components/ui/status-pill";
 import { Textarea } from "@/components/ui/textarea";
+import { useT } from "@/components/i18n-provider";
 import { standardKey, standardsKey, useCreateStandard } from "@/hooks/use-standards";
 import { useSettings } from "@/hooks/use-settings";
 import { api, ApiClientError } from "@/lib/api-client";
 import type { StandardDto } from "@/lib/api-types";
 import { STANDARD_CATEGORIES, type StandardCategory } from "@/lib/domain";
-import { AI_MODEL_LABEL } from "@/lib/labels";
+import { AI_MODEL_LABEL, PROJECT_CATEGORY_LABEL } from "@/lib/labels";
 import { parseRules, type ParsedRule } from "@/lib/rules-parse";
 import { uploadFile } from "@/lib/upload";
-import { APP_NAME } from "@/lib/brand";
 
 interface FileResult {
   rules: ParsedRule[];
@@ -61,6 +61,7 @@ export function NewStandardDialog({
   defaultCategory: StandardCategory;
   onCreated: (standard: StandardDto) => void;
 }) {
+  const t = useT();
   const { data: settings } = useSettings();
   const qc = useQueryClient();
   const create = useCreateStandard();
@@ -79,9 +80,11 @@ export function NewStandardDialog({
 
   const rules = paste !== null ? parseRules(paste).rules : (result?.rules ?? []);
   const errors = {
-    code: !/^[A-Za-z][A-Za-z0-9._-]{0,23}$/.test(code.trim()) ? "Enter a short code, e.g. CTS-2026." : null,
-    title: title.trim().length < 3 ? "Enter the standard's title." : null,
-    rules: rules.length === 0 ? "Add the rules: drop a rules file or paste them." : null,
+    code: !/^[A-Za-z][A-Za-z0-9._-]{0,23}$/.test(code.trim())
+      ? t("Enter a short code, e.g. CTS-2026.")
+      : null,
+    title: title.trim().length < 3 ? t("Enter the standard's title.") : null,
+    rules: rules.length === 0 ? t("Add the rules: drop a rules file or paste them.") : null,
   };
 
   const reset = () => {
@@ -102,9 +105,9 @@ export function NewStandardDialog({
       if (ai) body.set("ai", "1");
       const res = await api<FileResult>("/api/standards/rules-from-file", { method: "POST", body });
       setResult(res);
-      if (res.usedAi) toast.success("Rules read by AI");
+      if (res.usedAi) toast.success(t("Rules read by AI"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't read the file.");
+      toast.error(err instanceof Error ? err.message : t("Couldn't read the file."));
     } finally {
       setReading(null);
     }
@@ -139,13 +142,17 @@ export function NewStandardDialog({
         qc.invalidateQueries({ queryKey: standardsKey, exact: true }),
         qc.invalidateQueries({ queryKey: standardKey(std.id) }),
       ]);
-      toast.success(`${std.code} created · ${rules.length} rules`);
+      toast.success(
+        t.plural(rules.length, "{code} created · {n} rule", "{code} created · {n} rules", {
+          code: std.code,
+        }),
+      );
       onCreated(std);
       reset();
       onOpenChange(false);
     } catch (err) {
       setServerError(
-        err instanceof ApiClientError ? err.message : "Couldn't create the standard.",
+        err instanceof ApiClientError ? err.message : t("Couldn't create the standard."),
       );
     } finally {
       setSaving(false);
@@ -156,26 +163,31 @@ export function NewStandardDialog({
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(o) : (reset(), onOpenChange(o)))}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>New standard</DialogTitle>
+          <DialogTitle>{t("New standard")}</DialogTitle>
           <DialogDescription>
-            Drop the file with the standard&apos;s rules: an Excel or CSV table, a Word table or a
-            text file with one rule per row (code, rule, priority). A PDF works too.
+            {t(
+              "Drop the file with the standard's rules: an Excel or CSV table, a Word table or a text file with one rule per row (code, rule, priority). A PDF works too.",
+            )}
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-5">
           <div className="grid gap-4 sm:grid-cols-[10rem_1fr]">
-            <Field label="Code" error={touched ? errors.code : null}>
-              <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="CTS-2026" />
+            <Field label={t("Code")} error={touched ? errors.code : null}>
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="CTS-2026" // i18n-ignore
+              />
             </Field>
-            <Field label="Title" error={touched ? errors.title : null}>
+            <Field label={t("Title")} error={touched ? errors.title : null}>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Customs Transit Security Standard"
+                placeholder={t("Customs Transit Security Standard")}
               />
             </Field>
           </div>
-          <Field label="Category">
+          <Field label={t("Category")}>
             <Select value={category} onValueChange={(v) => setCategory(v as StandardCategory)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -183,7 +195,7 @@ export function NewStandardDialog({
               <SelectContent>
                 {STANDARD_CATEGORIES.map((c) => (
                   <SelectItem key={c} value={c}>
-                    {c}
+                    {t(PROJECT_CATEGORY_LABEL[c])}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -194,8 +206,8 @@ export function NewStandardDialog({
             <div className="flex flex-col gap-3">
               {!file ? (
                 <Dropzone
-                  label="Rules file"
-                  description="Excel, CSV, Word, text or PDF"
+                  label={t("Rules file")}
+                  description={t("Excel, CSV, Word, text or PDF")}
                   maxSizeMb={settings?.runtime.maxUploadMb ?? 50}
                   maxFiles={1}
                   onChange={(items) => {
@@ -215,15 +227,17 @@ export function NewStandardDialog({
                   {reading ? (
                     <span className="flex items-center gap-1.5 text-xs text-ink-muted">
                       <Loader2 className="size-3.5 motion-safe:animate-spin" aria-hidden />
-                      {reading === "ai" ? "Reading with AI…" : "Reading…"}
+                      {reading === "ai" ? t("Reading with AI…") : t("Reading…")}
                     </span>
                   ) : (
-                    <span className="text-xs font-medium text-ink-2">{rules.length} rules</span>
+                    <span className="text-xs font-medium text-ink-2">
+                      {t.plural(rules.length, "{n} rule", "{n} rules")}
+                    </span>
                   )}
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    aria-label="Remove the file"
+                    aria-label={t("Remove the file")}
                     onClick={() => {
                       setFile(null);
                       setResult(null);
@@ -236,14 +250,21 @@ export function NewStandardDialog({
               {result?.needsAi && !reading && file && (
                 <div className="flex flex-col gap-2 rounded-xl border border-info/30 bg-info-soft p-4 text-[13px] text-ink-2">
                   <span>
-                    No rule table was found in this file&apos;s text. {APP_NAME} can read the rules with
-                    AI:{" "}
                     {live
-                      ? `one small request to ${model ? AI_MODEL_LABEL[model] : "Claude"}.`
-                      : "the demo AI reads them."}
+                      ? t(
+                          "No rule table was found in this file's text. {app} can read the rules with AI: one small request to {model}.",
+                          {
+                            app: t.appName,
+                            model: model ? AI_MODEL_LABEL[model] : "Claude", // i18n-ignore
+                          },
+                        )
+                      : t(
+                          "No rule table was found in this file's text. {app} can read the rules with AI: the demo AI reads them.",
+                          { app: t.appName },
+                        )}
                   </span>
                   <Button size="sm" className="w-fit" onClick={() => void read(file, true)}>
-                    <Sparkles /> Read the rules with AI
+                    <Sparkles /> {t("Read the rules with AI")}
                   </Button>
                 </div>
               )}
@@ -252,31 +273,35 @@ export function NewStandardDialog({
                 onClick={() => setPaste("")}
                 className="inline-flex w-fit items-center gap-1.5 rounded-sm text-xs font-medium text-brand-ink outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
               >
-                <ClipboardPaste className="size-3.5" aria-hidden /> Paste the rules instead
+                <ClipboardPaste className="size-3.5" aria-hidden /> {t("Paste the rules instead")}
               </button>
             </div>
           ) : (
-            <Field label="Rules (one per line: CODE | rule | priority)">
+            <Field label={t("Rules (one per line: CODE | rule | priority)")}>
               <Textarea
                 rows={7}
                 value={paste}
                 onChange={(e) => setPaste(e.target.value)}
-                placeholder="TR-01 | Tracking data shall stay in the State. | mandatory"
+                // A sample of the format the parser reads (English priority keywords): kept as is.
+                placeholder="TR-01 | Tracking data shall stay in the State. | mandatory" // i18n-ignore
                 className="font-mono text-xs"
               />
             </Field>
           )}
 
           {rules.length > 0 && (
-            <section aria-label="Rules found" className="flex flex-col gap-2">
+            <section aria-label={t("Rules found")} className="flex flex-col gap-2">
               <span className="caption-caps text-ink-muted">
-                {rules.length} rule{rules.length === 1 ? "" : "s"} found
+                {t.plural(rules.length, "{n} rule found", "{n} rules found")}
               </span>
               <ul className="flex max-h-52 flex-col divide-y divide-border/70 overflow-y-auto rounded-xl border border-border">
                 {rules.map((r) => (
-                  <li key={`${r.line}-${r.code}`} className="flex items-start gap-3 px-3 py-2 text-[13px]">
+                  <li
+                    key={`${r.line}-${r.code}`}
+                    className="flex items-start gap-3 px-3 py-2 text-[13px]"
+                  >
                     <span className="w-16 shrink-0 font-mono text-xs text-ink-muted">
-                      {r.code ?? "auto"}
+                      {r.code ?? t("auto")}
                     </span>
                     <span className="min-w-0 flex-1 text-ink-2" dir="auto">
                       {r.text}
@@ -293,10 +318,10 @@ export function NewStandardDialog({
         </DialogBody>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button onClick={() => void submit()} loading={saving} disabled={!!reading}>
-            Create standard
+            {t("Create standard")}
           </Button>
         </DialogFooter>
       </DialogContent>

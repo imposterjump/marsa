@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/components/i18n-provider";
 import { FileIcon } from "@/components/ui/file-icon";
 import { DocumentReader } from "@/components/viewer/document-reader";
 import type { DocumentDto } from "@/lib/api-types";
-import { formatBytes } from "@/lib/files";
 
 /**
  * Opens one stored document (RFP, standard, …) in the full-screen reader. Same reader as the
@@ -19,6 +19,7 @@ export function DocumentPreviewDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useT();
   const [page, setPage] = useState(1);
   return (
     <DocumentReader
@@ -26,7 +27,7 @@ export function DocumentPreviewDialog({
       onOpenChange={onOpenChange}
       leading={<FileIcon name={doc.originalName} className="size-8" />}
       title={<span dir="auto">{doc.originalName}</span>}
-      subtitle={`${formatBytes(doc.sizeBytes)}${doc.pageCount != null ? ` · ${doc.pageCount} page${doc.pageCount === 1 ? "" : "s"}` : ""}`}
+      subtitle={`${t.bytes(doc.sizeBytes)}${doc.pageCount != null ? ` · ${t.plural(doc.pageCount, "{n} page", "{n} pages")}` : ""}`}
       groups={[{ id: "doc", label: doc.originalName, docs: [doc] }]}
       docId={doc.id}
       page={page}

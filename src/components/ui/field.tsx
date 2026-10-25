@@ -4,6 +4,7 @@ import { useId, cloneElement, isValidElement } from "react";
 import { CircleAlert } from "lucide-react";
 import { cn } from "cn";
 import { Label } from "./label";
+import { useT } from "@/components/i18n-provider";
 
 interface FieldProps {
   label: string;
@@ -17,6 +18,7 @@ interface FieldProps {
 
 /** Label + control + hint/error with correct ARIA wiring. */
 export function Field({ label, children, hint, error, optional, className }: FieldProps) {
+  const t = useT();
   const id = useId();
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
@@ -35,7 +37,7 @@ export function Field({ label, children, hint, error, optional, className }: Fie
     <div className={cn("flex flex-col gap-2", className)}>
       <Label htmlFor={id} className="flex items-baseline gap-2 text-[13px] font-medium text-ink">
         {label}
-        {optional && <span className="text-xs font-normal text-ink-faint">Optional</span>}
+        {optional && <span className="text-xs font-normal text-ink-faint">{t("Optional")}</span>}
       </Label>
       {control}
       {error ? (

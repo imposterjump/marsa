@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import type {
   FindingStatus,
   Priority,
@@ -24,6 +25,7 @@ import type {
 } from "@/lib/domain";
 import {
   FINDING_STATUS_LABEL,
+  PRIORITY_LABEL,
   PROJECT_STATUS_LABEL,
   REPORT_VERDICT_LABEL,
   RISK_SEVERITY_LABEL,
@@ -109,10 +111,11 @@ export function FindingStatusPill({
   size?: "sm" | "md";
   label?: string;
 }) {
+  const t = useT();
   const s = FINDING[status];
   return (
     <Pill tone={s.tone} icon={s.icon} size={size}>
-      {label ?? FINDING_STATUS_LABEL[status]}
+      {label ?? t(FINDING_STATUS_LABEL[status])}
     </Pill>
   );
 }
@@ -125,10 +128,11 @@ const RISK: Record<RiskSeverity, { tone: Tone; icon: LucideIcon }> = {
 };
 
 export function RiskPill({ severity, size }: { severity: RiskSeverity; size?: "sm" | "md" }) {
+  const t = useT();
   const s = RISK[severity];
   return (
     <Pill tone={s.tone} icon={s.icon} size={size}>
-      {RISK_SEVERITY_LABEL[severity]}
+      {t(RISK_SEVERITY_LABEL[severity])}
     </Pill>
   );
 }
@@ -141,10 +145,11 @@ const VERDICT: Record<ReportVerdict, { tone: Tone; icon: LucideIcon }> = {
 
 /** The consultant report's verdict on a vendor. */
 export function VerdictPill({ verdict, size }: { verdict: ReportVerdict; size?: "sm" | "md" }) {
+  const t = useT();
   const v = VERDICT[verdict];
   return (
     <Pill tone={v.tone} icon={v.icon} size={size}>
-      {REPORT_VERDICT_LABEL[verdict]}
+      {t(REPORT_VERDICT_LABEL[verdict])}
     </Pill>
   );
 }
@@ -158,18 +163,19 @@ const PROJECT: Record<ProjectStatus, { tone: Tone; icon: LucideIcon; spin?: bool
 };
 
 export function ProjectStatusPill({ status, size }: { status: ProjectStatus; size?: "sm" | "md" }) {
+  const t = useT();
   const s = PROJECT[status];
   return (
     <Pill tone={s.tone} icon={s.icon} size={size} spin={s.spin}>
-      {PROJECT_STATUS_LABEL[status]}
+      {t(PROJECT_STATUS_LABEL[status])}
     </Pill>
   );
 }
 
 const PRIORITY: Record<Priority, { tone: Tone; label: string; short: string }> = {
-  mandatory: { tone: "ink", label: "Mandatory", short: "M" },
-  important: { tone: "info", label: "Important", short: "I" },
-  desirable: { tone: "neutral", label: "Desirable", short: "D" },
+  mandatory: { tone: "ink", label: PRIORITY_LABEL.mandatory, short: "M" },
+  important: { tone: "info", label: PRIORITY_LABEL.important, short: "I" },
+  desirable: { tone: "neutral", label: PRIORITY_LABEL.desirable, short: "D" },
 };
 
 /** Requirement priority. Deliberately not red/amber/green so it never reads as a compliance status. */
@@ -182,11 +188,18 @@ export function PriorityPill({
   size?: "sm" | "md";
   short?: boolean;
 }) {
+  const t = useT();
   const p = PRIORITY[priority];
+  // Arabic has no one-letter abbreviations: the short pill shows the (short) word.
+  const letter = short && t.locale === "en";
   return (
-    <Pill tone={p.tone} size={size} className={short ? "min-w-6 justify-center px-1.5" : undefined}>
-      <span aria-hidden={short || undefined}>{short ? p.short : p.label}</span>
-      {short && <span className="sr-only">{p.label}</span>}
+    <Pill
+      tone={p.tone}
+      size={size}
+      className={letter ? "min-w-6 justify-center px-1.5" : undefined}
+    >
+      <span aria-hidden={letter || undefined}>{letter ? p.short : t(p.label)}</span>
+      {letter && <span className="sr-only">{t(p.label)}</span>}
     </Pill>
   );
 }

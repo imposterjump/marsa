@@ -4,9 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Check, FileText, Sparkles } from "lucide-react";
 import { cn } from "cn";
+import { useT, type T } from "@/components/i18n-provider";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { InitialsAvatar } from "@/components/ui/initials-avatar";
 import type { AnalysisResultsDto, DocumentDto, VendorResultDto } from "@/lib/api-types";
+import { listSep } from "./risk-list";
 import { SECTION_ORDER } from "./shared";
 
 interface Step {
@@ -34,8 +36,9 @@ export function CompareRun({
   rfpDocs: DocumentDto[];
   onDone: () => void;
 }) {
+  const t = useT();
   const reduce = useReducedMotion();
-  const steps = buildSteps(d, vendors, rfpDocs);
+  const steps = buildSteps(d, vendors, rfpDocs, t);
   const [current, setCurrent] = useState(0);
   const ready = current >= steps.length;
   // The timer only follows the steps: a parent re-render must not restart it.
@@ -45,11 +48,11 @@ export function CompareRun({
   });
   const ms = ready ? 900 : steps[current].ms;
   useEffect(() => {
-    const t = setTimeout(
+    const timer = setTimeout(
       () => (ready ? done.current() : setCurrent((c) => c + 1)),
       ms * (reduce ? 0.3 : 1),
     );
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [current, ready, ms, reduce]);
 
   const total = steps.length;
@@ -57,7 +60,7 @@ export function CompareRun({
 
   return (
     <section
-      aria-label="AI comparison in progress"
+      aria-label={t("AI comparison in progress")}
       className="relative overflow-hidden rounded-xl p-5 shadow-md rta-featured sm:p-6"
     >
       <span
@@ -74,7 +77,7 @@ export function CompareRun({
           aria-hidden
           className="grid size-12 shrink-0 place-items-center rounded-2xl text-[#ff8a5c] shadow-[0_0_0_6px_var(--brand-soft)]"
           style={{
-            border: "1.5px solid transparent",
+            border: "1.5px solid transparent", // i18n-ignore
             background:
               "linear-gradient(160deg, #232931, #12161b) padding-box, linear-gradient(135deg, #ec1c24, #ff5a47 55%, #ff8a5c) border-box",
           }}
@@ -89,7 +92,13 @@ export function CompareRun({
         </motion.span>
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 className="font-heading text-lg font-semibold text-ink" aria-live="polite">
-            {ready ? "Results ready" : `AI agents are comparing ${vendors.length} vendors`}
+            {ready
+              ? t("Results ready")
+              : t.plural(
+                  vendors.length,
+                  "AI agents are comparing {n} vendor",
+                  "AI agents are comparing {n} vendors",
+                )}
           </h2>
           <span className="flex flex-wrap items-center gap-2">
             {vendors.map((v) => (
@@ -110,7 +119,7 @@ export function CompareRun({
 
       <div
         role="progressbar"
-        aria-label="Comparison progress"
+        aria-label={t("Comparison progress")}
         aria-valuemin={0}
         aria-valuemax={total}
         aria-valuenow={Math.min(current, total)}
@@ -123,11 +132,11 @@ export function CompareRun({
           transition={{ duration: reduce ? 0 : 0.6, ease: EASE_OUT_QUINT }}
         />
         {!ready && !reduce && (
-          <span className="absolute inset-y-0 start-0 w-1/3 rounded-full bg-white/40 motion-safe:animate-[marsa-rail_1.4s_ease-in-out_infinite]" />
+          <span className="absolute inset-y-0 start-0 w-1/3 rounded-full bg-white/40 motion-safe:animate-[marsa-rail_1.4s_ease-in-out_infinite] rtl:-scale-x-100" />
         )}
       </div>
 
-      <ol className="relative mt-5 flex flex-col gap-1" aria-label="Comparison steps">
+      <ol className="relative mt-5 flex flex-col gap-1" aria-label={t("Comparison steps")}>
         {steps.map((s, i) => {
           const state = i < current ? "done" : i === current ? "running" : "pending";
           return (
@@ -143,10 +152,10 @@ export function CompareRun({
                   {s.title}
                   <span className="sr-only">
                     {state === "done"
-                      ? ", done"
+                      ? t(", done")
                       : state === "running"
-                        ? ", in progress"
-                        : ", pending"}
+                        ? t(", in progress")
+                        : t(", pending")}
                   </span>
                 </span>
                 <AnimatePresence initial={false}>
@@ -220,6 +229,7 @@ function buildSteps(
   d: AnalysisResultsDto,
   vendors: VendorResultDto[],
   rfpDocs: DocumentDto[],
+  t: T,
 ): Step[] {
   const files = [
     ...rfpDocs.map((x) => x.originalName),
@@ -238,50 +248,64 @@ function buildSteps(
     return statuses.size > 1;
   }).length;
   const risks = vendors.reduce((n, v) => n + v.risks.length, 0);
-  const prices = vendors.map(
-    (v) =>
-      `${v.vendor.name}: ${v.commercial.totalPrice?.replace(/[\s,;.]+$/, "") || "price not stated"}`,
-  );
-  const names = vendors.map((v) => v.vendor.name).join(", ");
+  const prices = vendors.map((v) => {
+    const price = v.commercial.totalPrice?.replace(/[\s,;.]+$/, "");
+    return price
+      ? `${v.vendor.name}: ${price}`
+      : t("{vendor}: price not stated", { vendor: v.vendor.name });
+  });
+  const names = vendors.map((v) => v.vendor.name).join(listSep(t));
   return [
     {
-      title: `Collecting the bids of ${names}`,
+      title: t("Collecting the bids of {names}", { names }),
       detail: <Chips items={files} />,
       ms: 1300,
     },
     {
-      title: "Handing the documents to the agents",
+      title: t("Handing the documents to the agents"),
       detail: (
         <Chips
           icon={false}
           items={[
-            "RFP Compliance Agent",
-            ...(rules ? ["Standards Agent"] : []),
-            "Risk Agent",
-            "Commercial Agent",
+            t("RFP Compliance Agent"),
+            ...(rules ? [t("Standards Agent")] : []),
+            t("Risk Agent"),
+            t("Commercial Agent"),
           ]}
         />
       ),
       ms: 950,
     },
     {
-      title: "Comparing the proposals section by section",
-      detail: `${sections} proposal sections · ${rfp} RFP requirements${rules ? ` · ${rules} standard rules` : ""} · ${risks} risks`,
+      title: t("Comparing the proposals section by section"),
+      // The English keeps its plural for every count, as it always did; Arabic picks its form.
+      detail: [
+        t.plural(sections, "{n} proposal sections", "{n} proposal sections"),
+        t.plural(rfp, "{n} RFP requirements", "{n} RFP requirements"),
+        rules ? t.plural(rules, "{n} standard rules", "{n} standard rules") : null,
+        t.plural(risks, "{n} risks", "{n} risks"),
+      ]
+        .filter(Boolean)
+        .join(" · "),
       ms: 1100,
     },
     {
-      title: "Assessing where the vendors differ",
-      detail: `${differing} point${differing === 1 ? "" : "s"} where the vendors' results differ`,
+      title: t("Assessing where the vendors differ"),
+      detail: t.plural(
+        differing,
+        "{n} point where the vendors' results differ",
+        "{n} points where the vendors' results differ",
+      ),
       ms: 950,
     },
     {
-      title: "Weighing the commercial terms",
+      title: t("Weighing the commercial terms"),
       detail: <Chips icon={false} items={prices} />,
       ms: 850,
     },
     {
-      title: "Preparing the results",
-      detail: "Building the side-by-side table and marking the best value in each row",
+      title: t("Preparing the results"),
+      detail: t("Building the side-by-side table and marking the best value in each row"),
       ms: 800,
     },
   ];

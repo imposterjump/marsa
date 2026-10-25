@@ -8,14 +8,17 @@ import {
   OctagonXIcon,
   Loader2Icon,
 } from "lucide-react";
+import { useLocale } from "@/components/i18n-provider";
 import { useTheme } from "@/components/theme-provider";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { resolvedTheme } = useTheme();
+  const { locale } = useLocale();
 
   return (
     <Sonner
       theme={resolvedTheme}
+      dir={locale === "ar" ? "rtl" : "ltr"}
       // Top-centre (HANDOFF G-43): bottom-right toasts covered primary actions (wizard Continue,
       // the paste dialog's "Add N rules"), and sonner pauses a hovered toast so it never left.
       // Dialog and step footers sit at the bottom; nothing actionable lives at the top centre.

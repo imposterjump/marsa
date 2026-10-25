@@ -24,8 +24,9 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import type { DocumentDto } from "@/lib/api-types";
-import { formatBytes, middleTruncate } from "@/lib/files";
+import { middleTruncate } from "@/lib/files";
 import { findQuotePage, highlightQuote } from "@/lib/quote";
 import { preloadPdfjs } from "@/lib/pdf/pdfjs";
 import { PdfCanvas } from "./pdf-canvas";
@@ -137,6 +138,7 @@ function ReaderBody({
   onNavigate,
   quote,
 }: DocumentReaderProps) {
+  const t = useT();
   const all = groups.flatMap((g) => g.docs);
   const doc = all.find((d) => d.id === docId) ?? all[0];
   const group = groups.find((g) => g.docs.some((d) => d.id === doc?.id));
@@ -256,7 +258,7 @@ function ReaderBody({
   useEffect(() => {
     keys.current = (e: KeyboardEvent) => {
       if (
-        (e.target as HTMLElement)?.closest("input, textarea, select") ||
+        (e.target as HTMLElement)?.closest("input, textarea, select") || // i18n-ignore
         e.ctrlKey ||
         e.metaKey ||
         e.altKey
@@ -298,6 +300,8 @@ function ReaderBody({
   const sheetW = Math.round(ps.w * fitScale * zoom);
   const sheetH = Math.round(ps.h * fitScale * zoom);
   const ghosts = Math.min(3, numPages - current);
+  // Page turns slide the other way in right-to-left (the ghost stack itself stays put).
+  const side = t.dir === "rtl" ? -1 : 1;
 
   return (
     <>
@@ -319,7 +323,7 @@ function ReaderBody({
         {groups.length > 1 && (
           <div
             role="tablist"
-            aria-label="Envelope"
+            aria-label={t("Envelope")}
             className="order-last flex w-full gap-1 rounded-lg bg-stage-raised p-1 sm:order-none sm:w-auto"
           >
             {groups.map((g) => {
@@ -357,28 +361,28 @@ function ReaderBody({
                 asLink
                 href={doc.url}
                 target="_blank"
-                label="Open the original in a new tab"
+                label={t("Open the original in a new tab")}
               >
                 <ExternalLink />
               </StageButton>
               <StageButton
                 asLink
                 href={`${doc.url}?download=1`}
-                label={`Download ${doc.originalName}`}
+                label={t("Download {name}", { name: doc.originalName })}
               >
                 <Download />
               </StageButton>
             </>
           )}
           <StageButton
-            label={fullscreen ? "Exit full screen (F)" : "Full screen (F)"}
+            label={fullscreen ? t("Exit full screen (F)") : t("Full screen (F)")}
             onClick={toggleFullscreen}
             className="hidden sm:inline-flex"
           >
             {fullscreen ? <Minimize /> : <Maximize />}
           </StageButton>
           <DialogPrimitive.Close asChild>
-            <StageButton label="Close reader (Esc)">
+            <StageButton label={t("Close reader (Esc)")}>
               <X />
             </StageButton>
           </DialogPrimitive.Close>
@@ -419,23 +423,25 @@ function ReaderBody({
           {quoteStatus && quote && <QuoteBanner status={quoteStatus} quote={quote} />}
           <div
             className="flex min-h-full min-w-full items-start justify-center"
-            style={{ padding: `${pad + bannerSpace}px ${pad}px ${toolbar}px` }}
+            style={{ padding: `${pad + bannerSpace}px ${pad}px ${toolbar}px` }} // i18n-ignore
           >
             {!doc || source.status === "none" ? (
               <Notice
                 icon={<FileWarning />}
-                title={doc ? `No in-app preview for .${doc.ext}` : "No document"}
+                title={doc ? t("No in-app preview for .{ext}", { ext: doc.ext }) : t("No document")}
                 text={
                   doc
-                    ? "Download the file to open it locally. The AI still reads its text where possible."
-                    : "This envelope has no files."
+                    ? t(
+                        "Download the file to open it locally. The AI still reads its text where possible.",
+                      )
+                    : t("This envelope has no files.")
                 }
                 doc={doc}
               />
             ) : source.status === "error" ? (
               <Notice
                 icon={<FileWarning />}
-                title="Couldn't open this file"
+                title={t("Couldn't open this file")}
                 text={source.message}
                 doc={doc}
               />
@@ -446,7 +452,7 @@ function ReaderBody({
               >
                 <Loader2
                   className="size-6 animate-spin text-stage-muted"
-                  aria-label="Loading document"
+                  aria-label={t("Loading document")}
                 />
               </div>
             ) : (
@@ -468,20 +474,21 @@ function ReaderBody({
                     key={`${doc.id}:${current}`}
                     custom={dir}
                     variants={{
-                      // RDD §8.2: next rises from the first ghost; prev slides in from the left.
+                      // RDD §8.2: next rises from the first ghost; prev slides in from the left
+                      // (from the right in right-to-left).
                       enter: (d: number) =>
                         d > 0
                           ? { opacity: 0.4, x: 5, y: 5, scale: 0.985, rotate: 0 }
                           : d < 0
-                            ? { opacity: 0, x: -32, y: 0, scale: 1, rotate: -1.5 }
+                            ? { opacity: 0, x: -32 * side, y: 0, scale: 1, rotate: -1.5 * side }
                             : { opacity: 0, x: 0, y: 6, scale: 0.99, rotate: 0 },
                       center: { opacity: 1, x: 0, y: 0, scale: 1, rotate: 0 },
                       exit: (d: number) =>
                         d > 0
                           ? {
                               opacity: 0,
-                              x: -32,
-                              rotate: -1.5,
+                              x: -32 * side,
+                              rotate: -1.5 * side,
                               transition: { duration: 0.2, ease: EASE },
                             }
                           : d < 0
@@ -515,7 +522,7 @@ function ReaderBody({
                           pdf={source.pdf}
                           pageNumber={current}
                           width={sheetW}
-                          label={`${doc.originalName}, page ${current}`}
+                          label={t("{name}, page {n}", { name: doc.originalName, n: current })}
                         />
                         <PdfTextLayer
                           pdf={source.pdf}
@@ -529,7 +536,7 @@ function ReaderBody({
                       <ScaledHtml
                         page={source.pages[current - 1]}
                         width={sheetW}
-                        label={`${doc.originalName}, page ${current}`}
+                        label={t("{name}, page {n}", { name: doc.originalName, n: current })}
                         quote={quoteStatus === "found" ? quote : null}
                         onHighlight={onHighlight}
                       />
@@ -542,7 +549,7 @@ function ReaderBody({
 
           {/* ── Scrubber + floating toolbar ── */}
           {doc && ready && (
-            <div className="pointer-events-none sticky bottom-0 left-0 flex w-full flex-col items-center gap-2 pb-4">
+            <div className="pointer-events-none sticky start-0 bottom-0 flex w-full flex-col items-center gap-2 pb-4">
               {multi && numPages <= 150 && (
                 <Scrubber numPages={numPages} current={current} onSelect={go} />
               )}
@@ -550,14 +557,18 @@ function ReaderBody({
                 {multi ? (
                   <>
                     <StageButton
-                      label={strip ? "Hide thumbnails" : "Show thumbnails"}
+                      label={strip ? t("Hide thumbnails") : t("Show thumbnails")}
                       onClick={() => setStrip((s) => !s)}
                       className="hidden md:inline-flex"
                     >
-                      {strip ? <PanelLeftClose /> : <PanelLeftOpen />}
+                      {strip ? (
+                        <PanelLeftClose className="rtl:rotate-180" />
+                      ) : (
+                        <PanelLeftOpen className="rtl:rotate-180" />
+                      )}
                     </StageButton>
                     <StageButton
-                      label="Previous page (←)"
+                      label={t("Previous page (←)")}
                       onClick={() => go(current - 1)}
                       disabled={current <= 1}
                     >
@@ -565,7 +576,7 @@ function ReaderBody({
                     </StageButton>
                     <PageInput page={current} numPages={numPages} onGo={go} />
                     <StageButton
-                      label="Next page (→)"
+                      label={t("Next page (→)")}
                       onClick={() => go(current + 1)}
                       disabled={current >= numPages}
                     >
@@ -573,11 +584,11 @@ function ReaderBody({
                     </StageButton>
                   </>
                 ) : (
-                  <span className="px-2 text-xs text-stage-muted">1 page</span>
+                  <span className="px-2 text-xs text-stage-muted">{t("1 page")}</span>
                 )}
                 <span aria-hidden className="mx-1 h-5 w-px bg-stage-line" />
                 <StageButton
-                  label="Zoom out (−)"
+                  label={t("Zoom out (−)")}
                   onClick={() => zoomBy(-1)}
                   disabled={zoom <= ZOOMS[0]}
                 >
@@ -586,14 +597,14 @@ function ReaderBody({
                 <button
                   type="button"
                   onClick={() => setZoom(null)}
-                  title="Reset zoom (0)"
-                  aria-label={`Zoom ${Math.round(zoom * 100)}%. Reset zoom`}
+                  title={t("Reset zoom (0)")}
+                  aria-label={t("Zoom {n}%. Reset zoom", { n: Math.round(zoom * 100) })}
                   className="h-8 min-w-14 rounded-md px-1 text-xs font-medium text-stage-ink tabular-nums outline-none hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-brand"
                 >
                   {Math.round(zoom * 100)}%
                 </button>
                 <StageButton
-                  label="Zoom in (+)"
+                  label={t("Zoom in (+)")}
                   onClick={() => zoomBy(1)}
                   disabled={zoom >= ZOOMS[ZOOMS.length - 1]}
                 >
@@ -603,7 +614,7 @@ function ReaderBody({
                   <>
                     <span aria-hidden className="mx-1 hidden h-5 w-px bg-stage-line sm:block" />
                     <StageButton
-                      label={fit === "page" ? "Fit to width" : "Fit whole page"}
+                      label={fit === "page" ? t("Fit to width") : t("Fit whole page")}
                       onClick={() => {
                         setFit(fit === "page" ? "width" : "page");
                         setZoom(1);
@@ -618,7 +629,7 @@ function ReaderBody({
             </div>
           )}
           <p aria-live="polite" className="sr-only">
-            {ready ? `Page ${current} of ${numPages}` : ""}
+            {ready ? t("Page {n} of {total}", { n: current, total: numPages }) : ""}
           </p>
         </div>
       </div>
@@ -655,7 +666,7 @@ function ScaledHtml({
     <div role="img" aria-label={label} className="relative size-full overflow-hidden">
       <div
         ref={ref}
-        className="absolute start-0 top-0 origin-top-left"
+        className="absolute start-0 top-0 origin-top-left rtl:origin-top-right"
         style={{ width: page.w, height: page.h, transform: `scale(${scale})` }}
       >
         {page.render()}
@@ -673,6 +684,7 @@ function Filmstrip({
   current: number;
   onSelect: (page: number) => void;
 }) {
+  const t = useT();
   const listRef = useRef<HTMLOListElement>(null);
   useEffect(() => {
     listRef.current
@@ -681,7 +693,10 @@ function Filmstrip({
   }, [current]);
   const sizes = pageSizes(source);
   return (
-    <nav aria-label="Pages" className="hidden w-32 shrink-0 border-e border-stage-line md:block">
+    <nav
+      aria-label={t("Pages")}
+      className="hidden w-32 shrink-0 border-e border-stage-line md:block"
+    >
       <ol
         ref={listRef}
         className="flex h-full [scrollbar-width:thin] flex-col items-center gap-4 overflow-y-auto overscroll-none px-3 py-5"
@@ -694,7 +709,7 @@ function Filmstrip({
               <button
                 type="button"
                 onClick={() => onSelect(n)}
-                aria-label={`Page ${n}`}
+                aria-label={t("Page {n}", { n })}
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "overflow-hidden rounded-[2px] bg-white ring-offset-2 ring-offset-stage transition-[box-shadow,opacity,transform] duration-150 outline-none hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-brand",
@@ -762,6 +777,7 @@ function Scrubber({
   current: number;
   onSelect: (n: number) => void;
 }) {
+  const t = useT();
   return (
     <div
       aria-hidden
@@ -777,7 +793,7 @@ function Scrubber({
             type="button"
             tabIndex={-1}
             onClick={() => onSelect(n)}
-            title={`Page ${n}`}
+            title={t("Page {n}", { n })}
             className={cn(
               "w-1.5 shrink rounded-full transition-[height,background-color] duration-150",
               active
@@ -800,6 +816,7 @@ function QuoteBanner({
   status: "searching" | "found" | "missing";
   quote: string;
 }) {
+  const t = useT();
   const short = quote.length > 90 ? `${quote.slice(0, 90).trimEnd()}…` : quote;
   return (
     <div className="pointer-events-none sticky top-3 z-10 flex h-0 justify-center overflow-visible px-4">
@@ -820,12 +837,12 @@ function QuoteBanner({
         <span>
           <span className="font-semibold">
             {status === "missing"
-              ? "Quote not found in this document: "
+              ? t("Quote not found in this document:")
               : status === "searching"
-                ? "Finding: "
-                : "Evidence: "}
+                ? t("Finding:")
+                : t("Evidence:")}{" "}
           </span>
-          <span className="text-stage-muted">“{short}”</span>
+          <span className="text-stage-muted">{t("“{quote}”", { quote: short })}</span>
         </span>
       </div>
     </div>
@@ -841,6 +858,7 @@ function PageInput({
   numPages: number;
   onGo: (n: number) => void;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState<string | null>(null);
   const commit = () => {
     const n = Number(draft);
@@ -849,7 +867,7 @@ function PageInput({
   };
   return (
     <label className="flex items-center gap-1.5 px-1 text-xs text-stage-muted tabular-nums">
-      <span className="sr-only">Page</span>
+      <span className="sr-only">{t("Page")}</span>
       <input
         inputMode="numeric"
         value={draft ?? String(page)}
@@ -861,7 +879,7 @@ function PageInput({
           if (e.key === "Escape") setDraft(null);
         }}
         className="h-8 w-10 rounded-md bg-white/10 text-center text-xs font-medium text-stage-ink outline-none focus-visible:ring-2 focus-visible:ring-brand"
-        aria-label={`Page number, 1 to ${numPages}`}
+        aria-label={t("Page number, 1 to {n}", { n: numPages })}
       />
       <span>/ {numPages}</span>
     </label>
@@ -932,6 +950,7 @@ function Notice({
   text: string;
   doc?: DocumentDto;
 }) {
+  const t = useT();
   return (
     <div className="mt-[10vh] flex max-w-sm flex-col items-center gap-3 text-center">
       <span className="flex size-12 items-center justify-center rounded-xl bg-white/5 text-stage-muted [&_svg]:size-6">
@@ -944,7 +963,7 @@ function Notice({
           href={`${doc.url}?download=1`}
           className="mt-1 inline-flex h-9 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-medium text-on-brand outline-none hover:bg-brand-hover focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-stage"
         >
-          <Download className="size-4" /> Download ({formatBytes(doc.sizeBytes)})
+          <Download className="size-4" /> {t("Download ({size})", { size: t.bytes(doc.sizeBytes) })}
         </a>
       )}
     </div>

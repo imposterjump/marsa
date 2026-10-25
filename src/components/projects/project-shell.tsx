@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 import { StartRunButton } from "@/components/evaluation/start-run-button";
+import { useT } from "@/components/i18n-provider";
 import { SetBreadcrumbs } from "@/components/shell/breadcrumbs";
 import { ProjectsArt } from "@/components/illustrations";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,6 @@ import { useDeleteProject, useProject, useUpdateProject } from "@/hooks/use-proj
 import { useLatestResultsRun } from "@/hooks/use-runs";
 import { ApiClientError } from "@/lib/api-client";
 import type { ProjectDetailDto } from "@/lib/api-types";
-import { deadlineLabel } from "@/lib/format";
 import { PROJECT_CATEGORY_LABEL } from "@/lib/labels";
 import { ProjectEditDialog } from "./project-edit-dialog";
 
@@ -80,6 +80,7 @@ export function ProjectGate({
  * beside (not around) the tab pages, so each page segment stays in the static shell (G-50).
  */
 export function ProjectHeader({ projectId }: { projectId: string }) {
+  const t = useT();
   const { data: p, isLoading, error } = useProject(projectId);
   const pathname = usePathname();
 
@@ -90,14 +91,14 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
       <EmptyState
         size="lg"
         art={<ProjectsArt />}
-        title={notFound ? "Project not found" : "Couldn't load this project"}
+        title={notFound ? t("Project not found") : t("Couldn't load this project")}
         description={
-          notFound ? "It may have been deleted." : "Check your connection and try again."
+          notFound ? t("It may have been deleted.") : t("Check your connection and try again.")
         }
         actions={
           <Button asChild variant="secondary">
             <Link href="/projects">
-              <ArrowLeft /> Back to projects
+              <ArrowLeft className="rtl:rotate-180" /> {t("Back to projects")}
             </Link>
           </Button>
         }
@@ -108,8 +109,8 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
   const base = `/projects/${p.id}`;
   // P8: the AI analysis has its own full-width page (/analysis/[id]), opened from the header.
   const tabs = [
-    { href: base, label: "Overview", icon: LayoutDashboard },
-    { href: `${base}/proposals`, label: "Proposals", icon: Users, count: p.proposalCount },
+    { href: base, label: t("Overview"), icon: LayoutDashboard },
+    { href: `${base}/proposals`, label: t("Proposals"), icon: Users, count: p.proposalCount },
   ];
 
   // On a single proposal (/proposals/[id]) the header shrinks to one line (P5.3): the vendor's
@@ -133,19 +134,21 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
           {p.deadline && (
             <span className="inline-flex items-center gap-1.5 text-ink-muted">
               <CalendarClock className="size-3.5 text-ink-faint" aria-hidden />
-              {deadlineLabel(p.deadline)}
+              {t.deadline(p.deadline)}
             </span>
           )}
         </div>
       ) : (
         <>
-          <SetBreadcrumbs crumbs={[{ label: "Projects", href: "/projects" }, { label: p.code }]} />
+          <SetBreadcrumbs
+            crumbs={[{ label: t("Projects"), href: "/projects" }, { label: p.code }]}
+          />
           <PageHeader
             eyebrow={
               <span className="flex items-center gap-2">
                 <span className="font-mono tracking-normal normal-case">{p.code}</span>
                 <span aria-hidden>·</span>
-                <span>{PROJECT_CATEGORY_LABEL[p.category]}</span>
+                <span>{t(PROJECT_CATEGORY_LABEL[p.category])}</span>
               </span>
             }
             title={<span dir="auto">{p.name}</span>}
@@ -160,12 +163,12 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
                   <ProjectStatusPill status={p.status} />
                   {p.isSample && (
                     <Pill tone="info" size="md">
-                      Sample data
+                      {t("Sample data")}
                     </Pill>
                   )}
                   <span className="inline-flex items-center gap-1.5 text-ink-2">
                     <CalendarClock className="size-4 text-ink-faint" aria-hidden />
-                    {p.deadline ? deadlineLabel(p.deadline) : "No submission deadline"}
+                    {p.deadline ? t.deadline(p.deadline) : t("No submission deadline")}
                   </span>
                 </span>
               </>
@@ -177,14 +180,14 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
         </>
       )}
 
-      <nav aria-label="Project sections" className="-mt-2 border-b border-border">
+      <nav aria-label={t("Project sections")} className="-mt-2 border-b border-border">
         <ul className="-mb-px flex [scrollbar-width:none] gap-6 overflow-x-auto">
-          {tabs.map((t) => {
-            const active = t.href === base ? pathname === base : pathname.startsWith(t.href);
+          {tabs.map((tab) => {
+            const active = tab.href === base ? pathname === base : pathname.startsWith(tab.href);
             return (
-              <li key={t.href} className="shrink-0">
+              <li key={tab.href} className="shrink-0">
                 <Link
-                  href={t.href}
+                  href={tab.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
                     "relative flex h-11 items-center gap-2 rounded-t-md px-0.5 text-sm font-medium transition-colors outline-none",
@@ -192,11 +195,11 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
                     active ? "text-ink" : "text-ink-muted hover:text-ink",
                   )}
                 >
-                  <t.icon className="size-4" aria-hidden />
-                  {t.label}
-                  {t.count != null && t.count > 0 && (
+                  <tab.icon className="size-4" aria-hidden />
+                  {tab.label}
+                  {tab.count != null && tab.count > 0 && (
                     <span className="rounded-full bg-surface-muted px-1.5 text-2xs leading-5 font-semibold text-ink-2 tabular-nums">
-                      {t.count}
+                      {tab.count}
                     </span>
                   )}
                   {active && (
@@ -217,25 +220,33 @@ export function ProjectHeader({ projectId }: { projectId: string }) {
 }
 
 function StatusBanner({ project: p }: { project: ProjectDetailDto }) {
+  const t = useT();
   if (p.status !== "draft" && p.status !== "archived") return null;
+  const link = (
+    <Link
+      href={`/projects/new?id=${p.id}&step=${p.rfpDocuments.length ? 2 : 1}`}
+      className="font-medium text-brand-ink underline-offset-2 hover:underline"
+    >
+      {t("Continue the setup")}
+    </Link>
+  );
   return (
     <div className="flex items-start gap-3 rounded-xl border border-border bg-surface-muted/60 px-4 py-3 text-[13px] text-ink-2">
       <Info className="mt-0.5 size-4 shrink-0 text-ink-muted" aria-hidden />
       {p.status === "draft" ? (
         <span>
-          This project is still being set up.{" "}
-          <Link
-            href={`/projects/new?id=${p.id}&step=${p.rfpDocuments.length ? 2 : 1}`}
-            className="font-medium text-brand-ink underline-offset-2 hover:underline"
-          >
-            Continue the setup
-          </Link>
-          {p.rfpDocuments.length === 0 && " (it needs at least one RFP document)."}
+          {p.rfpDocuments.length === 0
+            ? t(
+                "This project is still being set up. {link} (it needs at least one RFP document).",
+                { link },
+              )
+            : t("This project is still being set up. {link}", { link })}
         </span>
       ) : (
         <span>
-          This project is <strong className="font-semibold text-ink">archived</strong> and
-          read-only. Restore it to make changes.
+          {t("This project is {archived} and read-only. Restore it to make changes.", {
+            archived: <strong className="font-semibold text-ink">{t("archived")}</strong>,
+          })}
         </span>
       )}
     </div>
@@ -247,6 +258,7 @@ function StatusBanner({ project: p }: { project: ProjectDetailDto }) {
  * "Run a new analysis" for after vendors were added), follow it while it runs.
  */
 function AiAnalysisAction({ project: p }: { project: ProjectDetailDto }) {
+  const t = useT();
   const latest = useLatestResultsRun(p.id);
   const href = `/analysis/${p.id}`;
   if (p.status === "draft" || p.status === "archived") return null;
@@ -254,7 +266,7 @@ function AiAnalysisAction({ project: p }: { project: ProjectDetailDto }) {
     return (
       <Button asChild>
         <Link href={href}>
-          <Loader2 className="motion-safe:animate-spin" /> AI analysis running
+          <Loader2 className="motion-safe:animate-spin" /> {t("AI analysis running")}
         </Link>
       </Button>
     );
@@ -265,11 +277,11 @@ function AiAnalysisAction({ project: p }: { project: ProjectDetailDto }) {
         <TooltipTrigger asChild>
           <span tabIndex={0} className="inline-flex rounded-lg">
             <Button disabled>
-              <Sparkles /> Run AI analysis
+              <Sparkles /> {t("Run AI analysis")}
             </Button>
           </span>
         </TooltipTrigger>
-        <TooltipContent>Add at least one vendor in the Proposals tab</TooltipContent>
+        <TooltipContent>{t("Add at least one vendor in the Proposals tab")}</TooltipContent>
       </Tooltip>
     );
   }
@@ -279,7 +291,7 @@ function AiAnalysisAction({ project: p }: { project: ProjectDetailDto }) {
         <StartRunButton projectId={p.id} again size="default" />
         <Button asChild>
           <Link href={href}>
-            <Sparkles /> Open AI analysis
+            <Sparkles /> {t("Open AI analysis")}
           </Link>
         </Button>
       </>
@@ -289,6 +301,7 @@ function AiAnalysisAction({ project: p }: { project: ProjectDetailDto }) {
 }
 
 function HeaderActions({ project: p }: { project: ProjectDetailDto }) {
+  const t = useT();
   const router = useRouter();
   const update = useUpdateProject(p.id);
   const remove = useDeleteProject();
@@ -301,7 +314,7 @@ function HeaderActions({ project: p }: { project: ProjectDetailDto }) {
       await update.mutateAsync({ status });
       toast.success(message);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't change the status.");
+      toast.error(err instanceof Error ? err.message : t("Couldn't change the status."));
     }
   };
   const restoreTo = p.publishedAt ? "open" : "draft";
@@ -312,7 +325,7 @@ function HeaderActions({ project: p }: { project: ProjectDetailDto }) {
       {p.status === "draft" && (
         <Button asChild>
           <Link href={`/projects/new?id=${p.id}&step=${p.rfpDocuments.length ? 2 : 1}`}>
-            Continue setup <ArrowRight />
+            {t("Continue setup")} <ArrowRight className="rtl:rotate-180" />
           </Link>
         </Button>
       )}
@@ -323,22 +336,24 @@ function HeaderActions({ project: p }: { project: ProjectDetailDto }) {
           onClick={() =>
             transition(
               restoreTo,
-              `${p.code} restored as ${restoreTo === "open" ? "open" : "a draft"}.`,
+              restoreTo === "open"
+                ? t("{code} restored as open.", { code: p.code })
+                : t("{code} restored as a draft.", { code: p.code }),
             )
           }
         >
-          <ArchiveRestore /> Restore
+          <ArchiveRestore /> {t("Restore")}
         </Button>
       )}
       {canEdit && (
         <Button variant="secondary" onClick={() => setEditOpen(true)}>
-          <Pencil /> Edit
+          <Pencil /> {t("Edit")}
         </Button>
       )}
       {p.status !== "evaluating" && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="More actions">
+            <Button variant="ghost" size="icon" aria-label={t("More actions")}>
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
@@ -346,15 +361,17 @@ function HeaderActions({ project: p }: { project: ProjectDetailDto }) {
             {p.status === "open" && p.proposalCount === 0 && (
               <DropdownMenuItem
                 className="gap-2.5"
-                onSelect={() => transition("draft", `${p.code} moved back to draft.`)}
+                onSelect={() =>
+                  transition("draft", t("{code} moved back to draft.", { code: p.code }))
+                }
               >
-                <PencilLine className="size-4 text-ink-muted" /> Move back to draft
+                <PencilLine className="size-4 text-ink-muted" /> {t("Move back to draft")}
               </DropdownMenuItem>
             )}
             {p.status !== "archived" && (
               <>
                 <DropdownMenuItem className="gap-2.5" onSelect={() => setArchiveOpen(true)}>
-                  <Archive className="size-4 text-ink-muted" /> Archive project
+                  <Archive className="size-4 text-ink-muted" /> {t("Archive project")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
               </>
@@ -364,7 +381,7 @@ function HeaderActions({ project: p }: { project: ProjectDetailDto }) {
               className="gap-2.5"
               onSelect={() => setDeleteOpen(true)}
             >
-              <Trash2 className="size-4" /> Delete project
+              <Trash2 className="size-4" /> {t("Delete project")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -374,28 +391,31 @@ function HeaderActions({ project: p }: { project: ProjectDetailDto }) {
       <ConfirmDialog
         open={archiveOpen}
         onOpenChange={setArchiveOpen}
-        title={`Archive ${p.code}?`}
-        description="The project becomes read-only and leaves the active list. Its documents, proposals and results are kept, and you can restore it at any time."
-        confirmLabel="Archive project"
+        title={t("Archive {code}?", { code: p.code })}
+        description={t(
+          "The project becomes read-only and leaves the active list. Its documents, proposals and results are kept, and you can restore it at any time.",
+        )}
+        confirmLabel={t("Archive project")}
         destructive={false}
-        onConfirm={() => transition("archived", `${p.code} archived.`)}
+        onConfirm={() => transition("archived", t("{code} archived.", { code: p.code }))}
       />
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title={`Delete ${p.code}?`}
-        description={
-          <>
-            This permanently deletes <strong dir="auto">{p.name}</strong>, its{" "}
-            {p.rfpDocuments.length} RFP document(s), {p.proposalCount} proposal(s) and any
-            evaluation results. This can&apos;t be undone.
-          </>
-        }
+        title={t("Delete {code}?", { code: p.code })}
+        description={t(
+          "This permanently deletes {name}, its {docs} RFP document(s), {proposals} proposal(s) and any evaluation results. This can't be undone.",
+          {
+            name: <strong dir="auto">{p.name}</strong>,
+            docs: p.rfpDocuments.length,
+            proposals: p.proposalCount,
+          },
+        )}
         typeToConfirm={p.code}
-        confirmLabel="Delete project"
+        confirmLabel={t("Delete project")}
         onConfirm={async () => {
           await remove.mutateAsync(p.id);
-          toast.success(`${p.code} deleted.`);
+          toast.success(t("{code} deleted.", { code: p.code }));
           router.push("/projects");
         }}
       />

@@ -45,7 +45,15 @@ export function planRun(proposals: number, withStandards = true): RunPlan {
   return {
     total: 1 + std + 2 * n + 1 + n,
     skipped: 0,
-    phases: { checklist: 1, standards: std, analyze: n, compare: 0, risk: n, summary: 1, report: n },
+    phases: {
+      checklist: 1,
+      standards: std,
+      analyze: n,
+      compare: 0,
+      risk: n,
+      summary: 1,
+      report: n,
+    },
   };
 }
 
@@ -316,10 +324,12 @@ export function estimateRun(
   };
 }
 
-export function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${Math.max(1, Math.round(seconds))} s`;
+/** "45 s", "3 min", "1 h 5 min"; Arabic "45 ث", "3 د", "1 س 5 د" (the UI calls t.duration). */
+export function formatDuration(seconds: number, locale: "en" | "ar" = "en"): string {
+  const [s, min, h] = locale === "ar" ? ["ث", "د", "س"] : ["s", "min", "h"];
+  if (seconds < 60) return `${Math.max(1, Math.round(seconds))} ${s}`;
   const m = Math.round(seconds / 60);
-  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
+  return m < 60 ? `${m} ${min}` : `${Math.floor(m / 60)} ${h} ${m % 60} ${min}`;
 }
 
 // ─── Step plan (RDD §7.1) ────────────────────────────────────────────────────

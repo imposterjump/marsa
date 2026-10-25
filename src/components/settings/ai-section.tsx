@@ -4,40 +4,46 @@ import { Bot, Check, FlaskConical, KeyRound } from "lucide-react";
 import { RadioGroup as RadioGroupPrimitive } from "radix-ui";
 import { cn } from "cn";
 import { KeyValueList } from "@/components/data/key-value-list";
+import { useT } from "@/components/i18n-provider";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pill } from "@/components/ui/status-pill";
 import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import type { AiModel, ReportLanguage } from "@/lib/domain";
+import { msg } from "@/lib/i18n/core";
 import { SaveStatus, Section } from "./settings-section";
 
 // No prices on the model cards (user, 2026-10-25: the client never sees costs).
 const MODELS: { id: AiModel; name: string; blurb: string }[] = [
   {
     id: "claude-opus-5-5",
-    name: "Claude Opus 5.5",
-    blurb: "Most thorough. Best for long, technical proposals and subtle partial-compliance calls.",
+    name: "Claude Opus 5.5", // i18n-ignore
+    blurb: msg(
+      "Most thorough. Best for long, technical proposals and subtle partial-compliance calls.",
+    ),
   },
   {
     id: "claude-sonnet-5-5",
-    name: "Claude Sonnet 5.5",
-    blurb: "Faster, with slightly less depth on very long, complex proposals.",
+    name: "Claude Sonnet 5.5", // i18n-ignore
+    blurb: msg("Faster, with slightly less depth on very long, complex proposals."),
   },
   {
     id: "claude-haiku-5-5",
-    name: "Claude Haiku 5.5",
-    blurb:
+    name: "Claude Haiku 5.5", // i18n-ignore
+    blurb: msg(
       "Fastest, for trying the pipeline end to end. Rougher calls on partial compliance and subtle conflicts.",
+    ),
   },
 ];
 
 export function AiSection() {
+  const t = useT();
   const { data } = useSettings();
   const save = useUpdateSettings();
 
   if (!data) {
     return (
-      <Section id="ai" title="AI & runtime">
+      <Section id="ai" title={t("AI & runtime")}>
         <Skeleton className="h-64 w-full" />
       </Section>
     );
@@ -47,14 +53,16 @@ export function AiSection() {
   return (
     <Section
       id="ai"
-      title="AI & runtime"
-      description="Which Claude model evaluates proposals, and how. Changes apply to the next analysis run."
+      title={t("AI & runtime")}
+      description={t(
+        "Which Claude model evaluates proposals, and how. Changes apply to the next analysis run.",
+      )}
       aside={<SaveStatus pending={save.isPending} saved={save.isSuccess} />}
     >
       <div className="flex flex-col gap-7">
         <div className="flex flex-col gap-3">
           <span id="model-label" className="font-medium text-ink">
-            Model
+            {t("Model")}
           </span>
           <RadioGroupPrimitive.Root
             aria-labelledby="model-label"
@@ -88,10 +96,10 @@ export function AiSection() {
                       {selected && <Check className="size-3" strokeWidth={3} />}
                     </span>
                   </span>
-                  <span className="text-[13px] leading-relaxed text-ink-muted">{m.blurb}</span>
+                  <span className="text-[13px] leading-relaxed text-ink-muted">{t(m.blurb)}</span>
                   {m.id === "claude-opus-5-5" && (
                     <Pill tone="brand" size="sm" className="absolute end-4 -top-2.5">
-                      Recommended
+                      {t("Recommended")}
                     </Pill>
                   )}
                 </RadioGroupPrimitive.Item>
@@ -102,17 +110,20 @@ export function AiSection() {
 
         <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-0.5">
-            <span className="font-medium text-ink">Report language</span>
+            <span className="font-medium text-ink">{t("Report language")}</span>
             <span className="text-[13px] text-ink-muted">
-              Language of the AI&apos;s findings and summaries. Documents can be in any language.
+              {t(
+                "Language of the AI's findings, summaries and reports. Switching the screens' language sets it too. Documents can be in any language.",
+              )}
             </span>
           </div>
           <SegmentedControl<ReportLanguage>
-            aria-label="Report language"
+            aria-label={t("Report language")}
             value={data.reportLanguage}
             onValueChange={(v) => save.mutate({ reportLanguage: v })}
             options={[
-              { value: "en", label: "English" },
+              // Each language is named in itself, as in Settings → Appearance.
+              { value: "en", label: <span lang="en">English</span> }, // i18n-ignore
               { value: "ar", label: <span lang="ar">العربية</span> },
             ]}
           />
@@ -120,13 +131,15 @@ export function AiSection() {
 
         <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-0.5">
-            <span className="font-medium text-ink">Parallel AI steps</span>
+            <span className="font-medium text-ink">{t("Parallel AI steps")}</span>
             <span className="text-[13px] text-ink-muted">
-              Steps of the same phase run at once. Higher is faster but can hit API rate limits.
+              {t(
+                "Steps of the same phase run at once. Higher is faster but can hit API rate limits.",
+              )}
             </span>
           </div>
           <SegmentedControl<string>
-            aria-label="Parallel AI steps"
+            aria-label={t("Parallel AI steps")}
             size="sm"
             value={String(data.concurrency)}
             onValueChange={(v) => save.mutate({ concurrency: Number(v) })}
@@ -138,36 +151,49 @@ export function AiSection() {
           <KeyValueList
             items={[
               {
-                label: "AI mode",
+                label: t("AI mode"),
                 value:
                   aiMode === "mock" ? (
                     <Pill tone="info" icon={FlaskConical}>
-                      Mock (fixtures, $0)
+                      {t("Mock (fixtures, $0)")}
                     </Pill>
                   ) : (
                     <Pill tone="brand" icon={Bot}>
-                      Live (Anthropic API)
+                      {t("Live (Anthropic API)")}
                     </Pill>
                   ),
               },
               {
-                label: "API key",
+                label: t("API key"),
                 value: apiKeyConfigured ? (
                   <Pill tone="ok" icon={KeyRound}>
-                    Configured on the server
+                    {t("Configured on the server")}
                   </Pill>
                 ) : (
                   <Pill tone="partial" icon={KeyRound}>
-                    Missing: add ANTHROPIC_API_KEY to .env
+                    {t("Missing: add ANTHROPIC_API_KEY to .env")}
                   </Pill>
                 ),
               },
-              { label: "Max upload size", value: `${maxUploadMb} MB per file` },
+              {
+                label: t("Max upload size"),
+                value: t("{n} MB per file", { n: maxUploadMb }),
+              },
             ]}
           />
           <p className="mt-2 text-xs text-ink-muted">
-            AI mode is set on the server (<code className="font-mono">AI_MODE</code> in{" "}
-            <code className="font-mono">.env.local</code>).
+            {t("AI mode is set on the server ({setting} in {file}).", {
+              setting: (
+                <code dir="ltr" className="font-mono">
+                  {"AI_MODE"}
+                </code>
+              ),
+              file: (
+                <code dir="ltr" className="font-mono">
+                  {".env.local"}
+                </code>
+              ),
+            })}
           </p>
         </div>
       </div>

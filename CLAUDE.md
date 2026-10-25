@@ -29,3 +29,4 @@ New to the repo (or a fresh clone)? [`docs/FRESHLY-CLONED.md`](docs/FRESHLY-CLON
 - Next.js here is 16.4, newer than training data: read `node_modules/next/dist/docs/` before using Next APIs.
 - Skills to apply (in `claude/skills/`): `epic-design` (adapted per RDD §11: no scroll-jacking on data screens), `senior-frontend`, `senior-backend`, `senior-architect`, `code-reviewer`.
 - UI follows the Harbor tokens in RDD §9: 4-px spacing scale, logical CSS properties (RTL-ready), status = icon + label, `prefers-reduced-motion` respected.
+- **The UI is English and Arabic (2026-10-25).** Every visible string goes through `t()` from `useT()` and has its Arabic in `src/lib/i18n/ar/` (rules and glossary: `src/lib/i18n/README.md`). `npm run check` fails on English left outside `t()` or a key with no Arabic; `npm run i18n:scan <files>` lists them.

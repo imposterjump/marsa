@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import { useT } from "@/components/i18n-provider";
 import { api } from "@/lib/api-client";
 import type { DocumentDto } from "@/lib/api-types";
 import { extensionOf, fileKind } from "@/lib/files";
@@ -45,6 +46,7 @@ const A4_LANDSCAPE = { w: 842, h: 595 };
  * Everything else → "none" (download card).
  */
 export function useReaderSource(doc: DocumentDto | undefined): ReaderSource {
+  const t = useT();
   const kind = doc ? fileKind(doc.originalName) : "other";
   const ext = doc ? extensionOf(doc.originalName) : "";
   const isDocx = ext === "docx";
@@ -111,13 +113,13 @@ export function useReaderSource(doc: DocumentDto | undefined): ReaderSource {
     if (pdfState.error)
       return {
         status: "error",
-        message: "This PDF couldn't be opened. It may be damaged or password-protected.",
+        message: t("This PDF couldn't be opened. It may be damaged or password-protected."),
       };
     if (!pdfState.pdf || sizes.length === 0) return { status: "loading" };
     return { status: "ready", kind: "pdf", pdf: pdfState.pdf, sizes };
   }
   if (kind === "image") {
-    if (image.error) return { status: "error", message: "This image couldn't be loaded." };
+    if (image.error) return { status: "error", message: t("This image couldn't be loaded.") };
     if (!imagePages) return { status: "loading" };
     return { status: "ready", kind: "html", pages: imagePages };
   }
@@ -125,13 +127,13 @@ export function useReaderSource(doc: DocumentDto | undefined): ReaderSource {
     if (docx.error)
       return {
         status: "error",
-        message: "This Word document couldn't be displayed. Download it to open it locally.",
+        message: t("This Word document couldn't be displayed. Download it to open it locally."),
       };
     if (!docx.pages) return { status: "loading" };
     return { status: "ready", kind: "html", pages: docx.pages, css: docx.css };
   }
   if (wantsPreview) {
-    if (preview.isError) return { status: "error", message: "This file couldn't be previewed." };
+    if (preview.isError) return { status: "error", message: t("This file couldn't be previewed.") };
     if (!preview.data) return { status: "loading" };
     if (previewPages) return { status: "ready", kind: "html", pages: previewPages };
   }
@@ -154,13 +156,23 @@ function TextPage({ text, mono }: { text: string; mono: boolean }) {
 }
 
 function SheetPage({ sheet }: { sheet: SheetPreview }) {
+  const t = useT();
   const cols = Math.max(1, ...sheet.rows.map((r) => r.length));
   return (
     <div className="flex size-full flex-col bg-white text-[#1b2733]">
       <div className="flex shrink-0 items-center justify-between border-b border-[#d6d1c6] bg-[#f7f6f3] px-5 py-2.5">
-        <span className="text-[11px] font-semibold">Sheet: {sheet.name}</span>
+        <span className="text-[11px] font-semibold">
+          {t("Sheet: {name}", { name: sheet.name })}
+        </span>
         <span className="text-[9px] text-[#5c6774]">
-          {sheet.rows.length} rows{sheet.truncated ? " · preview truncated" : ""}
+          {/* The English says "rows" even for one row: both English forms are the same. */}
+          {sheet.truncated
+            ? t.plural(
+                sheet.rows.length,
+                "{n} rows · preview truncated",
+                "{n} rows · preview truncated",
+              )
+            : t.plural(sheet.rows.length, "{n} rows", "{n} rows")}
         </span>
       </div>
       <div className="min-h-0 flex-1 overflow-auto overscroll-none">
@@ -247,8 +259,9 @@ function useDocx(url: string | null) {
     let cancelled = false;
     const host = document.createElement("div");
     host.setAttribute("aria-hidden", "true");
+    // Off-screen on the start side: in right-to-left a box far to the left widens the scroll area.
     host.style.cssText =
-      "position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none;";
+      "position:absolute;inset-inline-start:-100000px;top:0;visibility:hidden;pointer-events:none;";
     document.body.appendChild(host);
     void (async () => {
       try {
@@ -257,6 +270,7 @@ function useDocx(url: string | null) {
           fetch(url).then((r) => (r.ok ? r.blob() : Promise.reject(new Error(String(r.status))))),
         ]);
         const body = document.createElement("div");
+        body.dir = "ltr"; // laid out as shown (see render below)
         const styles = document.createElement("div");
         host.append(styles, body);
         await renderAsync(blob, body, styles, {
@@ -282,7 +296,12 @@ function useDocx(url: string | null) {
             h,
             text: s.textContent ?? "",
             render: () => (
-              <div className="marsa-docx size-full" dangerouslySetInnerHTML={{ __html: html }} />
+              // A Word page keeps its own direction (RTL paragraphs carry their own), as in English.
+              <div
+                dir="ltr"
+                className="marsa-docx size-full"
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
             ),
           };
         });

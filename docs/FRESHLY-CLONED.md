@@ -136,6 +136,7 @@ Each set's README is a step-by-step script: what to type and drop at each step. 
 All organisations, people and documents in `test-inputs/` are fictional.
 
 ## A short tour
+- **English or Arabic:** the **العربية / English** button in the top bar (or Settings → Appearance → Language) switches every screen; Arabic is right-to-left. New analyses are then written in that language too. AI text from earlier runs stays in the language it was written in, and the free demo AI always writes English.
 - **Projects:** the welcome band, then every project. **New project** is a guided form: Project (title, category, RFP) → Standards → Vendors.
 - **A project:** Overview, Proposals (vendors, documents, **Add vendor**), and **Run AI analysis** with a time estimate. A run starts on click; if you cancel one started by mistake, the page keeps showing the previous results.
 - **AI analysis results:** while it runs, mission control shows the step texts and the **agent team** (an AI Orchestrator passing the work from agent to agent); you can leave the page, a pill in the top bar follows the run. Then the tabs:
@@ -147,14 +148,15 @@ All organisations, people and documents in `test-inputs/` are fictional.
 - **No prices on screen:** the app never shows what the AI costs (a deliberate choice). Costs are still recorded in the database for the team.
 - Evidence links open the built-in **document reader** on the right page with the quote highlighted. Standard rules open in a side panel.
 - **Standards:** the library (rules, priorities, documents).
-- **Settings:** your profile, the AI model, the report language (English or Arabic), scoring weights, parallel steps, and **Demo tools**.
+- **Settings:** your profile, the screen language, the AI model, the report language (English or Arabic), scoring weights, parallel steps, and **Demo tools**.
 
 ## Commands
 | Command | What it does |
 |---|---|
 | `npm run dev` | Development server on http://localhost:3000 |
 | `npm run build` + `npm start` | Production build and server |
-| `npm run check` | Lint, typecheck, colour-contrast check and the unit/integration tests (run before every commit) |
+| `npm run check` | Lint, typecheck, colour-contrast check and the unit/integration tests, including "every screen text has Arabic" (run before every commit) |
+| `npm run i18n:scan` | English left in the UI and texts with no Arabic translation |
 | `npm run test:e2e` | Playwright end-to-end tests (builds its own server on port 3200, demo AI) |
 | `npm run demo:load` / `npm run demo:save` | Load the team's demo data / save yours as the new demo data (see above) |
 | `npm run seed` / `npm run reset -- --yes` | Sample data / wipe everything (see above) |
@@ -170,6 +172,7 @@ All organisations, people and documents in `test-inputs/` are fictional.
 | [`docs/PRD.md`](PRD.md) | What the product must do |
 | [`docs/RDD.md`](RDD.md) | How it is built (architecture, pipeline, data model, UI system) |
 | [`docs/PHASES.md`](PHASES.md) | The build plan, subtask by subtask |
+| [`src/lib/i18n/README.md`](../src/lib/i18n/README.md) | How the English / Arabic UI works, how to add text, the Arabic glossary |
 | [`test-inputs/poc-inputs/README.md`](../test-inputs/poc-inputs/README.md) | The demo tenders and what a live run costs |
 
 **Code map:**
@@ -180,7 +183,7 @@ All organisations, people and documents in `test-inputs/` are fictional.
   - `runs/`: the pipeline runner, scores;
   - `reports/`: the consultant PDFs;
   - `db/`, `documents/`, `seed/`, `storage/`.
-- `src/lib/`: shared types, labels, the run plan and estimates.
+- `src/lib/`: shared types, labels, the run plan and estimates; `i18n/` holds the Arabic dictionary.
 - `scripts/`: demo data, seed, reset, AI checks, test-input builders.
 - `tests/`: unit, integration, E2E.
 

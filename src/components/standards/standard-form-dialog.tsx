@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useT } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +28,7 @@ import { useCreateStandard, useUpdateStandard, type StandardInput } from "@/hook
 import { ApiClientError } from "@/lib/api-client";
 import type { StandardDto } from "@/lib/api-types";
 import { STANDARD_CATEGORIES, type StandardCategory } from "@/lib/domain";
+import { PROJECT_CATEGORY_LABEL } from "@/lib/labels";
 
 const CODE_RE = /^[A-Za-z][A-Za-z0-9._-]*$/;
 
@@ -56,13 +58,14 @@ export function StandardFormDialog({
 }
 
 function StandardForm({ standard, onDone }: { standard?: StandardDto; onDone: () => void }) {
+  const t = useT();
   const router = useRouter();
   const create = useCreateStandard();
   const update = useUpdateStandard(standard?.id ?? "");
   const [form, setForm] = useState<StandardInput>({
     code: standard?.code ?? "",
     title: standard?.title ?? "",
-    category: (standard?.category as StandardCategory) ?? "IT & security",
+    category: (standard?.category as StandardCategory) ?? "IT & security", // i18n-ignore
     description: standard?.description ?? "",
     isActive: standard?.isActive ?? true,
   });
@@ -76,18 +79,18 @@ function StandardForm({ standard, onDone }: { standard?: StandardDto; onDone: ()
   const code = form.code.trim();
   const errors = {
     code: !code
-      ? "Code is required."
+      ? t("Code is required.")
       : !CODE_RE.test(code)
-        ? "Use letters, digits, - . _ and start with a letter."
+        ? t("Use letters, digits, - . _ and start with a letter.")
         : code.length > 24
-          ? "Keep the code under 24 characters."
+          ? t("Keep the code under 24 characters.")
           : serverErrors.code || null,
     title:
       form.title.trim().length < 3
-        ? "Title must be at least 3 characters."
+        ? t("Title must be at least 3 characters.")
         : serverErrors.title || null,
     description:
-      form.description.length > 2000 ? "Keep the description under 2,000 characters." : null,
+      form.description.length > 2000 ? t("Keep the description under 2,000 characters.") : null,
   };
   const valid = !errors.code && !errors.title && !errors.description;
   const busy = create.isPending || update.isPending;
@@ -105,20 +108,22 @@ function StandardForm({ standard, onDone }: { standard?: StandardDto; onDone: ()
     try {
       if (standard) {
         await update.mutateAsync(payload);
-        toast.success("Standard updated.");
+        toast.success(t("Standard updated."));
       } else {
         const created = await create.mutateAsync(payload);
-        toast.success(`${created.code} created`, {
-          description: "Now add its rules or upload the standard document.",
+        toast.success(t("{code} created", { code: created.code }), {
+          description: t("Now add its rules or upload the standard document."),
         });
         router.push(`/standards/${created.id}`);
       }
       onDone();
     } catch (err) {
       if (err instanceof ApiClientError && err.status === 409) {
-        setServerErrors({ code: `${payload.code} is already used by another standard.` });
+        setServerErrors({
+          code: t("{code} is already used by another standard.", { code: payload.code }),
+        });
       } else {
-        toast.error(err instanceof Error ? err.message : "Couldn't save the standard.");
+        toast.error(err instanceof Error ? err.message : t("Couldn't save the standard."));
       }
     }
   };
@@ -126,17 +131,18 @@ function StandardForm({ standard, onDone }: { standard?: StandardDto; onDone: ()
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-5">
       <DialogHeader>
-        <DialogTitle>{standard ? "Edit standard" : "New standard"}</DialogTitle>
+        <DialogTitle>{standard ? t("Edit standard") : t("New standard")}</DialogTitle>
         <DialogDescription>
-          A standard groups the rules every proposal must respect. Its rules and documents are sent
-          to the AI for each project that applies it.
+          {t(
+            "A standard groups the rules every proposal must respect. Its rules and documents are sent to the AI for each project that applies it.",
+          )}
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-5 sm:grid-cols-[160px_1fr]">
         <Field
-          label="Code"
+          label={t("Code")}
           error={touched || serverErrors.code ? errors.code : null}
-          hint="e.g. CITS-2026"
+          hint={t("e.g. CITS-2026")}
         >
           <Input
             value={form.code}
@@ -146,7 +152,7 @@ function StandardForm({ standard, onDone }: { standard?: StandardDto; onDone: ()
             autoFocus={!standard}
           />
         </Field>
-        <Field label="Title" error={touched ? errors.title : null}>
+        <Field label={t("Title")} error={touched ? errors.title : null}>
           <Input
             value={form.title}
             onChange={(e) => set("title", e.target.value)}
@@ -154,7 +160,7 @@ function StandardForm({ standard, onDone }: { standard?: StandardDto; onDone: ()
           />
         </Field>
       </div>
-      <Field label="Category">
+      <Field label={t("Category")}>
         <Select value={form.category} onValueChange={(v) => set("category", v as StandardCategory)}>
           <SelectTrigger className="w-full">
             <SelectValue />
@@ -162,35 +168,35 @@ function StandardForm({ standard, onDone }: { standard?: StandardDto; onDone: ()
           <SelectContent>
             {STANDARD_CATEGORIES.map((c) => (
               <SelectItem key={c} value={c}>
-                {c}
+                {t(PROJECT_CATEGORY_LABEL[c])}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </Field>
-      <Field label="Description" optional error={errors.description}>
+      <Field label={t("Description")} optional error={errors.description}>
         <Textarea
           value={form.description}
           onChange={(e) => set("description", e.target.value)}
-          placeholder="Scope and purpose of this standard"
+          placeholder={t("Scope and purpose of this standard")}
           rows={3}
         />
       </Field>
       <label className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
         <span className="flex flex-col gap-0.5">
-          <span className="font-medium text-ink">Active</span>
+          <span className="font-medium text-ink">{t("Active")}</span>
           <span className="text-[13px] text-ink-muted">
-            Active standards are pre-selected for new projects.
+            {t("Active standards are pre-selected for new projects.")}
           </span>
         </span>
         <Switch checked={form.isActive} onCheckedChange={(v) => set("isActive", v)} />
       </label>
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={onDone} disabled={busy}>
-          Cancel
+          {t("Cancel")}
         </Button>
         <Button type="submit" loading={busy} disabled={touched && !valid}>
-          {standard ? "Save changes" : "Create standard"}
+          {standard ? t("Save changes") : t("Create standard")}
         </Button>
       </DialogFooter>
     </form>

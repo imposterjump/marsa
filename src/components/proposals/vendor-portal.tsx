@@ -15,6 +15,7 @@ import {
   Send,
 } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Dropzone, type DropzoneItem } from "@/components/ui/dropzone";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -42,7 +43,6 @@ import {
 import { useSettings } from "@/hooks/use-settings";
 import { ApiClientError } from "@/lib/api-client";
 import type { ProjectSummaryDto, VendorDto } from "@/lib/api-types";
-import { deadlineLabel } from "@/lib/format";
 import { middleTruncate } from "@/lib/files";
 
 type VendorMode = "existing" | "new";
@@ -63,6 +63,7 @@ interface Result {
  * the two envelopes (commercial + technical) and submits them.
  */
 export function VendorPortal() {
+  const t = useT();
   const params = useSearchParams();
   const { data: projects, isLoading } = useProjects();
   const open = (projects ?? []).filter((p) => p.status === "open");
@@ -79,15 +80,18 @@ export function VendorPortal() {
       <div className="flex items-start gap-3 rounded-xl border border-info/25 bg-info-soft/50 px-4 py-3 text-[13px] text-ink-2">
         <FlaskConical className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
         <span>
-          <strong className="font-semibold text-ink">Demo tool.</strong> This page simulates a
-          vendor submitting its bid. In production, vendors would upload through their own
-          supplier-portal accounts.
+          <strong className="font-semibold text-ink">{t("Demo tool.")}</strong>{" "}
+          {t(
+            "This page simulates a vendor submitting its bid. In production, vendors would upload through their own supplier-portal accounts.",
+          )}
         </span>
       </div>
       <PageHeader
-        eyebrow="Vendor side"
-        title="Vendor simulator"
-        description="Submit a vendor's commercial and technical proposals to an open tender. The proposal appears in the project's Proposals tab."
+        eyebrow={t("Vendor side")}
+        title={t("Vendor simulator")}
+        description={t(
+          "Submit a vendor's commercial and technical proposals to an open tender. The proposal appears in the project's Proposals tab.",
+        )}
       />
 
       {isLoading ? (
@@ -97,11 +101,13 @@ export function VendorPortal() {
           <EmptyState
             size="lg"
             art={<Send className="size-12 text-ink-faint" strokeWidth={1.25} />}
-            title="No tender is open for proposals"
-            description="Publish a project to vendors first (Projects → a project → Publish to vendors)."
+            title={t("No tender is open for proposals")}
+            description={t(
+              "Publish a project to vendors first (Projects → a project → Publish to vendors).",
+            )}
             actions={
               <Button asChild variant="secondary">
-                <Link href="/projects">Go to Projects</Link>
+                <Link href="/projects">{t("Go to Projects")}</Link>
               </Button>
             }
           />
@@ -165,6 +171,7 @@ function SubmissionForm({
   onProject: (id: string) => void;
   onResult: (r: Result) => void;
 }) {
+  const t = useT();
   const { data: settings } = useSettings();
   const { data: vendors } = useVendors();
   const { data: existing } = useProposals(project?.id ?? "none");
@@ -186,19 +193,20 @@ function SubmissionForm({
   const already = chosen && existing?.some((p) => p.vendorId === chosen.id);
 
   const errors = {
-    project: !project ? "Choose the tender." : null,
+    project: !project ? t("Choose the tender.") : null,
     vendor:
       effectiveMode === "existing"
         ? !chosen
-          ? "Choose the vendor."
+          ? t("Choose the vendor.")
           : null
         : vendor.name.trim().length < 2
-          ? "Enter the vendor's company name."
+          ? t("Enter the vendor's company name.")
           : vendor.contactEmail && !/^\S+@\S+\.\S+$/.test(vendor.contactEmail)
-            ? "Enter a valid email address."
+            ? t("Enter a valid email address.")
             : vendorError,
-    commercial: commercial.length === 0 ? "Add the commercial proposal (at least one file)." : null,
-    technical: technical.length === 0 ? "Add the technical proposal (at least one file)." : null,
+    commercial:
+      commercial.length === 0 ? t("Add the commercial proposal (at least one file).") : null,
+    technical: technical.length === 0 ? t("Add the technical proposal (at least one file).") : null,
   };
   const show = (e: string | null) => (touched ? e : null);
 
@@ -252,10 +260,20 @@ function SubmissionForm({
           return failed ? { ...f, error: failed.message } : { ...f, pct: 100 };
         }),
       });
-      if (res.failed.length) toast.error(`${res.failed.length} file(s) failed to upload.`);
-      else toast.success(`${v.name}'s proposal submitted to ${project.code}.`);
+      if (res.failed.length)
+        toast.error(
+          t.plural(
+            res.failed.length,
+            "{n} file(s) failed to upload.",
+            "{n} file(s) failed to upload.",
+          ),
+        );
+      else
+        toast.success(
+          t("{vendor}'s proposal submitted to {code}.", { vendor: v.name, code: project.code }),
+        );
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't submit the proposal.");
+      toast.error(err instanceof Error ? err.message : t("Couldn't submit the proposal."));
     } finally {
       setBusy(false);
     }
@@ -263,11 +281,11 @@ function SubmissionForm({
 
   return (
     <form onSubmit={onSubmit} noValidate className="flex max-w-3xl flex-col gap-6">
-      <Section n={1} title="Tender" hint="Only tenders open for proposals are listed.">
-        <Field label="Open tender" error={show(errors.project)}>
+      <Section n={1} title={t("Tender")} hint={t("Only tenders open for proposals are listed.")}>
+        <Field label={t("Open tender")} error={show(errors.project)}>
           <Select value={project?.id ?? ""} onValueChange={onProject}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Choose a tender" />
+              <SelectValue placeholder={t("Choose a tender")} />
             </SelectTrigger>
             <SelectContent>
               {projects.map((p) => (
@@ -281,18 +299,17 @@ function SubmissionForm({
         </Field>
         {project && (
           <p className="-mt-2 text-xs text-ink-muted">
-            {project.rfpCount} RFP document{project.rfpCount === 1 ? "" : "s"} ·{" "}
-            {project.deadline ? deadlineLabel(project.deadline) : "No deadline"} ·{" "}
-            {project.proposalCount} proposal
-            {project.proposalCount === 1 ? "" : "s"} received
+            {t.plural(project.rfpCount, "{n} RFP document", "{n} RFP documents")} ·{" "}
+            {project.deadline ? t.deadline(project.deadline) : t("No deadline")} ·{" "}
+            {t.plural(project.proposalCount, "{n} proposal received", "{n} proposals received")}
           </p>
         )}
       </Section>
 
-      <Section n={2} title="Vendor" hint="The company submitting the bid.">
+      <Section n={2} title={t("Vendor")} hint={t("The company submitting the bid.")}>
         {vendorList.length > 0 && (
           <SegmentedControl<VendorMode>
-            aria-label="Vendor"
+            aria-label={t("Vendor")}
             size="sm"
             value={effectiveMode}
             onValueChange={(m) => {
@@ -300,8 +317,8 @@ function SubmissionForm({
               setVendorError(null);
             }}
             options={[
-              { value: "existing", label: "Existing vendor" },
-              { value: "new", label: "New vendor" },
+              { value: "existing", label: t("Existing vendor") },
+              { value: "new", label: t("New vendor") },
             ]}
             className="w-fit"
           />
@@ -316,10 +333,10 @@ function SubmissionForm({
           >
             {effectiveMode === "existing" ? (
               <div className="flex flex-col gap-3">
-                <Field label="Vendor" error={show(errors.vendor)}>
+                <Field label={t("Vendor")} error={show(errors.vendor)}>
                   <Select value={vendorId} onValueChange={setVendorId}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Choose a vendor" />
+                      <SelectValue placeholder={t("Choose a vendor")} />
                     </SelectTrigger>
                     <SelectContent>
                       {vendorList.map((v) => (
@@ -334,37 +351,43 @@ function SubmissionForm({
                 {already && (
                   <p className="flex items-start gap-2 rounded-lg bg-partial-soft/60 px-3 py-2 text-xs text-ink-2">
                     <CircleAlert className="mt-px size-3.5 shrink-0 text-partial" aria-hidden />
-                    {chosen.name} already submitted to this tender. Submitting again replaces its
-                    previous files.
+                    {t(
+                      "{vendor} already submitted to this tender. Submitting again replaces its previous files.",
+                      { vendor: chosen.name },
+                    )}
                   </p>
                 )}
               </div>
             ) : (
               <div className="grid gap-5 sm:grid-cols-2">
-                <Field label="Company name" error={show(errors.vendor)} className="sm:col-span-2">
+                <Field
+                  label={t("Company name")}
+                  error={show(errors.vendor)}
+                  className="sm:col-span-2"
+                >
                   <Input
                     value={vendor.name}
                     onChange={(e) => {
                       setVendor({ ...vendor, name: e.target.value });
                       setVendorError(null);
                     }}
-                    placeholder="e.g. Harborline Systems"
+                    placeholder={t("e.g. {company}", { company: "Harborline Systems" })}
                     dir="auto"
                   />
                 </Field>
-                <Field label="Country" optional>
+                <Field label={t("Country")} optional>
                   <Input
                     value={vendor.country}
                     onChange={(e) => setVendor({ ...vendor, country: e.target.value })}
                   />
                 </Field>
-                <Field label="Contact name" optional>
+                <Field label={t("Contact name")} optional>
                   <Input
                     value={vendor.contactName}
                     onChange={(e) => setVendor({ ...vendor, contactName: e.target.value })}
                   />
                 </Field>
-                <Field label="Contact email" optional className="sm:col-span-2">
+                <Field label={t("Contact email")} optional className="sm:col-span-2">
                   <Input
                     type="email"
                     value={vendor.contactEmail}
@@ -379,13 +402,15 @@ function SubmissionForm({
 
       <Section
         n={3}
-        title="Proposal documents"
-        hint="Two envelopes, as the RFP requires: the financial (commercial) proposal and the technical proposal."
+        title={t("Proposal documents")}
+        hint={t(
+          "Two envelopes, as the RFP requires: the financial (commercial) proposal and the technical proposal.",
+        )}
       >
         <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
           <div className="flex flex-col gap-2">
             <Dropzone
-              label="Commercial proposal"
+              label={t("Commercial proposal")}
               maxSizeMb={maxMb}
               maxFiles={10}
               onChange={setCommercial}
@@ -394,7 +419,7 @@ function SubmissionForm({
           </div>
           <div className="flex flex-col gap-2">
             <Dropzone
-              label="Technical proposal"
+              label={t("Technical proposal")}
               maxSizeMb={maxMb}
               maxFiles={10}
               onChange={setTechnical}
@@ -406,11 +431,10 @@ function SubmissionForm({
 
       <div className="flex flex-wrap items-center justify-end gap-3">
         <span className="me-auto text-xs text-ink-muted">
-          {commercial.length + technical.length} file
-          {commercial.length + technical.length === 1 ? "" : "s"} ready
+          {t.plural(commercial.length + technical.length, "{n} file ready", "{n} files ready")}
         </span>
         <Button type="submit" size="lg" loading={busy}>
-          <Send /> Submit proposal
+          <Send /> {t("Submit proposal")}
         </Button>
       </div>
     </form>
@@ -418,6 +442,7 @@ function SubmissionForm({
 }
 
 function ResultPanel({ result, onAgain }: { result: Result; onAgain: () => void }) {
+  const t = useT();
   const failed = result.files.filter((f) => f.error).length;
   return (
     <section
@@ -435,16 +460,20 @@ function ResultPanel({ result, onAgain }: { result: Result; onAgain: () => void 
         <span className="flex flex-col gap-1">
           <h2 className="font-heading text-base font-semibold tracking-tight text-ink">
             {!result.done
-              ? `Submitting ${result.vendorName}'s proposal…`
+              ? t("Submitting {vendor}'s proposal…", { vendor: result.vendorName })
               : failed
-                ? `Submitted with ${failed} failed file${failed === 1 ? "" : "s"}`
+                ? t.plural(
+                    failed,
+                    "Submitted with {n} failed file",
+                    "Submitted with {n} failed files",
+                  )
                 : result.replaced
-                  ? "Proposal resubmitted"
-                  : "Proposal submitted"}
+                  ? t("Proposal resubmitted")
+                  : t("Proposal submitted")}
           </h2>
           <span className="text-[13px] text-ink-muted">
             {result.vendorName} → {result.projectCode}
-            {result.replaced && " · the previous files were replaced"}
+            {result.replaced && <> · {t("the previous files were replaced")}</>}
           </span>
         </span>
       </header>
@@ -457,7 +486,7 @@ function ResultPanel({ result, onAgain }: { result: Result; onAgain: () => void 
             <span className="flex items-center justify-between gap-3 text-[13px]">
               <span className="min-w-0 truncate text-ink" dir="auto">
                 <span className="me-2 text-2xs font-semibold tracking-wide text-ink-muted uppercase">
-                  {f.kind}
+                  {f.kind === "technical" ? t("Technical") : t("Commercial")}
                 </span>
                 {f.name}
               </span>
@@ -467,7 +496,7 @@ function ResultPanel({ result, onAgain }: { result: Result; onAgain: () => void 
                   f.error ? "text-fail" : "text-ink-muted",
                 )}
               >
-                {f.error ? "Failed" : `${Math.round(f.pct)}%`}
+                {f.error ? t("Failed") : `${Math.round(f.pct)}%`}
               </span>
             </span>
             {f.error ? (
@@ -486,11 +515,11 @@ function ResultPanel({ result, onAgain }: { result: Result; onAgain: () => void 
       {result.done && (
         <div className="flex flex-wrap justify-end gap-3">
           <Button variant="secondary" onClick={onAgain}>
-            <RotateCcw /> Submit another
+            <RotateCcw /> {t("Submit another")}
           </Button>
           <Button asChild>
             <Link href={`/projects/${result.projectId}/proposals`}>
-              View proposals <ArrowRight />
+              {t("View proposals")} <ArrowRight className="rtl:rotate-180" />
             </Link>
           </Button>
         </div>

@@ -17,6 +17,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { useProjectContext } from "@/components/projects/project-shell";
 import { SetBreadcrumbs } from "@/components/shell/breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -32,24 +33,64 @@ import { useProposal, useProposals } from "@/hooks/use-proposals";
 import { useLatestResultsRun } from "@/hooks/use-runs";
 import { ApiClientError } from "@/lib/api-client";
 import type { DocumentDto, ProposalDetailDto } from "@/lib/api-types";
-import { formatBytes } from "@/lib/files";
-import { formatDateTime } from "@/lib/format";
+import { msg } from "@/lib/i18n/core";
 import { PROPOSAL_SOURCE_LABEL } from "@/lib/labels";
 
 type Envelope = "commercial" | "technical";
 const TABS = [
-  { id: "commercial", label: "Commercial", icon: Receipt },
-  { id: "technical", label: "Technical", icon: FileText },
-  { id: "compliance", label: "Compliance", icon: ListChecks, analysis: true },
-  { id: "comparison", label: "Comparison", icon: Scale, analysis: true },
-  { id: "risk", label: "Risk", icon: ShieldAlert, analysis: true },
+  {
+    id: "commercial",
+    label: msg("Commercial"),
+    hint: msg("Open the commercial proposal"),
+    icon: Receipt,
+  },
+  {
+    id: "technical",
+    label: msg("Technical"),
+    hint: msg("Open the technical proposal"),
+    icon: FileText,
+  },
+  {
+    id: "compliance",
+    label: msg("Compliance"),
+    hint: msg("Compliance results of the latest analysis"),
+    icon: ListChecks,
+    analysis: true,
+  },
+  {
+    id: "comparison",
+    label: msg("Comparison"),
+    hint: msg("Comparison results of the latest analysis"),
+    icon: Scale,
+    analysis: true,
+  },
+  {
+    id: "risk",
+    label: msg("Risk"),
+    hint: msg("Risk results of the latest analysis"),
+    icon: ShieldAlert,
+    analysis: true,
+  },
 ] as const;
+/** The results panel's accessible name. */
+const PANEL_LABEL: Record<AnalysisTab, string> = {
+  compliance: msg("compliance results"),
+  comparison: msg("comparison results"),
+  risk: msg("risk results"),
+};
 const ANALYSIS_TABS: readonly string[] = ["compliance", "comparison", "risk"];
 const ENVELOPE = {
-  commercial: { title: "Financial proposal", note: "Envelope 2 · prices, terms and deviations" },
+  commercial: {
+    title: msg("Financial proposal"),
+    note: msg("Envelope 2 · prices, terms and deviations"),
+    empty: msg("No commercial proposal"),
+    missing: msg("{vendor} didn't submit a commercial file."),
+  },
   technical: {
-    title: "Technical proposal",
-    note: "Envelope 1 · solution, compliance matrix, no prices",
+    title: msg("Technical proposal"),
+    note: msg("Envelope 1 · solution, compliance matrix, no prices"),
+    empty: msg("No technical proposal"),
+    missing: msg("{vendor} didn't submit a technical file."),
   },
 } as const;
 
@@ -64,6 +105,7 @@ const docsOf = (p: ProposalDetailDto, e: Envelope) =>
  * and show the latest finished run (P6 basic view, P8 full results UX).
  */
 export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
+  const t = useT();
   const project = useProjectContext();
   const router = useRouter();
   const pathname = usePathname();
@@ -93,14 +135,14 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
       <EmptyState
         size="lg"
         art={<FileText className="size-12 text-ink-faint" strokeWidth={1.25} />}
-        title={notFound ? "Proposal not found" : "Couldn't load this proposal"}
+        title={notFound ? t("Proposal not found") : t("Couldn't load this proposal")}
         description={
-          notFound ? "It may have been withdrawn." : "Check your connection and try again."
+          notFound ? t("It may have been withdrawn.") : t("Check your connection and try again.")
         }
         actions={
           <Button asChild variant="secondary">
             <Link href={`/projects/${project.id}/proposals`}>
-              <ArrowLeft /> All proposals
+              <ArrowLeft className="rtl:rotate-180" /> {t("All proposals")}
             </Link>
           </Button>
         }
@@ -138,7 +180,7 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
     <div className="flex flex-col gap-6">
       <SetBreadcrumbs
         crumbs={[
-          { label: "Projects", href: "/projects" },
+          { label: t("Projects"), href: "/projects" },
           { label: project.code, href: `/projects/${project.id}/proposals` },
           { label: p.vendor.name },
         ]}
@@ -155,9 +197,11 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
             </h2>
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-ink-muted">
               {p.vendor.country && <span>{p.vendor.country}</span>}
-              <span className="tabular-nums">Submitted {formatDateTime(p.submittedAt)}</span>
+              <span className="tabular-nums">
+                {t("Submitted {date}", { date: t.dateTime(p.submittedAt) })}
+              </span>
               <Pill tone={p.source === "seed" ? "info" : "neutral"} size="sm">
-                {PROPOSAL_SOURCE_LABEL[p.source]}
+                {t(PROPOSAL_SOURCE_LABEL[p.source])}
               </Pill>
             </p>
           </div>
@@ -165,18 +209,24 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
         <div className="flex items-center gap-2">
           {order.length > 1 && (
             <span className="me-1 text-xs text-ink-muted tabular-nums">
-              Vendor {idx + 1} of {order.length}
+              {t("Vendor {n} of {total}", { n: idx + 1, total: order.length })}
             </span>
           )}
           <VendorNav
             to={prev && href(prev.id)}
-            label={prev ? `Previous vendor: ${prev.vendor.name}` : "No previous vendor"}
+            label={
+              prev
+                ? t("Previous vendor: {vendor}", { vendor: prev.vendor.name })
+                : t("No previous vendor")
+            }
           >
             <ChevronLeft className="rtl:rotate-180" />
           </VendorNav>
           <VendorNav
             to={next && href(next.id)}
-            label={next ? `Next vendor: ${next.vendor.name}` : "No next vendor"}
+            label={
+              next ? t("Next vendor: {vendor}", { vendor: next.vendor.name }) : t("No next vendor")
+            }
           >
             <ChevronRight className="rtl:rotate-180" />
           </VendorNav>
@@ -185,23 +235,23 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
 
       <div
         role="tablist"
-        aria-label="Proposal sections"
+        aria-label={t("Proposal sections")}
         className="flex [scrollbar-width:none] gap-1 overflow-x-auto rounded-lg bg-surface-muted p-1 sm:w-fit"
       >
-        {TABS.map((t) => {
-          const active = t.id === activeTab;
-          const locked = "analysis" in t && !resultsRun;
+        {TABS.map((tb) => {
+          const active = tb.id === activeTab;
+          const locked = "analysis" in tb && !resultsRun;
           const btn = (
             <button
-              key={t.id}
+              key={tb.id}
               type="button"
               role="tab"
               aria-selected={active}
               aria-disabled={locked || undefined}
               onClick={() => {
                 if (locked) return;
-                if ("analysis" in t) setQuery({ tab: t.id, reader: null, page: null, q: null });
-                else openReader(t.id as Envelope);
+                if ("analysis" in tb) setQuery({ tab: tb.id, reader: null, page: null, q: null });
+                else openReader(tb.id as Envelope);
               }}
               className={cn(
                 "relative flex h-8 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/25",
@@ -223,21 +273,17 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
                 {locked ? (
                   <Lock className="size-3.5" aria-hidden />
                 ) : (
-                  <t.icon className="size-4" aria-hidden />
+                  <tb.icon className="size-4" aria-hidden />
                 )}
-                {t.label}
+                {t(tb.label)}
               </span>
             </button>
           );
           return (
-            <Tooltip key={t.id}>
+            <Tooltip key={tb.id}>
               <TooltipTrigger asChild>{btn}</TooltipTrigger>
               <TooltipContent>
-                {locked
-                  ? "Unlocks after Analyse & process"
-                  : "analysis" in t
-                    ? `${t.label} results of the latest analysis`
-                    : `Open the ${t.label.toLowerCase()} proposal`}
+                {locked ? t("Unlocks after Analyse & process") : t(tb.hint)}
               </TooltipContent>
             </Tooltip>
           );
@@ -249,7 +295,7 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
           <motion.section
             key={analysisTab}
             role="tabpanel"
-            aria-label={`${analysisTab} results`}
+            aria-label={t(PANEL_LABEL[analysisTab])}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
@@ -272,7 +318,7 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
           <motion.section
             key={tab}
             role="tabpanel"
-            aria-label={ENVELOPE[tab].title}
+            aria-label={t(ENVELOPE[tab].title)}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
@@ -281,16 +327,16 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
           >
             <div className="flex flex-col gap-0.5">
               <h3 className="font-heading text-base font-semibold tracking-tight text-ink">
-                {ENVELOPE[tab].title}
+                {t(ENVELOPE[tab].title)}
               </h3>
-              <p className="text-[13px] text-ink-muted">{ENVELOPE[tab].note}</p>
+              <p className="text-[13px] text-ink-muted">{t(ENVELOPE[tab].note)}</p>
             </div>
             {docs.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border-strong bg-surface/60">
                 <EmptyState
                   art={<FileText className="size-10 text-ink-faint" strokeWidth={1.5} />}
-                  title={`No ${tab} proposal`}
-                  description={`${p.vendor.name} didn't submit a ${tab} file.`}
+                  title={t(ENVELOPE[tab].empty)}
+                  description={t(ENVELOPE[tab].missing, { vendor: p.vendor.name })}
                 />
               </div>
             ) : (
@@ -309,11 +355,11 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
         onOpenChange={(o) => !o && setQuery({ reader: null, page: null, q: null })}
         leading={<InitialsAvatar name={p.vendor.name} size="sm" />}
         title={p.vendor.name}
-        subtitle={`${project.code} · Submitted ${formatDateTime(p.submittedAt)}`}
+        subtitle={`${project.code} · ${t("Submitted {date}", { date: t.dateTime(p.submittedAt) })}`}
         groups={[
-          { id: "commercial", label: "Commercial", docs: p.commercialDocuments },
-          { id: "technical", label: "Technical", docs: p.technicalDocuments },
-          { id: "rfp", label: "RFP", docs: project.rfpDocuments },
+          { id: "commercial", label: t("Commercial"), docs: p.commercialDocuments },
+          { id: "technical", label: t("Technical"), docs: p.technicalDocuments },
+          { id: "rfp", label: t("RFP"), docs: project.rfpDocuments },
         ]}
         docId={readerDoc?.id ?? null}
         quote={params.get("q")}
@@ -337,12 +383,13 @@ export function ProposalWorkspace({ proposalId }: { proposalId: string }) {
 }
 
 function DocumentCard({ doc, onOpen }: { doc: DocumentDto; onOpen: () => void }) {
+  const t = useT();
   return (
     <li className="flex flex-col gap-5 rounded-xl border border-border bg-surface p-5 shadow-xs sm:flex-row sm:items-center sm:gap-7">
       <button
         type="button"
         onClick={onOpen}
-        aria-label={`Open ${doc.originalName} in the reader`}
+        aria-label={t("Open {file} in the reader", { file: doc.originalName })}
         className="self-center rounded-sm p-3 outline-none focus-visible:ring-3 focus-visible:ring-ring/30 sm:self-auto"
       >
         <DocumentCover doc={doc} width={150} />
@@ -354,26 +401,24 @@ function DocumentCard({ doc, onOpen }: { doc: DocumentDto; onOpen: () => void })
           </span>
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-muted tabular-nums">
             {doc.pageCount != null && (
-              <span>
-                {doc.pageCount} page{doc.pageCount === 1 ? "" : "s"}
-              </span>
+              <span>{t.plural(doc.pageCount, "{n} page", "{n} pages")}</span>
             )}
             <span aria-hidden>·</span>
-            <span>{formatBytes(doc.sizeBytes)}</span>
+            <span>{t.bytes(doc.sizeBytes)}</span>
             {doc.aiReadable && (
               <Pill tone="ok" size="sm">
-                AI-readable
+                {t("AI-readable")}
               </Pill>
             )}
           </span>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={onOpen}>
-            <BookOpen /> Open reader
+            <BookOpen /> {t("Open reader")}
           </Button>
           <Button asChild variant="ghost">
             <a href={`${doc.url}?download=1`}>
-              <Download /> Download
+              <Download /> {t("Download")}
             </a>
           </Button>
         </div>

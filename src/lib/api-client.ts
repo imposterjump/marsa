@@ -1,4 +1,5 @@
 import type { ApiErrorBody } from "./api-types";
+import { translate } from "./i18n/core";
 
 export class ApiClientError extends Error {
   constructor(
@@ -34,7 +35,14 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiClientError(
       res.status,
       body?.error.code ?? "http_error",
-      body?.error.message ?? `Request failed (${res.status}).`,
+      body?.error.message ??
+        translate(
+          typeof document !== "undefined" && document.documentElement.dataset.locale === "ar"
+            ? "ar"
+            : "en",
+          "Request failed ({status}).",
+          { status: res.status },
+        ),
       body?.error.details,
     );
   }

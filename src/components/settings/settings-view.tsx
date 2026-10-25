@@ -6,6 +6,8 @@ import { Tabs as TabsPrimitive } from "radix-ui";
 import { toast } from "sonner";
 import { Monitor, Moon, Palette, Scale, Sparkles, Sun, UserRound, Wrench } from "lucide-react";
 import { cn } from "cn";
+import { currentT, useT } from "@/components/i18n-provider";
+import { LanguageSegmented } from "@/components/shell/language-toggle";
 import { useTheme } from "@/components/theme-provider";
 import { useSidebarCollapsed } from "@/hooks/use-client-store";
 import { Button } from "@/components/ui/button";
@@ -17,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
 import type { Theme } from "@/lib/domain";
+import { msg } from "@/lib/i18n/core";
 import { setSidebarCollapsed } from "@/lib/theme";
 import { AiSection } from "./ai-section";
 import { DemoSection } from "./demo-section";
@@ -24,11 +27,11 @@ import { ScoringSection } from "./scoring-section";
 import { Section } from "./settings-section";
 
 const SECTIONS = [
-  { id: "profile", label: "Profile", icon: UserRound },
-  { id: "appearance", label: "Appearance", icon: Palette },
-  { id: "ai", label: "AI & runtime", icon: Sparkles },
-  { id: "scoring", label: "Scoring", icon: Scale },
-  { id: "demo", label: "Demo tools", icon: Wrench },
+  { id: "profile", label: msg("Profile"), icon: UserRound },
+  { id: "appearance", label: msg("Appearance"), icon: Palette },
+  { id: "ai", label: msg("AI & runtime"), icon: Sparkles },
+  { id: "scoring", label: msg("Scoring"), icon: Scale },
+  { id: "demo", label: msg("Demo tools"), icon: Wrench },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -53,14 +56,17 @@ const selectTab = (id: SectionId) => {
  * the current one out and the new one in. Vertical tab list on desktop, scrollable chips on mobile.
  */
 export function SettingsView() {
+  const t = useT();
   const active = useSyncExternalStore(subscribeHash, readHashTab, () => "profile" as SectionId);
   const current = SECTIONS.find((x) => x.id === active)!;
 
   return (
     <div className="flex flex-col gap-10">
       <PageHeader
-        title="Settings"
-        description="Personalise your workspace, choose how the AI evaluates proposals, and tune the scoring."
+        title={t("Settings")}
+        description={t(
+          "Personalise your workspace, choose how the AI evaluates proposals, and tune the scoring.",
+        )}
       />
       <TabsPrimitive.Root
         value={active}
@@ -69,7 +75,7 @@ export function SettingsView() {
         className="grid gap-8 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-10"
       >
         <TabsPrimitive.List
-          aria-label="Settings sections"
+          aria-label={t("Settings sections")}
           className="-mx-1 flex [scrollbar-width:none] gap-1 overflow-x-auto px-1 pb-1 lg:sticky lg:top-24 lg:mx-0 lg:flex-col lg:self-start lg:overflow-visible lg:px-0 lg:pb-0"
         >
           {SECTIONS.map(({ id, label, icon: Icon }) => (
@@ -94,7 +100,7 @@ export function SettingsView() {
                 aria-hidden
                 className="relative size-4 group-data-[state=active]/tab:text-brand"
               />
-              <span className="relative">{label}</span>
+              <span className="relative">{t(label)}</span>
             </TabsPrimitive.Trigger>
           ))}
         </TabsPrimitive.List>
@@ -124,12 +130,13 @@ export function SettingsView() {
 }
 
 function ProfileSection() {
+  const t = useT();
   const { data } = useSettings();
   return (
     <Section
       id="profile"
-      title="Profile"
-      description="Shown in the header, the greeting and the browser tab. No account needed."
+      title={t("Profile")}
+      description={t("Shown in the header, the greeting and the browser tab. No account needed.")}
     >
       {/* key: the form re-initialises from the server copy whenever it changes */}
       {!data ? (
@@ -142,15 +149,16 @@ function ProfileSection() {
 }
 
 function ProfileForm({ name0, org0 }: { name0: string; org0: string }) {
+  const t = useT();
   const save = useUpdateSettings();
   const [name, setName] = useState(name0);
   const [org, setOrg] = useState(org0);
   const nameError = name.trim()
     ? name.trim().length > 80
-      ? "Keep it under 80 characters."
+      ? t("Keep it under {n} characters.", { n: 80 })
       : null
-    : "Please enter your name.";
-  const orgError = org.trim().length > 120 ? "Keep it under 120 characters." : null;
+    : t("Please enter your name.");
+  const orgError = org.trim().length > 120 ? t("Keep it under {n} characters.", { n: 120 }) : null;
   const dirty = name.trim() !== name0 || org.trim() !== org0;
 
   return (
@@ -164,10 +172,10 @@ function ProfileForm({ name0, org0 }: { name0: string; org0: string }) {
           organization: org.trim(),
           onboarded: true,
         });
-        toast.success("Profile saved.");
+        toast.success(currentT()("Profile saved."));
       }}
     >
-      <Field label="Your name" error={nameError}>
+      <Field label={t("Your name")} error={nameError}>
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -175,7 +183,7 @@ function ProfileForm({ name0, org0 }: { name0: string; org0: string }) {
           autoComplete="name"
         />
       </Field>
-      <Field label="Organization" optional error={orgError}>
+      <Field label={t("Organization")} optional error={orgError}>
         <Input
           value={org}
           onChange={(e) => setOrg(e.target.value)}
@@ -193,14 +201,14 @@ function ProfileForm({ name0, org0 }: { name0: string; org0: string }) {
             setOrg(org0);
           }}
         >
-          Reset
+          {t("Reset")}
         </Button>
         <Button
           type="submit"
           disabled={!dirty || !!nameError || !!orgError}
           loading={save.isPending}
         >
-          Save profile
+          {t("Save profile")}
         </Button>
       </div>
     </form>
@@ -208,6 +216,7 @@ function ProfileForm({ name0, org0 }: { name0: string; org0: string }) {
 }
 
 function AppearanceSection() {
+  const t = useT();
   const { theme, setTheme } = useTheme();
   const save = useUpdateSettings();
   const collapsed = useSidebarCollapsed();
@@ -215,35 +224,46 @@ function AppearanceSection() {
   return (
     <Section
       id="appearance"
-      title="Appearance"
-      description="Theme and layout preferences for this browser."
+      title={t("Appearance")}
+      description={t("Theme and layout preferences for this browser.")}
     >
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-0.5">
-            <span className="font-medium text-ink">Theme</span>
+            <span className="font-medium text-ink">{t("Language")}</span>
             <span className="text-[13px] text-ink-muted">
-              System follows your OS light/dark setting.
+              {t("Screens in English or Arabic. New analyses are written in the same language.")}
+            </span>
+          </div>
+          <LanguageSegmented />
+        </div>
+        <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium text-ink">{t("Theme")}</span>
+            <span className="text-[13px] text-ink-muted">
+              {t("System follows your OS light/dark setting.")}
             </span>
           </div>
           <SegmentedControl<Theme>
-            aria-label="Theme"
+            aria-label={t("Theme")}
             value={theme}
             onValueChange={(v) => {
               setTheme(v);
               save.mutate({ theme: v });
             }}
             options={[
-              { value: "light", label: "Light", icon: <Sun /> },
-              { value: "dark", label: "Dark", icon: <Moon /> },
-              { value: "system", label: "System", icon: <Monitor /> },
+              { value: "light", label: t("Light"), icon: <Sun /> },
+              { value: "dark", label: t("Dark"), icon: <Moon /> },
+              { value: "system", label: t("System"), icon: <Monitor /> },
             ]}
           />
         </div>
         <div className="flex items-center justify-between gap-6 border-t border-border/70 pt-6">
           <label htmlFor="sidebar-collapsed" className="flex flex-col gap-0.5">
-            <span className="font-medium text-ink">Compact sidebar</span>
-            <span className="text-[13px] text-ink-muted">Show icons only. Shortcut: Ctrl + B.</span>
+            <span className="font-medium text-ink">{t("Compact sidebar")}</span>
+            <span className="text-[13px] text-ink-muted">
+              {t("Show icons only. Shortcut: Ctrl + B.")}
+            </span>
           </label>
           <Switch
             id="sidebar-collapsed"

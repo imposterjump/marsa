@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { LayoutGrid, List, Plus, Search, SearchX } from "lucide-react";
+import { useT } from "@/components/i18n-provider";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { ProjectsArt } from "@/components/illustrations";
 import { Button } from "@/components/ui/button";
@@ -15,13 +16,13 @@ import type { ProjectStatus } from "@/lib/domain";
 import { PROJECT_STATUS_LABEL } from "@/lib/labels";
 import { ProjectCard, ProjectRow } from "./project-card";
 import { ProjectsWelcome } from "./projects-welcome";
-import { APP_NAME } from "@/lib/brand";
 
 type Filter = "all" | ProjectStatus;
 type View = "grid" | "list";
 const FILTERS: Filter[] = ["all", "draft", "open", "evaluating", "evaluated", "archived"];
 
 export function ProjectsHome() {
+  const t = useT();
   const { data: projects, isLoading, isError, refetch } = useProjects();
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
@@ -51,7 +52,7 @@ export function ProjectsHome() {
             id="projects-heading"
             className="font-heading text-xl font-semibold tracking-tight text-ink"
           >
-            Your projects
+            {t("Your projects")}
           </h2>
           {all.length > 0 && (
             <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center">
@@ -61,8 +62,8 @@ export function ProjectsHome() {
                   className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-ink-faint"
                 />
                 <Input
-                  aria-label="Search projects"
-                  placeholder="Search by name or reference"
+                  aria-label={t("Search projects")}
+                  placeholder={t("Search by name or reference")}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="ps-9 md:w-64"
@@ -70,7 +71,7 @@ export function ProjectsHome() {
               </div>
               <div className="flex min-w-0 items-center gap-3">
                 <SegmentedControl<Filter>
-                  aria-label="Filter projects by status"
+                  aria-label={t("Filter projects by status")}
                   value={filter}
                   onValueChange={setFilter}
                   size="sm"
@@ -78,13 +79,13 @@ export function ProjectsHome() {
                   options={FILTERS.filter((f) => f === "all" || f === filter || counts[f] > 0).map(
                     (f) => ({
                       value: f,
-                      label: f === "all" ? "All" : PROJECT_STATUS_LABEL[f],
+                      label: f === "all" ? t("All") : t(PROJECT_STATUS_LABEL[f]),
                       count: counts[f],
                     }),
                   )}
                 />
                 <SegmentedControl<View>
-                  aria-label="Layout"
+                  aria-label={t("Layout")}
                   value={view}
                   onValueChange={setView}
                   size="sm"
@@ -92,12 +93,12 @@ export function ProjectsHome() {
                   options={[
                     {
                       value: "grid",
-                      label: <span className="sr-only">Grid view</span>,
+                      label: <span className="sr-only">{t("Grid view")}</span>,
                       icon: <LayoutGrid />,
                     },
                     {
                       value: "list",
-                      label: <span className="sr-only">List view</span>,
+                      label: <span className="sr-only">{t("List view")}</span>,
                       icon: <List />,
                     },
                   ]}
@@ -115,9 +116,9 @@ export function ProjectsHome() {
           </div>
         ) : isError ? (
           <div className="rounded-xl border border-fail/30 bg-fail-soft/40 p-6 text-fail">
-            Couldn&apos;t load projects.{" "}
+            {t("Couldn't load projects.")}{" "}
             <button className="font-medium underline" onClick={() => refetch()}>
-              Try again
+              {t("Try again")}
             </button>
           </div>
         ) : all.length === 0 ? (
@@ -125,18 +126,15 @@ export function ProjectsHome() {
             <EmptyState
               size="lg"
               art={<ProjectsArt />}
-              title="No projects yet"
-              description={
-                <>
-                  A project holds one tender: its RFP documents, the standards that apply, the
-                  vendors&apos; proposals and {APP_NAME}&apos;s evaluation. Start by publishing your
-                  first RFP.
-                </>
-              }
+              title={t("No projects yet")}
+              description={t(
+                "A project holds one tender: its RFP documents, the standards that apply, the vendors' proposals and {app}'s evaluation. Start by publishing your first RFP.",
+                { app: t.appName },
+              )}
               actions={
                 <Button asChild>
                   <Link href="/projects/new">
-                    <Plus /> Create your first project
+                    <Plus /> {t("Create your first project")}
                   </Link>
                 </Button>
               }
@@ -145,8 +143,12 @@ export function ProjectsHome() {
         ) : list.length === 0 ? (
           <EmptyState
             art={<SearchX className="size-10 text-ink-faint" strokeWidth={1.5} />}
-            title="No projects match"
-            description={query ? `Nothing matches "${query}".` : "No projects with this status."}
+            title={t("No projects match")}
+            description={
+              query
+                ? t('Nothing matches "{query}".', { query })
+                : t("No projects with this status.")
+            }
             actions={
               <Button
                 variant="secondary"
@@ -155,7 +157,7 @@ export function ProjectsHome() {
                   setFilter("all");
                 }}
               >
-                Clear filters
+                {t("Clear filters")}
               </Button>
             }
           />

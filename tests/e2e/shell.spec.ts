@@ -145,3 +145,46 @@ test.describe("dropzone (P1.5)", () => {
     await expect(zone.getByText("This file is already in the list.")).toBeVisible();
   });
 });
+
+test.describe("Arabic UI (2026-10-25)", () => {
+  // The switch also sets the AI's report language: put it back for the other tests.
+  test.afterEach(async ({ page }) => {
+    await page.request.put("/api/settings", { data: { reportLanguage: "en" } });
+  });
+
+  test("switches the app to Arabic, right to left, and back", async ({ page }) => {
+    await onboard(page);
+    await page.goto("/projects");
+    const html = page.locator("html");
+    await page.getByRole("button", { name: "Switch to Arabic" }).click();
+    await expect(html).toHaveAttribute("dir", "rtl");
+    await expect(html).toHaveAttribute("lang", "ar");
+    const nav = page.getByRole("navigation", { name: "التنقل الرئيسي" });
+    await expect(nav.getByRole("link", { name: "المشاريع" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "التبديل إلى الإنجليزية" })).toBeVisible();
+
+    // Saved in the browser: a reload opens in Arabic, and the page is shown once translated.
+    await page.reload();
+    await expect(html).toHaveAttribute("dir", "rtl");
+    await expect(html).not.toHaveAttribute("data-locale-pending", /.*/);
+    await expect(nav.getByRole("link", { name: "المعايير" })).toBeVisible();
+
+    // New analyses are written in Arabic too.
+    const settings = await (await page.request.get("/api/settings")).json();
+    expect(settings.reportLanguage).toBe("ar");
+
+    for (const url of ["/projects", "/standards", "/settings", "/projects/new"]) {
+      await page.goto(url);
+      await expect(page.locator("main h1").first()).toContainText(/[؀-ۿ]/);
+    }
+
+    // Server errors come back in the reader's language (the cookie).
+    const res = await page.request.get("/api/projects/does-not-exist");
+    expect((await res.json()).error.message).toBe("تعذّر العثور على المشروع.");
+
+    await page.getByRole("button", { name: "التبديل إلى الإنجليزية" }).click();
+    await expect(html).toHaveAttribute("dir", "ltr");
+    const navEn = page.getByRole("navigation", { name: "Main navigation" });
+    await expect(navEn.getByRole("link", { name: "Projects" })).toBeVisible();
+  });
+});

@@ -16,6 +16,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { useProjectContext } from "@/components/projects/project-shell";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import type {
   VendorResultDto,
 } from "@/lib/api-types";
 import type { FindingStatus, ProposalSection, RiskSeverity } from "@/lib/domain";
+import { msg } from "@/lib/i18n/core";
 import { maxSeverity } from "@/lib/scoring";
 import {
   COMPLIANCE_FILL,
@@ -43,6 +45,7 @@ import {
   sectionLabel,
 } from "./shared";
 import { CompareRun } from "./compare-run";
+import { listSep } from "./risk-list";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
 const RANK: Record<FindingStatus, number> = {
@@ -69,6 +72,7 @@ export function ComparisonTab({
   colors: Map<string, string>;
   onEvidence: OpenEvidence;
 }) {
+  const t = useT();
   const p = useProjectContext();
   const analysed = d.vendors.filter((v) => v.scores);
   const [picked, setPicked] = useState<string[]>([]);
@@ -87,11 +91,12 @@ export function ComparisonTab({
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="max-w-3xl text-[13px] text-ink-muted">
-            Side by side from the AI analysis of each proposal. The best value in each row is
-            marked; open a section to see the points where the vendors differ.
+            {t(
+              "Side by side from the AI analysis of each proposal. The best value in each row is marked; open a section to see the points where the vendors differ.",
+            )}
           </p>
           <Button variant="secondary" onClick={() => setStage("pick")}>
-            <Pencil /> Change selection
+            <Pencil /> {t("Change selection")}
           </Button>
         </div>
         <PricingTable d={d} vendors={chosen} colors={colors} onEvidence={onEvidence} />
@@ -103,22 +108,24 @@ export function ComparisonTab({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-[13px] text-ink-muted">
-          Pick the vendors to compare, then press Compare.
+          {t("Pick the vendors to compare, then press Compare.")}
         </p>
         <Button onClick={() => setStage("running")} disabled={picked.length < 2 || busy}>
           {busy ? (
             <>
-              <LoaderCircle className="animate-spin" /> Comparing…
+              <LoaderCircle className="animate-spin" /> {t("Comparing…")}
             </>
           ) : (
             <>
               <Columns3 />{" "}
-              {picked.length < 2 ? "Pick at least 2 vendors" : `Compare ${picked.length} vendors`}
+              {picked.length < 2
+                ? t("Pick at least 2 vendors")
+                : t.plural(picked.length, "Compare {n} vendor", "Compare {n} vendors")}
             </>
           )}
         </Button>
       </div>
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Vendors">
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("Vendors")}>
         {analysed.map((v) => {
           const on = picked.includes(v.proposalId);
           return (
@@ -141,14 +148,14 @@ export function ComparisonTab({
                         c === true ? [...p, v.proposalId] : p.filter((x) => x !== v.proposalId),
                       )
                     }
-                    aria-label={`Compare ${v.vendor.name}`}
+                    aria-label={t("Compare {vendor}", { vendor: v.vendor.name })}
                   />
                   <VendorLabel v={v} color={colors.get(v.proposalId)} />
                 </span>
                 <dl className="grid grid-cols-3 gap-2 text-center">
-                  <Num label="Standards" value={pctText(v.scores!.standardsPct)} />
-                  <Num label="RFP" value={pctText(v.scores!.rfpPct)} />
-                  <Num label="Risk" value={String(v.scores!.riskScore)} />
+                  <Num label={t("Standards")} value={pctText(v.scores!.standardsPct)} />
+                  <Num label={t("RFP")} value={pctText(v.scores!.rfpPct)} />
+                  <Num label={t("Risk")} value={String(v.scores!.riskScore)} />
                 </dl>
               </label>
             </li>
@@ -201,6 +208,15 @@ function bestOf(values: (number | null)[], best: Best): Set<number> {
 
 const cleanText = (s: string | null | undefined) => (s ?? "").replace(/[\s,;.]+$/, "").trim();
 
+/** The commercial terms the AI read from each proposal, one row each. */
+const COMMERCIAL_ROWS: [string, (v: VendorResultDto) => string][] = [
+  [msg("Total price"), (v) => cleanText(v.commercial.totalPrice)],
+  [msg("Payment"), (v) => cleanText(v.commercial.paymentTerms)],
+  [msg("Delivery"), (v) => cleanText(v.commercial.deliveryTime)],
+  [msg("Warranty"), (v) => cleanText(v.commercial.warranty)],
+  [msg("Bid validity"), (v) => cleanText(v.commercial.validity)],
+];
+
 function PricingTable({
   d,
   vendors,
@@ -212,6 +228,7 @@ function PricingTable({
   colors: Map<string, string>;
   onEvidence: OpenEvidence;
 }) {
+  const t = useT();
   const ranked = d.vendors.filter((v) => v.scores);
   const recommended = d.recommendation?.proposalId ?? ranked[0]?.proposalId;
   const sectionsFor = (scope: Scope) =>
@@ -236,7 +253,7 @@ function PricingTable({
   return (
     <div className="overflow-x-auto pb-2 lg:overflow-visible">
       <table
-        aria-label="Vendor comparison"
+        aria-label={t("Vendor comparison")}
         className="w-full min-w-[760px] table-fixed border-separate [border-spacing:0.75rem_0] text-sm"
       >
         <colgroup>
@@ -251,12 +268,14 @@ function PricingTable({
               scope="col"
               className="sticky top-16 z-10 bg-background pt-2 pb-4 text-start align-bottom font-normal"
             >
-              <span className="caption-caps text-ink-muted">{n} vendors compared</span>
+              <span className="caption-caps text-ink-muted">
+                {t.plural(n, "{n} vendor compared", "{n} vendors compared")}
+              </span>
               <span className="mt-1 flex items-center gap-1.5 text-xs text-ink-muted">
                 <span className="inline-flex size-4 items-center justify-center rounded-full bg-ok-fill text-white">
                   <Check className="size-3" aria-hidden />
                 </span>
-                best in the row
+                {t("best in the row")}
               </span>
             </th>
             {vendors.map((v, i) => (
@@ -280,10 +299,10 @@ function PricingTable({
           </tr>
         </thead>
         <tbody>
-          <GroupRow title="Overall" icon={Trophy} vendors={vendors} colCls={colCls} />
+          <GroupRow title={t("Overall")} icon={Trophy} vendors={vendors} colCls={colCls} />
           <ValueRow
-            label="Overall score"
-            hint="Standards, RFP and risk combined"
+            label={t("Overall score")}
+            hint={t("Standards, RFP and risk combined")}
             vendors={vendors}
             colCls={colCls}
             values={vendors.map((v) => v.scores!.overall)}
@@ -292,7 +311,7 @@ function PricingTable({
           />
           {d.hasStandards && (
             <ValueRow
-              label="Standards compliance"
+              label={t("Standards compliance")}
               vendors={vendors}
               colCls={colCls}
               values={vendors.map((v) => v.scores!.standardsPct)}
@@ -301,7 +320,7 @@ function PricingTable({
             />
           )}
           <ValueRow
-            label="RFP compliance"
+            label={t("RFP compliance")}
             vendors={vendors}
             colCls={colCls}
             values={vendors.map((v) => v.scores!.rfpPct)}
@@ -309,8 +328,8 @@ function PricingTable({
             render={(v) => <PctCell pct={v.scores!.rfpPct} />}
           />
           <ValueRow
-            label="Risk score"
-            hint="0–100, lower is better"
+            label={t("Risk score")}
+            hint={t("0–100, lower is better")}
             vendors={vendors}
             colCls={colCls}
             values={vendors.map((v) => v.scores!.riskScore)}
@@ -324,13 +343,13 @@ function PricingTable({
                 <MeterBar
                   value={v.scores!.riskScore}
                   fill={RISK_FILL[v.scores!.riskLevel]}
-                  label="Risk score"
+                  label={t("Risk score")}
                 />
               </span>
             )}
           />
           <ValueRow
-            label="Mandatory requirements not met"
+            label={t("Mandatory requirements not met")}
             vendors={vendors}
             colCls={colCls}
             values={vendors.map((v) => v.scores!.mandatoryNotMet)}
@@ -342,14 +361,14 @@ function PricingTable({
                   v.scores!.mandatoryNotMet ? "text-fail" : "text-ink",
                 )}
               >
-                {v.scores!.mandatoryNotMet || "None"}
+                {v.scores!.mandatoryNotMet || t("None")}
               </span>
             )}
           />
 
           <ScopeGroup
             scope="rfp"
-            title="RFP compliance by section"
+            title={t("RFP compliance by section")}
             icon={FileText}
             d={d}
             vendors={vendors}
@@ -361,7 +380,7 @@ function PricingTable({
           {d.hasStandards && (
             <ScopeGroup
               scope="standard"
-              title="Standards compliance by section"
+              title={t("Standards compliance by section")}
               icon={ShieldCheck}
               d={d}
               vendors={vendors}
@@ -372,9 +391,18 @@ function PricingTable({
             />
           )}
 
-          <GroupRow title="Risks by section" icon={ShieldAlert} vendors={vendors} colCls={colCls} />
+          <GroupRow
+            title={t("Risks by section")}
+            icon={ShieldAlert}
+            vendors={vendors}
+            colCls={colCls}
+          />
           {riskSections.length === 0 ? (
-            <NoteRow text="No risks raised for these vendors." vendors={vendors} colCls={colCls} />
+            <NoteRow
+              text={t("No risks raised for these vendors.")}
+              vendors={vendors}
+              colCls={colCls}
+            />
           ) : (
             riskSections.map((s) => (
               <RiskRow key={s ?? "none"} section={s} vendors={vendors} colCls={colCls} />
@@ -382,36 +410,28 @@ function PricingTable({
           )}
 
           <GroupRow
-            title="Commercial terms"
+            title={t("Commercial terms")}
             icon={Receipt}
-            hint="As the AI read them from each proposal"
+            hint={t("As the AI read them from each proposal")}
             vendors={vendors}
             colCls={colCls}
           />
-          {(
-            [
-              ["Total price", (v) => cleanText(v.commercial.totalPrice)],
-              ["Payment", (v) => cleanText(v.commercial.paymentTerms)],
-              ["Delivery", (v) => cleanText(v.commercial.deliveryTime)],
-              ["Warranty", (v) => cleanText(v.commercial.warranty)],
-              ["Bid validity", (v) => cleanText(v.commercial.validity)],
-            ] as [string, (v: VendorResultDto) => string][]
-          ).map(([label, get]) => (
+          {COMMERCIAL_ROWS.map(([label, get]) => (
             <ValueRow
               key={label}
-              label={label}
+              label={t(label)}
               vendors={vendors}
               colCls={colCls}
               values={vendors.map(() => null)}
               best="high"
               render={(v) => {
-                const t = get(v);
-                return t ? (
+                const text = get(v);
+                return text ? (
                   <span className="text-[13px] leading-relaxed text-ink-2" dir="auto">
-                    {t}
+                    {text}
                   </span>
                 ) : (
-                  <span className="text-[13px] text-ink-faint">Not stated</span>
+                  <span className="text-[13px] text-ink-faint">{t("Not stated")}</span>
                 );
               }}
             />
@@ -442,17 +462,18 @@ function VendorHead({
   of: number;
   recommended: boolean;
 }) {
+  const t = useT();
   const price = cleanText(v.commercial.totalPrice);
   return (
     <span className="flex flex-col gap-3">
       <span aria-hidden className="-mx-4 block h-1.5 rounded-t-xl" style={{ background: color }} />
       <span className="flex items-center justify-between gap-2">
         <span className="text-xs text-ink-muted tabular-nums">
-          Rank {rank} of {of}
+          {t("Rank {rank} of {n}", { rank, n: of })}
         </span>
         {recommended && (
           <span className="inline-flex items-center gap-1 rounded-full bg-rta px-2 py-0.5 text-2xs font-semibold text-white">
-            <Trophy className="size-3" aria-hidden /> Recommended
+            <Trophy className="size-3" aria-hidden /> {t("Recommended")}
           </span>
         )}
       </span>
@@ -464,7 +485,7 @@ function VendorHead({
       </span>
       <span className="flex flex-col">
         <span className="truncate text-2xl kpi text-ink">{price || "—"}</span>
-        <span className="text-xs text-ink-muted">total bid price</span>
+        <span className="text-xs text-ink-muted">{t("total bid price")}</span>
       </span>
     </span>
   );
@@ -561,15 +582,16 @@ function ValueRow({
 }
 
 function Cell({ best, children }: { best: boolean; children: React.ReactNode }) {
+  const t = useT();
   return (
     <span className="relative block">
       {best && (
         <span
           className="absolute -end-1 -top-1 inline-flex size-4 items-center justify-center rounded-full bg-ok-fill text-white"
-          title="Best in this row"
+          title={t("Best in this row")}
         >
           <Check className="size-3" aria-hidden />
-          <span className="sr-only">Best in this row</span>
+          <span className="sr-only">{t("Best in this row")}</span>
         </span>
       )}
       <span className={cn("block", best && "pe-5")}>{children}</span>
@@ -587,13 +609,14 @@ function Big({ value, suffix }: { value: string; suffix?: string }) {
 }
 
 function PctCell({ pct, sub }: { pct: number | null; sub?: React.ReactNode }) {
+  const t = useT();
   return (
     <span className="flex flex-col gap-1.5">
       <span className="flex items-baseline justify-between gap-2">
         <span className="text-lg font-semibold text-ink tabular-nums">{pctText(pct)}</span>
         {sub}
       </span>
-      <MeterBar value={pct} fill={COMPLIANCE_FILL} label="Compliance" />
+      <MeterBar value={pct} fill={COMPLIANCE_FILL} label={t("Compliance")} />
     </span>
   );
 }
@@ -621,12 +644,13 @@ function ScopeGroup({
   missing: ProposalSection[];
   onEvidence: OpenEvidence;
 }) {
+  const t = useT();
   return (
     <>
       <GroupRow
         title={title}
         icon={icon}
-        hint="Open a section to see where the vendors differ"
+        hint={t("Open a section to see where the vendors differ")}
         vendors={vendors}
         colCls={colCls}
       />
@@ -643,7 +667,9 @@ function ScopeGroup({
       ))}
       {missing.length > 0 && (
         <NoteRow
-          text={`Nothing to compare in: ${missing.map((s) => sectionLabel(s)).join(", ")}`}
+          text={t("Nothing to compare in: {sections}", {
+            sections: missing.map((s) => t(sectionLabel(s))).join(listSep(t)),
+          })}
           vendors={vendors}
           colCls={colCls}
         />
@@ -667,6 +693,7 @@ function SectionRow({
   colCls: ColCls;
   onEvidence: OpenEvidence;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const stats = vendors.map((v) => scopeStats(d, v, { section, scope }));
   const winners = bestOf(
@@ -693,11 +720,18 @@ function SectionRow({
             className="flex w-full items-start justify-between gap-2 rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
             <span className="flex flex-col">
-              <span className="text-[13px] font-medium text-ink-2">{sectionLabel(section)}</span>
+              <span className="text-[13px] font-medium text-ink-2">{t(sectionLabel(section))}</span>
               <span className="text-xs text-ink-muted">
                 {diffs.length
-                  ? `${diffs.length} difference${diffs.length === 1 ? "" : "s"} of ${reqs.length}`
-                  : `Same on all ${reqs.length}`}
+                  ? t.plural(
+                      diffs.length,
+                      "{n} difference of {total}",
+                      "{n} differences of {total}",
+                      {
+                        total: reqs.length,
+                      },
+                    )
+                  : t("Same on all {n}", { n: reqs.length })}
               </span>
             </span>
             <ChevronDown
@@ -722,10 +756,10 @@ function SectionRow({
                       className={cn("text-xs", st.mandatoryNotMet ? "text-fail" : "text-ink-muted")}
                     >
                       {st.mandatoryNotMet
-                        ? `${st.mandatoryNotMet} mandatory short`
+                        ? t.plural(st.mandatoryNotMet, "{n} mandatory short", "{n} mandatory short")
                         : short
-                          ? `${short} short`
-                          : "all met"}
+                          ? t.plural(short, "{n} short", "{n} short")
+                          : t("all met")}
                     </span>
                   }
                 />
@@ -739,7 +773,7 @@ function SectionRow({
           (diffs.length === 0 ? (
             <NoteRow
               key="same"
-              text="The vendors have the same result on every point here."
+              text={t("The vendors have the same result on every point here.")}
               vendors={vendors}
               colCls={colCls}
             />
@@ -778,6 +812,7 @@ function PointRow({
   colCls: ColCls;
   onEvidence: OpenEvidence;
 }) {
+  const t = useT();
   const isRule = r.scope === "standard";
   return (
     <motion.tr
@@ -825,12 +860,12 @@ function PointRow({
                   className="inline-flex items-center gap-1 rounded-sm text-xs font-medium text-brand-ink outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
                 >
                   <BookOpen className="size-3" aria-hidden />
-                  {f.evidencePage ? `Page ${f.evidencePage}` : "Open"}
+                  {f.evidencePage ? t("Page {page}", { page: f.evidencePage }) : t("Open")}
                 </button>
               )}
             </span>
           ) : (
-            <span className="text-xs text-ink-faint">Not analysed</span>
+            <span className="text-xs text-ink-faint">{t("Not analysed")}</span>
           )}
         </td>
       ))}
@@ -849,6 +884,7 @@ function RiskRow({
   vendors: VendorResultDto[];
   colCls: ColCls;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const lists = vendors.map((v) => v.risks.filter((r) => r.section === section));
   const weights = lists.map((l) =>
@@ -868,7 +904,7 @@ function RiskRow({
             aria-expanded={open}
             className="flex w-full items-start justify-between gap-2 rounded-md text-start outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           >
-            <span className="text-[13px] font-medium text-ink-2">{sectionLabel(section)}</span>
+            <span className="text-[13px] font-medium text-ink-2">{t(sectionLabel(section))}</span>
             <ChevronDown
               className={cn(
                 "mt-0.5 size-4 shrink-0 text-ink-muted transition-transform",
@@ -888,7 +924,7 @@ function RiskRow({
               <Cell best={winners.has(i)}>
                 <span className="flex items-center justify-between gap-2">
                   <span className="text-[13px] text-ink-2">
-                    {l.length ? `${l.length} risk${l.length === 1 ? "" : "s"}` : "No risk"}
+                    {l.length ? t.plural(l.length, "{n} risk", "{n} risks") : t("No risk")}
                   </span>
                   {top && <RiskPill severity={top} size="sm" />}
                 </span>
@@ -903,7 +939,7 @@ function RiskRow({
             scope="row"
             className="border-t border-dashed border-border/70 py-2.5 ps-3 text-start align-top text-xs font-normal text-ink-muted"
           >
-            The risks
+            {t("The risks")}
           </th>
           {lists.map((l, i) => (
             <td
@@ -925,7 +961,7 @@ function RiskRow({
                   ))}
                 </ul>
               ) : (
-                <span className="text-xs text-ink-faint">None raised</span>
+                <span className="text-xs text-ink-faint">{t("None raised")}</span>
               )}
             </td>
           ))}

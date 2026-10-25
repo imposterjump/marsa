@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { nextRuleCode, parseRules } from "@/lib/rules-parse";
 
 describe("parseRules", () => {
+  it("accepts Arabic priority words", () => {
+    const { rules, errors } = parseRules(
+      "AR-01 | تخزين البيانات داخل الدولة | إلزامي\nAR-02 | نسخ احتياطي | مرغوب",
+    );
+    expect(errors).toEqual([]);
+    expect(rules.map((r) => r.priority)).toEqual(["mandatory", "desirable"]);
+  });
+
   it("parses CODE | text | priority lines with aliases", () => {
     const { rules, errors } = parseRules(
       "SEC-01 | Data stays in-country. | mandatory\nSEC-02 | MFA for admins | M\nSEC-03 | Backups | d",

@@ -25,7 +25,8 @@
     "check": "run-s lint typecheck contrast test",
     "typegen": "next typegen",
     "tsc": "tsc --noEmit",
-    "contrast": "tsx scripts/contrast-check.ts"
+    "contrast": "tsx scripts/contrast-check.ts",
+    "i18n:scan": "tsx scripts/i18n-scan.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.137.0",

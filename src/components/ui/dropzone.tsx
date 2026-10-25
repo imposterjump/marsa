@@ -4,7 +4,8 @@ import { useCallback, useEffect, useEffectEvent, useId, useRef, useState } from 
 import { AnimatePresence, motion } from "motion/react";
 import { CircleAlert, CircleCheck, CloudUpload, Loader2, TriangleAlert, X } from "lucide-react";
 import { cn } from "cn";
-import { checkFile, formatBytes, legacyWarning, middleTruncate } from "@/lib/files";
+import { currentT, useT } from "@/components/i18n-provider";
+import { checkFile, legacyWarning, middleTruncate } from "@/lib/files";
 import { Button } from "./button";
 import { FileIcon } from "./file-icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
@@ -52,6 +53,7 @@ export function Dropzone({
   disabled,
   className,
 }: DropzoneProps) {
+  const t = useT();
   const inputId = useId();
   const hintId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -90,7 +92,7 @@ export function Dropzone({
       } catch (err) {
         patch(item.id, {
           status: "error",
-          error: err instanceof Error ? err.message : "Upload failed. Try again.",
+          error: err instanceof Error ? err.message : currentT()("Upload failed. Try again."),
         });
       }
     },
@@ -109,12 +111,12 @@ export function Dropzone({
         const rejection =
           checkFile(file, { maxSizeMb }) ??
           (existing.has(fileKey(file))
-            ? { message: "This file is already in the list." }
+            ? { message: t("This file is already in the list.") }
             : acceptedCount >= maxFiles
-              ? { message: `Limit reached: at most ${maxFiles} files per upload.` }
+              ? { message: t("Limit reached: at most {n} files per upload.", { n: maxFiles }) }
               : null);
         if (rejection)
-          return { id, file, status: "rejected", progress: 0, error: rejection.message };
+          return { id, file, status: "rejected", progress: 0, error: t.auto(rejection.message) };
         existing.add(fileKey(file));
         acceptedCount++;
         return {
@@ -122,23 +124,28 @@ export function Dropzone({
           file,
           status: "ready",
           progress: 0,
-          warning: legacyWarning(file.name) ?? undefined,
+          warning: t.auto(legacyWarning(file.name) ?? "") || undefined,
         };
       });
       commit((prev) => [...prev, ...added]);
       const ok = added.filter((i) => i.status !== "rejected");
       const rejected = added.length - ok.length;
       setAnnouncement(
-        `${ok.length} file${ok.length === 1 ? "" : "s"} added${rejected ? `, ${rejected} rejected` : ""}.`,
+        rejected
+          ? t("{added} added, {rejected} rejected.", {
+              added: t.plural(ok.length, "{n} file", "{n} files"),
+              rejected,
+            })
+          : t.plural(ok.length, "{n} file added.", "{n} files added."),
       );
       ok.forEach((i) => void startUpload(i));
     },
-    [disabled, items, maxSizeMb, maxFiles, commit, startUpload],
+    [disabled, items, maxSizeMb, maxFiles, commit, startUpload, t],
   );
 
   const remove = (item: DropzoneItem) => {
     commit((prev) => prev.filter((i) => i.id !== item.id));
-    setAnnouncement(`${item.file.name} removed.`);
+    setAnnouncement(t("{name} removed.", { name: item.file.name }));
   };
 
   const accepted = items.filter((i) => i.status !== "rejected");
@@ -152,7 +159,7 @@ export function Dropzone({
         </label>
         {accepted.length > 0 && (
           <span className="text-xs text-ink-muted tabular-nums">
-            {accepted.length} / {maxFiles} files · {formatBytes(totalBytes)}
+            {t("{n} / {max} files", { n: accepted.length, max: maxFiles })} · {t.bytes(totalBytes)}
           </span>
         )}
       </div>
@@ -198,13 +205,18 @@ export function Dropzone({
         </motion.span>
         <div className="flex flex-col gap-1">
           <p className="font-medium text-ink">
-            {dragging ? "Drop to add files" : "Drag & drop files here"}
+            {dragging ? t("Drop to add files") : t("Drag & drop files here")}
           </p>
           <p id={hintId} className="text-xs text-ink-muted">
             {description ?? (
               <>
-                PDF, Word, Excel, images or any document · up to {maxSizeMb} MB each · max{" "}
-                {maxFiles} files
+                {t(
+                  "PDF, Word, Excel, images or any document · up to {mb} MB each · max {n} files",
+                  {
+                    mb: maxSizeMb,
+                    n: maxFiles,
+                  },
+                )}
               </>
             )}
           </p>
@@ -219,7 +231,7 @@ export function Dropzone({
             inputRef.current?.click();
           }}
         >
-          Browse files
+          {t("Browse files")}
         </Button>
         <input
           ref={inputRef}
@@ -241,7 +253,7 @@ export function Dropzone({
       </p>
 
       {items.length > 0 && (
-        <ul className="flex flex-col gap-2" aria-label={`${label}: selected files`}>
+        <ul className="flex flex-col gap-2" aria-label={t("{label}: selected files", { label })}>
           <AnimatePresence initial={false}>
             {items.map((item) => (
               <motion.li
@@ -275,6 +287,7 @@ function FileRow({
   onRemove: () => void;
   onRetry: () => void;
 }) {
+  const t = useT();
   const { file, status, progress, error, warning } = item;
   const bad = status === "rejected" || status === "error";
   const shortName = middleTruncate(file.name, 48);
@@ -305,7 +318,7 @@ function FileRow({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-x-2 text-xs text-ink-muted tabular-nums">
-          <span>{formatBytes(file.size)}</span>
+          <span>{t.bytes(file.size)}</span>
           <span aria-hidden>·</span>
           <StatusText status={status} progress={progress} />
         </div>
@@ -319,7 +332,7 @@ function FileRow({
                 onClick={onRetry}
                 className="ms-1 font-medium underline underline-offset-2"
               >
-                Retry
+                {t("Retry")}
               </button>
             )}
           </p>
@@ -336,7 +349,7 @@ function FileRow({
         variant="ghost"
         size="icon-xs"
         onClick={onRemove}
-        aria-label={`Remove ${file.name}`}
+        aria-label={t("Remove {name}", { name: file.name })}
         className="text-ink-muted"
       >
         <X />
@@ -355,24 +368,26 @@ function FileRow({
 }
 
 function StatusText({ status, progress }: { status: DropzoneItemStatus; progress: number }) {
+  const t = useT();
   switch (status) {
     case "uploading":
       return (
         <span className="inline-flex items-center gap-1 text-brand-ink">
-          <Loader2 className="size-3 animate-spin" aria-hidden /> Uploading {progress}%
+          <Loader2 className="size-3 animate-spin" aria-hidden />{" "}
+          {t("Uploading {pct}%", { pct: progress })}
         </span>
       );
     case "done":
       return (
         <span className="inline-flex items-center gap-1 text-ok">
-          <CircleCheck className="size-3" aria-hidden /> Uploaded
+          <CircleCheck className="size-3" aria-hidden /> {t("Uploaded")}
         </span>
       );
     case "error":
-      return <span className="text-fail">Upload failed</span>;
+      return <span className="text-fail">{t("Upload failed")}</span>;
     case "rejected":
-      return <span className="text-fail">Not added</span>;
+      return <span className="text-fail">{t("Not added")}</span>;
     default:
-      return <span>Ready</span>;
+      return <span>{t("Ready")}</span>;
   }
 }

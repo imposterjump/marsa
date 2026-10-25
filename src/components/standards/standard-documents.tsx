@@ -2,6 +2,7 @@
 
 import { toast } from "sonner";
 import { DocumentRow } from "@/components/documents/document-row";
+import { useT } from "@/components/i18n-provider";
 import { Dropzone, type UploadFn } from "@/components/ui/dropzone";
 import { useSettings } from "@/hooks/use-settings";
 import { useDeleteDocument, useInvalidateStandard } from "@/hooks/use-standards";
@@ -10,6 +11,7 @@ import { middleTruncate } from "@/lib/files";
 import { uploadFile } from "@/lib/upload";
 
 export function StandardDocuments({ standard }: { standard: StandardDetailDto }) {
+  const t = useT();
   const { data: settings } = useSettings();
   const invalidate = useInvalidateStandard(standard.id);
   const remove = useDeleteDocument(standard.id);
@@ -21,10 +23,8 @@ export function StandardDocuments({ standard }: { standard: StandardDetailDto })
       onProgress,
     );
     await invalidate();
-    toast.success(`${middleTruncate(doc.originalName, 40)} uploaded`, {
-      description: doc.pageCount
-        ? `${doc.pageCount} page${doc.pageCount === 1 ? "" : "s"}`
-        : undefined,
+    toast.success(t("{name} uploaded", { name: middleTruncate(doc.originalName, 40) }), {
+      description: doc.pageCount ? t.plural(doc.pageCount, "{n} page", "{n} pages") : undefined,
     });
   };
 
@@ -38,38 +38,41 @@ export function StandardDocuments({ standard }: { standard: StandardDetailDto })
           id="docs-title"
           className="font-heading text-base font-semibold tracking-tight text-ink"
         >
-          Documents
+          {t("Documents")}
         </h2>
         <p className="text-[13px] text-ink-muted">
-          The official text of the standard. Sent to the AI together with the rules.
+          {t("The official text of the standard. Sent to the AI together with the rules.")}
         </p>
       </div>
 
       {standard.documents.length > 0 && (
-        <ul className="flex flex-col gap-2" aria-label="Uploaded documents">
+        <ul className="flex flex-col gap-2" aria-label={t("Uploaded documents")}>
           {standard.documents.map((d) => (
             <DocumentRow
               key={d.id}
               doc={d}
               onDelete={() =>
-                remove.mutateAsync(d.id).then(() => toast.success("Document deleted."))
+                remove.mutateAsync(d.id).then(() => toast.success(t("Document deleted.")))
               }
-              deleteDescription={`“${d.originalName}” will be removed from this standard and from disk.`}
+              deleteDescription={t("“{name}” will be removed from this standard and from disk.", {
+                name: d.originalName,
+              })}
             />
           ))}
         </ul>
       )}
 
       <Dropzone
-        label={standard.documents.length ? "Add documents" : "Upload documents"}
+        label={standard.documents.length ? t("Add documents") : t("Upload documents")}
         maxSizeMb={settings?.runtime.maxUploadMb ?? 50}
         maxFiles={10}
         upload={upload}
         removeOnDone
         description={
           <>
-            PDF preferred · Word, Excel and images also accepted · up to{" "}
-            {settings?.runtime.maxUploadMb ?? 50} MB each
+            {t("PDF preferred · Word, Excel and images also accepted · up to {n} MB each", {
+              n: settings?.runtime.maxUploadMb ?? 50,
+            })}
           </>
         }
       />

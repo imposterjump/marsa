@@ -24,15 +24,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useT } from "@/components/i18n-provider";
 import { InitialsAvatar } from "@/components/ui/initials-avatar";
 import { Pill } from "@/components/ui/status-pill";
 import { useDeleteProposal, useProposals } from "@/hooks/use-proposals";
 import { AnalysePanel } from "./analyse-panel";
 import type { ProposalSummaryDto } from "@/lib/api-types";
-import { formatDate, formatDateTime } from "@/lib/format";
 import { PROPOSAL_SOURCE_LABEL } from "@/lib/labels";
-
-const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 /**
  * PRD FR-5: one row per vendor (name, date, files) with a View action. P8: the customer enters
@@ -40,6 +38,7 @@ const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
  * then runs the analysis again with them.
  */
 export function ProposalsTab() {
+  const t = useT();
   const p = useProjectContext();
   const { data, isLoading, isError, refetch } = useProposals(p.id);
   const [removing, setRemoving] = useState<ProposalSummaryDto | null>(null);
@@ -53,7 +52,7 @@ export function ProposalsTab() {
   const simulate = canAdd && (
     <span className="flex flex-wrap gap-2">
       <Button onClick={() => setAdding(true)}>
-        <UserPlus /> Add vendor
+        <UserPlus /> {t("Add vendor")}
       </Button>
     </span>
   );
@@ -64,10 +63,14 @@ export function ProposalsTab() {
       <Dialog open={adding} onOpenChange={setAdding}>
         <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>Add vendor</DialogTitle>
+            <DialogTitle>{t("Add vendor")}</DialogTitle>
             <DialogDescription>
-              The vendor and its two proposals: the commercial (financial) and the technical one.
-              {p.status === "evaluated" && " Run the AI analysis again afterwards to include it."}
+              {t(
+                "The vendor and its two proposals: the commercial (financial) and the technical one.",
+              )}
+              {p.status === "evaluated" && (
+                <> {t("Run the AI analysis again afterwards to include it.")}</>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
@@ -93,13 +96,18 @@ export function ProposalsTab() {
                   <Megaphone className="size-12 text-ink-faint" strokeWidth={1.25} />
                 )
               }
-              title={canAdd ? "No vendors yet" : "No proposals"}
+              title={canAdd ? t("No vendors yet") : t("No proposals")}
               description={
                 canAdd
-                  ? `Add each vendor with its commercial and technical proposal${
-                      p.deadline ? ` (submission deadline ${formatDate(`${p.deadline}T00:00:00`)})` : ""
-                    }. Then run the AI analysis from the header.`
-                  : "This project has no proposals."
+                  ? p.deadline
+                    ? t(
+                        "Add each vendor with its commercial and technical proposal (submission deadline {date}). Then run the AI analysis from the header.",
+                        { date: t.date(`${p.deadline}T00:00:00`) },
+                      )
+                    : t(
+                        "Add each vendor with its commercial and technical proposal. Then run the AI analysis from the header.",
+                      )
+                  : t("This project has no proposals.")
               }
               actions={simulate}
             />
@@ -113,7 +121,7 @@ export function ProposalsTab() {
   const columns: Column<ProposalSummaryDto>[] = [
     {
       id: "vendor",
-      header: "Vendor",
+      header: t("Vendor"),
       sortValue: (r) => r.vendor.name,
       cell: (r) => (
         <span className="flex min-w-0 items-center gap-3">
@@ -133,17 +141,17 @@ export function ProposalsTab() {
     },
     {
       id: "submitted",
-      header: "Proposal date",
+      header: t("Proposal date"),
       sortValue: (r) => r.submittedAt,
       cell: (r) => (
         <span className="whitespace-nowrap text-ink-2 tabular-nums">
-          {formatDateTime(r.submittedAt)}
+          {t.dateTime(r.submittedAt)}
         </span>
       ),
     },
     {
       id: "files",
-      header: "Documents",
+      header: t("Documents"),
       sortValue: (r) => r.documentCounts.commercial + r.documentCounts.technical,
       cell: (r) => {
         const c = r.documentCounts;
@@ -151,15 +159,16 @@ export function ProposalsTab() {
         return (
           <span className="flex flex-col gap-0.5 text-xs">
             <span className="whitespace-nowrap text-ink-2">
-              {plural(c.commercial, "commercial")} · {plural(c.technical, "technical")}
+              {t.plural(c.commercial, "{n} commercial", "{n} commercials")} ·{" "}
+              {t.plural(c.technical, "{n} technical", "{n} technicals")}
             </span>
             <span className={missing ? "text-partial" : "text-ink-muted"}>
               {missing
                 ? c.commercial === 0
-                  ? "No commercial file"
-                  : "No technical file"
+                  ? t("No commercial file")
+                  : t("No technical file")
                 : c.pages > 0
-                  ? plural(c.pages, "page")
+                  ? t.plural(c.pages, "{n} page", "{n} pages")
                   : ""}
             </span>
           </span>
@@ -168,29 +177,29 @@ export function ProposalsTab() {
     },
     {
       id: "source",
-      header: "Source",
+      header: t("Source"),
       sortValue: (r) => r.source,
       cell: (r) => (
         <Pill
           tone={r.source === "seed" ? "info" : r.source === "ai" ? "brand" : "neutral"}
           size="sm"
         >
-          {PROPOSAL_SOURCE_LABEL[r.source]}
+          {t(PROPOSAL_SOURCE_LABEL[r.source])}
         </Pill>
       ),
     },
     {
       id: "actions",
-      header: <span className="sr-only">Actions</span>,
+      header: <span className="sr-only">{t("Actions")}</span>,
       align: "end",
       cell: (r) => (
         <span className="flex items-center justify-end gap-1">
           <Button asChild size="sm">
             <Link
               href={`${base}/${r.id}?tab=commercial&reader=1`}
-              aria-label={`View ${r.vendor.name}'s proposal`}
+              aria-label={t("View {vendor}'s proposal", { vendor: r.vendor.name })}
             >
-              <Eye /> View
+              <Eye /> {t("View")}
             </Link>
           </Button>
           {canRemove && (
@@ -199,7 +208,7 @@ export function ProposalsTab() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`More actions for ${r.vendor.name}`}
+                  aria-label={t("More actions for {vendor}", { vendor: r.vendor.name })}
                 >
                   <MoreHorizontal />
                 </Button>
@@ -210,7 +219,7 @@ export function ProposalsTab() {
                   className="gap-2.5"
                   onSelect={() => setRemoving(r)}
                 >
-                  <Trash2 className="size-4" /> Remove proposal
+                  <Trash2 className="size-4" /> {t("Remove proposal")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -231,26 +240,27 @@ export function ProposalsTab() {
               className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight text-ink"
             >
               <FileStack className="size-5 text-ink-faint" aria-hidden />
-              Proposals{" "}
+              {t("Proposals")}{" "}
               {data && <span className="text-ink-muted tabular-nums">({data.length})</span>}
             </h2>
             <p className="text-[13px] text-ink-muted">
-              Each vendor has a commercial (financial) and a technical proposal. Open one to read
-              its documents.
+              {t(
+                "Each vendor has a commercial (financial) and a technical proposal. Open one to read its documents.",
+              )}
             </p>
           </div>
           {simulate}
         </div>
         {isError ? (
           <div className="rounded-xl border border-fail/30 bg-fail-soft/40 p-6 text-fail">
-            Couldn&apos;t load proposals.{" "}
+            {t("Couldn't load proposals.")}{" "}
             <button className="font-medium underline" onClick={() => refetch()}>
-              Try again
+              {t("Try again")}
             </button>
           </div>
         ) : (
           <DataTable
-            caption={`Proposals received for ${p.code}`}
+            caption={t("Proposals received for {code}", { code: p.code })}
             columns={columns}
             rows={data ?? []}
             rowKey={(r) => r.id}
@@ -262,13 +272,19 @@ export function ProposalsTab() {
         <ConfirmDialog
           open={!!removing}
           onOpenChange={(o) => !o && setRemoving(null)}
-          title={`Remove ${removing?.vendor.name ?? "this"}'s proposal?`}
-          description="Its commercial and technical files are deleted. In a real tender this is what happens when a vendor withdraws its bid."
-          confirmLabel="Remove proposal"
+          title={
+            removing
+              ? t("Remove {vendor}'s proposal?", { vendor: removing.vendor.name })
+              : t("Remove this proposal?")
+          }
+          description={t(
+            "Its commercial and technical files are deleted. In a real tender this is what happens when a vendor withdraws its bid.",
+          )}
+          confirmLabel={t("Remove proposal")}
           onConfirm={async () => {
             if (!removing) return;
             await remove.mutateAsync(removing.id);
-            toast.success(`${removing.vendor.name}'s proposal removed.`);
+            toast.success(t("{vendor}'s proposal removed.", { vendor: removing.vendor.name }));
             setRemoving(null);
           }}
         />

@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { CountUp } from "@/components/motion/count-up";
 import { DepthBackdrop } from "@/components/motion/depth-backdrop";
 import { MaskedText } from "@/components/motion/masked-text";
@@ -22,10 +23,14 @@ import { useVendors } from "@/hooks/use-proposals";
 import { useSettings } from "@/hooks/use-settings";
 import { useStandards } from "@/hooks/use-standards";
 import type { ProjectSummaryDto } from "@/lib/api-types";
-import { APP_NAME } from "@/lib/brand";
 import { firstName } from "@/lib/format";
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const LONG_DATE: Intl.DateTimeFormatOptions = {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+};
 
 interface Step {
   title: string;
@@ -42,12 +47,13 @@ interface Step {
  * carrying workspace-wide totals. Replaces the old hero with the harbour line art.
  */
 export function ProjectsWelcome({ projects }: { projects: ProjectSummaryDto[] | undefined }) {
+  const t = useT();
   const { data: settings } = useSettings();
   const { data: standards } = useStandards();
   const { data: vendors } = useVendors();
   // Time-of-day text exists only in the browser (server snapshot is null → skeleton).
-  const greet = useGreeting();
-  const date = useToday();
+  const greet = useGreeting() && t.greeting();
+  const date = useToday() && t.format(new Date(), LONG_DATE);
   const now = greet && date ? { greet, date } : null;
 
   const first =
@@ -62,46 +68,54 @@ export function ProjectsWelcome({ projects }: { projects: ProjectSummaryDto[] | 
 
   const steps: Step[] = [
     {
-      title: "Publish the RFP",
+      title: t("Publish the RFP"),
       icon: <FileText />,
       value: projects?.filter((p) => p.status !== "archived").length,
-      unit: (n) => (n === 1 ? "tender" : "tenders"),
+      unit: (n) => t.plural(n, "tender", "tenders"),
       detail: projects
-        ? [`${count("open")} open for proposals`, count("draft") && plural(count("draft"), "draft")]
+        ? [
+            t("{n} open for proposals", { n: count("open") }),
+            count("draft") && t.plural(count("draft"), "{n} draft", "{n} drafts"),
+          ]
             .filter(Boolean)
             .join(" · ")
         : undefined,
     },
     {
-      title: "Apply standards",
+      title: t("Apply standards"),
       icon: <ShieldCheck />,
       value: active?.length,
-      unit: (n) => (n === 1 ? "standard" : "standards"),
+      unit: (n) => t.plural(n, "standard", "standards"),
       detail: active
-        ? `${plural(
+        ? `${t.plural(
             active.reduce((n, s) => n + s.rulesCount, 0),
-            "rule",
-          )} · ${active.reduce((n, s) => n + s.mandatoryCount, 0)} mandatory`
+            "{n} rule",
+            "{n} rules",
+          )} · ${t("{n} mandatory", { n: active.reduce((n, s) => n + s.mandatoryCount, 0) })}`
         : undefined,
     },
     {
-      title: "Collect vendor bids",
+      title: t("Collect vendor bids"),
       icon: <FileStack />,
       value: projects?.reduce((n, p) => n + p.proposalCount, 0),
-      unit: (n) => (n === 1 ? "proposal" : "proposals"),
+      unit: (n) => t.plural(n, "proposal", "proposals"),
       detail: vendors
-        ? `from ${plural(vendors.filter((v) => v.proposalCount > 0).length, "vendor")}`
+        ? t.plural(
+            vendors.filter((v) => v.proposalCount > 0).length,
+            "from {n} vendor",
+            "from {n} vendors",
+          )
         : undefined,
     },
     {
-      title: "AI analysis",
+      title: t("AI analysis"),
       icon: <Sparkles />,
       value: projects ? count("evaluated") : undefined,
-      unit: () => "evaluated",
+      unit: () => t("evaluated"),
       detail: projects
         ? count("evaluating")
-          ? `${count("evaluating")} running now`
-          : "Compliance, risks and a recommendation"
+          ? t("{n} running now", { n: count("evaluating") })
+          : t("Compliance, risks and a recommendation")
         : undefined,
       featured: true,
     },
@@ -109,7 +123,7 @@ export function ProjectsWelcome({ projects }: { projects: ProjectSummaryDto[] | 
 
   return (
     <section
-      aria-label="Welcome"
+      aria-label={t("Welcome")}
       className="relative overflow-hidden rounded-2xl border border-border bg-surface shadow-sm"
     >
       <div className="relative">
@@ -137,7 +151,9 @@ export function ProjectsWelcome({ projects }: { projects: ProjectSummaryDto[] | 
               <MaskedText
                 key={`${now.greet}-${name}`}
                 as="h1"
-                text={[name ? `${now.greet}, ${name}.` : `${now.greet}.`]}
+                text={[
+                  name ? t("{greeting}, {name}.", { greeting: now.greet, name }) : `${now.greet}.`,
+                ]}
                 className="font-heading text-[30px] leading-[1.1] font-semibold tracking-[-0.02em] text-ink sm:text-[36px]"
                 lineClassName="[&]:text-balance"
               />
@@ -147,20 +163,22 @@ export function ProjectsWelcome({ projects }: { projects: ProjectSummaryDto[] | 
             <span aria-hidden className="rta-rule" />
             <Reveal delay={0.2} immediate>
               <p className="max-w-xl pt-1 text-[15px] leading-relaxed text-pretty text-ink-2">
-                Weigh every vendor bid against your RFP and your standards. {APP_NAME} checks each
-                requirement, scores compliance and risk, and backs every point with evidence.
+                {t(
+                  "Weigh every vendor bid against your RFP and your standards. {app} checks each requirement, scores compliance and risk, and backs every point with evidence.",
+                  { app: t.appName },
+                )}
               </p>
             </Reveal>
           </div>
           <Reveal delay={0.3} immediate className="flex shrink-0 flex-wrap items-center gap-3">
             <Button size="lg" className="flex-1 sm:flex-none" asChild>
               <Link href="/projects/new">
-                <Plus /> New project
+                <Plus /> {t("New project")}
               </Link>
             </Button>
             <Button size="lg" variant="secondary" className="flex-1 sm:flex-none" asChild>
               <Link href="/standards">
-                <ClipboardCheck /> Manage standards
+                <ClipboardCheck /> {t("Manage standards")}
               </Link>
             </Button>
           </Reveal>
@@ -170,7 +188,7 @@ export function ProjectsWelcome({ projects }: { projects: ProjectSummaryDto[] | 
       {/* The procurement workflow, each step with workspace-wide totals (RTA hero KPI band). */}
       <Reveal delay={0.35} immediate>
         <ol
-          aria-label="How it works, with your totals"
+          aria-label={t("How it works, with your totals")}
           className="grid grid-cols-2 gap-px border-t border-border bg-border lg:grid-cols-4"
         >
           {steps.map((s, i) => (

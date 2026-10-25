@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { RotateCcw, Sparkles } from "lucide-react";
+import { useT } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { useSettings } from "@/hooks/use-settings";
 import { useStartRun } from "@/hooks/use-runs";
@@ -24,6 +25,7 @@ export function StartRunButton({
   size?: "default" | "lg";
   className?: string;
 }) {
+  const t = useT();
   const router = useRouter();
   const { data: settings } = useSettings();
   const start = useStartRun(projectId);
@@ -31,11 +33,11 @@ export function StartRunButton({
   const run = async () => {
     try {
       const created = await start.mutateAsync();
-      toast.success("Analysis started");
+      toast.success(t("Analysis started"));
       // Always name the run: the results page may be showing an older one (?run=).
       router.push(`/analysis/${projectId}?run=${created.id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't start the analysis.");
+      toast.error(err instanceof Error ? err.message : t("Couldn't start the analysis."));
     }
   };
 
@@ -49,7 +51,7 @@ export function StartRunButton({
         onClick={() => void run()}
       >
         {again ? <RotateCcw /> : <Sparkles />}
-        {again ? "Run a new analysis" : "Run AI analysis"}
+        {again ? t("Run a new analysis") : t("Run AI analysis")}
       </Button>
     </>
   );

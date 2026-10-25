@@ -16,8 +16,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import type { RunStatusDto } from "@/lib/api-types";
 import { RUN_PHASES, type RunPhase } from "@/lib/domain";
+import { msg } from "@/lib/i18n/core";
 
 type Steps = RunStatusDto["steps"];
 export type PhaseState = "done" | "active" | "pending" | "skipped";
@@ -46,20 +48,32 @@ export function phaseStates(steps: Steps): Record<RunPhase, PhaseState> {
 /** Each phase of the pipeline as the agent that does it (the step texts stay the run's own). */
 const AGENTS: Record<RunPhase, { name: string; job: string; icon: LucideIcon }> = {
   checklist: {
-    name: "Extraction Agent",
-    job: "Reads the RFP, builds the checklist",
+    name: msg("Extraction Agent"),
+    job: msg("Reads the RFP, builds the checklist"),
     icon: FileSearch,
   },
-  standards: { name: "Standards Agent", job: "Checks every standard rule", icon: ShieldCheck },
+  standards: {
+    name: msg("Standards Agent"),
+    job: msg("Checks every standard rule"),
+    icon: ShieldCheck,
+  },
   analyze: {
-    name: "RFP Compliance Agent",
-    job: "Checks every RFP requirement",
+    name: msg("RFP Compliance Agent"),
+    job: msg("Checks every RFP requirement"),
     icon: ClipboardCheck,
   },
-  compare: { name: "Comparison Agent", job: "Compares the bids", icon: Columns3 },
-  risk: { name: "Risk Agent", job: "Builds each risk register", icon: Gauge },
-  summary: { name: "Recommendation Agent", job: "Scores, ranks and recommends", icon: Trophy },
-  report: { name: "Consultant Agent", job: "Writes a report per vendor", icon: ScrollText },
+  compare: { name: msg("Comparison Agent"), job: msg("Compares the bids"), icon: Columns3 },
+  risk: { name: msg("Risk Agent"), job: msg("Builds each risk register"), icon: Gauge },
+  summary: {
+    name: msg("Recommendation Agent"),
+    job: msg("Scores, ranks and recommends"),
+    icon: Trophy,
+  },
+  report: {
+    name: msg("Consultant Agent"),
+    job: msg("Writes a report per vendor"),
+    icon: ScrollText,
+  },
 };
 
 interface Pt {
@@ -88,6 +102,7 @@ function useWidth<T extends HTMLElement>() {
  * the orchestrator and on to the next agent. The step texts above stay the run's own.
  */
 export function AgentOrchestra({ steps }: { steps: Steps }) {
+  const t = useT();
   const reduce = useReducedMotion();
   const [ref, w] = useWidth<HTMLDivElement>();
   const phases = RUN_PHASES.filter((ph) => steps.some((s) => s.phase === ph));
@@ -207,7 +222,7 @@ export function AgentOrchestra({ steps }: { steps: Steps }) {
               style={{
                 width: hub,
                 height: hub,
-                border: "1.5px solid transparent",
+                border: "1.5px solid transparent", // i18n-ignore
                 background:
                   "linear-gradient(160deg, #232931, #12161b) padding-box, linear-gradient(135deg, #ec1c24, #ff5a47 55%, #ff8a5c) border-box",
               }}
@@ -218,20 +233,20 @@ export function AgentOrchestra({ steps }: { steps: Steps }) {
             </motion.div>
             <div className="flex flex-col items-center rounded-lg bg-surface/90 px-2 py-0.5 text-center backdrop-blur-sm">
               <span className={cn("font-semibold text-ink", compact ? "text-xs" : "text-sm")}>
-                AI Orchestrator
+                {t("AI Orchestrator")}
               </span>
               <span className={cn("text-xs text-ink-muted", compact && "hidden")}>
                 {allDone
-                  ? "All agents finished"
+                  ? t("All agents finished")
                   : active
-                    ? `Working with the ${AGENTS[active].name}`
-                    : "Coordinating the agents"}
+                    ? t("Working with the {agent}", { agent: t(AGENTS[active].name) })
+                    : t("Coordinating the agents")}
               </span>
             </div>
           </div>
 
           {/* The agents */}
-          <ol aria-label="Phases" className="absolute inset-0">
+          <ol aria-label={t("Phases")} className="absolute inset-0">
             {phases.map((ph, i) => {
               const p = posOf.get(ph)!;
               const state = states[ph];
@@ -307,7 +322,7 @@ export function AgentOrchestra({ steps }: { steps: Steps }) {
                         state === "pending" || state === "skipped" ? "text-ink-faint" : "text-ink",
                       )}
                     >
-                      {agent.name}
+                      {t(agent.name)}
                     </span>
                     <span
                       className={cn(
@@ -323,30 +338,35 @@ export function AgentOrchestra({ steps }: { steps: Steps }) {
                     >
                       {state === "active"
                         ? own.length > 1
-                          ? `${done} of ${own.length} vendors done`
-                          : "Working…"
+                          ? t.plural(
+                              own.length,
+                              "{done} of {n} vendors done",
+                              "{done} of {n} vendors done",
+                              { done },
+                            )
+                          : t("Working…")
                         : failed
-                          ? `${failed} step${failed === 1 ? "" : "s"} failed`
+                          ? t.plural(failed, "{n} step failed", "{n} steps failed")
                           : state === "skipped"
-                            ? "Skipped"
-                            : agent.job}
+                            ? t("Skipped")
+                            : t(agent.job)}
                     </span>
                   </span>
                   <span className="sr-only">
                     {state === "done"
-                      ? ", done"
+                      ? t(", done")
                       : state === "active"
-                        ? ", in progress"
+                        ? t(", in progress")
                         : state === "skipped"
-                          ? ", skipped"
-                          : ", pending"}
+                          ? t(", skipped")
+                          : t(", pending")}
                   </span>
                 </li>
               );
             })}
           </ol>
 
-          {/* The ball the agents pass along */}
+          {/* The ball the agents pass along (left/ml stay physical: the diagram's x is physical) */}
           <motion.span
             aria-hidden
             className="pointer-events-none absolute top-0 left-0 -mt-[7px] -ml-[7px] size-3.5 rounded-full bg-rta shadow-[0_0_0_4px_rgb(236_28_36/0.14),0_0_18px_5px_rgb(255_90_71/0.55)]"

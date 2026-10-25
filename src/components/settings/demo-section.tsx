@@ -5,13 +5,13 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowRight, DatabaseZap, PackagePlus, PackageX, Send } from "lucide-react";
+import { currentT, useT } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHydrationSafe } from "@/hooks/hydration-safe";
 import { api } from "@/lib/api-client";
 import { Section } from "./settings-section";
-import { APP_NAME } from "@/lib/brand";
 
 interface SeedStatus {
   available: boolean;
@@ -25,6 +25,7 @@ const statusKey = ["dev", "seed"] as const;
 
 /** Settings → Demo tools (P4.3): vendor simulator link, sample data, full reset. */
 export function DemoSection() {
+  const t = useT();
   const qc = useQueryClient();
   const { data: status, isLoading } = useHydrationSafe(
     useQuery({ queryKey: statusKey, queryFn: () => api<SeedStatus>("/api/dev/seed") }),
@@ -56,34 +57,44 @@ export function DemoSection() {
   return (
     <Section
       id="demo"
-      title="Demo tools"
-      description={`Tools for trying ${APP_NAME} without real vendors. They change data, so each one asks first.`}
+      title={t("Demo tools")}
+      description={t(
+        "Tools for trying {app} without real vendors. They change data, so each one asks first.",
+        { app: t.appName },
+      )}
     >
       <div className="flex flex-col divide-y divide-border/70">
         <Tool
           icon={<Send />}
-          title="Vendor simulator"
-          text="Play a vendor: pick an open tender and submit a commercial and a technical proposal."
+          title={t("Vendor simulator")}
+          text={t(
+            "Play a vendor: pick an open tender and submit a commercial and a technical proposal.",
+          )}
           action={
             <Button asChild variant="secondary">
               <Link href="/vendor-portal">
-                Open simulator <ArrowRight />
+                {t("Open simulator")} <ArrowRight className="rtl:rotate-180" />
               </Link>
             </Button>
           }
         />
         <Tool
           icon={<PackagePlus />}
-          title="Sample data"
+          title={t("Sample data")}
           text={
             isLoading || !status ? (
               <Skeleton className="h-4 w-64" />
             ) : !status.available ? (
-              "The sample files (test-inputs/) aren't available on this server."
+              t("The sample files (test-inputs/) aren't available on this server.")
             ) : loaded ? (
-              `Loaded: ${status.sampleProjects} sample projects with ${status.sampleProposals} vendor proposals. Reloading replaces them; your own projects are never touched.`
+              t(
+                "Loaded: {projects} sample projects with {proposals} vendor proposals. Reloading replaces them; your own projects are never touched.",
+                { projects: status.sampleProjects, proposals: status.sampleProposals },
+              )
             ) : (
-              "Two sample tenders (cargo X-ray scanners with four vendor proposals, and a Port Community System), plus sample standards. Your own data is kept."
+              t(
+                "Two sample tenders (cargo X-ray scanners with four vendor proposals, and a Port Community System), plus sample standards. Your own data is kept.",
+              )
             )
           }
           action={
@@ -94,7 +105,7 @@ export function DemoSection() {
                   onClick={() => setConfirmRemove(true)}
                   disabled={remove.isPending}
                 >
-                  <PackageX /> Remove
+                  <PackageX /> {t("Remove")}
                 </Button>
               )}
               <Button
@@ -103,22 +114,24 @@ export function DemoSection() {
                 disabled={!status?.available}
                 onClick={() => setConfirmLoad(true)}
               >
-                {loaded ? "Reload sample data" : "Load sample data"}
+                {loaded ? t("Reload sample data") : t("Load sample data")}
               </Button>
             </div>
           }
         />
         <Tool
           icon={<DatabaseZap />}
-          title="Reset all data"
-          text="Delete every project, standard, vendor, proposal and uploaded file. Your profile and settings are kept."
+          title={t("Reset all data")}
+          text={t(
+            "Delete every project, standard, vendor, proposal and uploaded file. Your profile and settings are kept.",
+          )}
           action={
             <Button
               variant="destructive-soft"
               loading={reset.isPending}
               onClick={() => setConfirmReset(true)}
             >
-              Reset all data
+              {t("Reset all data")}
             </Button>
           }
         />
@@ -127,47 +140,71 @@ export function DemoSection() {
       <ConfirmDialog
         open={confirmLoad}
         onOpenChange={setConfirmLoad}
-        title={loaded ? "Reload the sample data?" : "Load the sample data?"}
+        title={loaded ? t("Reload the sample data?") : t("Load the sample data?")}
         description={
           loaded
-            ? "The sample projects are deleted and created again, with their proposals. Your own projects and standards are not changed."
-            : "Adds two sample tenders, four vendors with proposals and two sample standards. Standards you already have with the same code (e.g. CITS-2026) are reused, not changed."
+            ? t(
+                "The sample projects are deleted and created again, with their proposals. Your own projects and standards are not changed.",
+              )
+            : t(
+                "Adds two sample tenders, four vendors with proposals and two sample standards. Standards you already have with the same code (e.g. CITS-2026) are reused, not changed.",
+              )
         }
-        confirmLabel={loaded ? "Reload" : "Load sample data"}
+        confirmLabel={loaded ? t("Reload") : t("Load sample data")}
         destructive={false}
         onConfirm={async () => {
           try {
             const r = await load.mutateAsync();
-            toast.success("Sample data loaded", {
-              description: `${r.projects} projects, ${r.proposals} proposals.`,
+            const t = currentT(); // the language on screen when the call returns
+            toast.success(t("Sample data loaded"), {
+              description: t("{projects} projects, {proposals} proposals.", {
+                projects: r.projects,
+                proposals: r.proposals,
+              }),
             });
           } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Couldn't load the sample data.");
+            toast.error(
+              err instanceof Error ? err.message : currentT()("Couldn't load the sample data."),
+            );
           }
         }}
       />
       <ConfirmDialog
         open={confirmRemove}
         onOpenChange={setConfirmRemove}
-        title="Remove the sample data?"
-        description="Sample projects and their proposals are deleted, with sample standards and vendors that nothing else uses. Your own data stays."
-        confirmLabel="Remove sample data"
+        title={t("Remove the sample data?")}
+        description={t(
+          "Sample projects and their proposals are deleted, with sample standards and vendors that nothing else uses. Your own data stays.",
+        )}
+        confirmLabel={t("Remove sample data")}
         onConfirm={async () => {
           const r = await remove.mutateAsync();
-          toast.success(`Removed ${r.projects} sample project${r.projects === 1 ? "" : "s"}.`);
+          toast.success(
+            currentT().plural(
+              r.projects,
+              "Removed {n} sample project.",
+              "Removed {n} sample projects.",
+            ),
+          );
         }}
       />
       <ConfirmDialog
         open={confirmReset}
         onOpenChange={setConfirmReset}
-        title="Reset all data?"
-        description="Every project, standard, vendor, proposal and uploaded file is permanently deleted. This can't be undone."
+        title={t("Reset all data?")}
+        description={t(
+          "Every project, standard, vendor, proposal and uploaded file is permanently deleted. This can't be undone.",
+        )}
         typeToConfirm="RESET"
-        confirmLabel="Reset all data"
+        confirmLabel={t("Reset all data")}
         onConfirm={async () => {
           const r = await reset.mutateAsync();
-          toast.success("All data deleted", {
-            description: `${r.projects} projects and ${r.standards} standards removed.`,
+          const t = currentT(); // the language on screen when the call returns
+          toast.success(t("All data deleted"), {
+            description: t("{projects} projects and {standards} standards removed.", {
+              projects: r.projects,
+              standards: r.standards,
+            }),
           });
         }}
       />

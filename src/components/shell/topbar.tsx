@@ -4,18 +4,20 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Menu } from "lucide-react";
+import { useT, type T } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { useBreadcrumbContext, type Crumb } from "./breadcrumbs";
 import { CustomerChip } from "./customer-chip";
+import { LanguageToggle } from "./language-toggle";
 import { pageTitleFor } from "./nav";
 import { RunPill } from "./run-pill";
 import { ThemeToggle } from "./theme-toggle";
 
 /** Static trail from the URL: "/standards" → Standards; "/projects/new" → Projects › New project. */
-function staticCrumbs(pathname: string): Crumb[] {
+function staticCrumbs(pathname: string, t: T): Crumb[] {
   const section = `/${pathname.split("/")[1] ?? ""}`;
-  const sectionTitle = pageTitleFor(section);
-  const title = pageTitleFor(pathname);
+  const sectionTitle = t(pageTitleFor(section));
+  const title = t(pageTitleFor(pathname));
   return sectionTitle === title
     ? [{ label: title }]
     : [{ label: sectionTitle, href: section }, { label: title }];
@@ -24,7 +26,8 @@ function staticCrumbs(pathname: string): Crumb[] {
 function LiveTrail() {
   const pathname = usePathname();
   const { crumbs } = useBreadcrumbContext();
-  return <Trail trail={crumbs ?? staticCrumbs(pathname)} />;
+  const t = useT();
+  return <Trail trail={crumbs ?? staticCrumbs(pathname, t)} />;
 }
 
 function Trail({ trail }: { trail: Crumb[] }) {
@@ -53,7 +56,7 @@ function Trail({ trail }: { trail: Crumb[] }) {
                 >
                   {c.label}
                 </Link>
-                <ChevronRight aria-hidden className="size-3.5 text-ink-faint" />
+                <ChevronRight aria-hidden className="size-3.5 text-ink-faint rtl:rotate-180" />
               </>
             )}
           </li>
@@ -64,6 +67,7 @@ function Trail({ trail }: { trail: Crumb[] }) {
 }
 
 export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
+  const t = useT();
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-surface/85 px-4 backdrop-blur-md sm:px-6 lg:px-10">
       <Button
@@ -71,13 +75,13 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
         size="icon"
         className="lg:hidden"
         onClick={onOpenMenu}
-        aria-label="Open navigation"
+        aria-label={t("Open navigation")}
       >
         <Menu className="size-5" />
       </Button>
 
       {/* Clipped: on a phone the trail ran under the run pill. */}
-      <nav aria-label="Breadcrumb" className="min-w-0 flex-1 overflow-hidden">
+      <nav aria-label={t("Breadcrumb")} className="min-w-0 flex-1 overflow-hidden">
         <Suspense fallback={<Trail trail={[]} />}>
           <LiveTrail />
         </Suspense>
@@ -86,6 +90,7 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
       <RunPill />
 
       <div className="flex items-center gap-1.5">
+        <LanguageToggle />
         <ThemeToggle />
         <span aria-hidden className="mx-1.5 h-6 w-px bg-border" />
         <CustomerChip />

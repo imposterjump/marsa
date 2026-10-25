@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { useProjectContext } from "@/components/projects/project-shell";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,6 @@ import { isRunActive, useRunAction } from "@/hooks/use-runs";
 import type { RunChipDto, RunStatusDto, RunStepDto } from "@/lib/api-types";
 import type { RunStatus, StepStatus } from "@/lib/domain";
 import { STEP_STATUS_LABEL } from "@/lib/labels";
-import { formatDuration } from "@/lib/plan";
 
 export const card = "rounded-xl border border-border bg-surface shadow-xs";
 
@@ -58,9 +58,10 @@ export function VendorChips({
   projectId: string;
   active: boolean;
 }) {
+  const t = useT();
   const reduce = useReducedMotion();
   return (
-    <ul aria-label="Vendors" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <ul aria-label={t("Vendors")} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {chips.map((c) => (
         <li key={c.proposalId}>
           <Link
@@ -85,16 +86,20 @@ export function VendorChips({
                     className="flex flex-col items-start gap-1.5 text-xs text-ink-muted"
                   >
                     <span>
-                      <span className="font-semibold text-ink tabular-nums">{c.scorePct}%</span> compliance
+                      {t("{pct} compliance", {
+                        pct: (
+                          <span className="font-semibold text-ink tabular-nums">{c.scorePct}%</span>
+                        ),
+                      })}
                     </span>
                     {/* Always a second line, so every vendor's box has the same height (user, 2026-10-23). */}
                     {c.mandatoryFailures ? (
                       <Pill tone="fail" size="sm">
-                        {c.mandatoryFailures} mandatory fail{c.mandatoryFailures === 1 ? "" : "s"}
+                        {t.plural(c.mandatoryFailures, "{n} mandatory fail", "{n} mandatory fails")}
                       </Pill>
                     ) : (
                       <Pill tone="ok" size="sm">
-                        No mandatory fails
+                        {t("No mandatory fails")}
                       </Pill>
                     )}
                   </motion.span>
@@ -105,9 +110,9 @@ export function VendorChips({
                     className={cn("text-xs", active ? "text-ink-muted" : "text-ink-faint")}
                   >
                     {active ? (
-                      <span className="marsa-shimmer">Waiting for analysis…</span>
+                      <span className="marsa-shimmer">{t("Waiting for analysis…")}</span>
                     ) : (
-                      "Not analysed"
+                      t("Not analysed")
                     )}
                   </motion.span>
                 )}
@@ -142,6 +147,7 @@ export function StepTimeline({
   compact?: boolean;
   defaultOpen?: boolean;
 }) {
+  const t = useT();
   const p = useProjectContext();
   const action = useRunAction(p.id);
   const { run, steps } = data;
@@ -150,9 +156,9 @@ export function StepTimeline({
   const retry = async (step: RunStepDto) => {
     try {
       await action.mutateAsync({ runId: run.id, action: "retry", stepId: step.id });
-      toast.success(`Retrying step ${step.seq}`);
+      toast.success(t("Retrying step {n}", { n: step.seq }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't retry the step.");
+      toast.error(err instanceof Error ? err.message : t("Couldn't retry the step."));
     }
   };
 
@@ -181,14 +187,12 @@ export function StepTimeline({
                 s.status === "queued" && "text-ink-muted",
               )}
             >
-              {s.label}
+              {t.auto(s.label)}
             </span>
             <span className="text-xs text-ink-muted tabular-nums">
-              {STEP_STATUS_LABEL[s.status]}
-              {s.durationMs && s.status === "done"
-                ? ` · ${formatDuration(s.durationMs / 1000)}`
-                : ""}
-              {s.attempt > 1 ? ` · attempt ${s.attempt}` : ""}
+              {t(STEP_STATUS_LABEL[s.status])}
+              {s.durationMs && s.status === "done" ? ` · ${t.duration(s.durationMs / 1000)}` : ""}
+              {s.attempt > 1 ? ` · ${t("attempt {n}", { n: s.attempt })}` : ""}
             </span>
             {s.status === "failed" && canRetry && (
               <Button
@@ -197,7 +201,7 @@ export function StepTimeline({
                 onClick={() => void retry(s)}
                 disabled={action.isPending}
               >
-                <RotateCcw /> Retry
+                <RotateCcw /> {t("Retry")}
               </Button>
             )}
             {s.error && s.status !== "done" && (
@@ -207,7 +211,7 @@ export function StepTimeline({
                   s.status === "failed" ? "text-fail" : "text-ink-muted",
                 )}
               >
-                {s.error}
+                {t.auto(s.error)}
               </p>
             )}
           </li>
@@ -219,7 +223,9 @@ export function StepTimeline({
   if (compact) {
     return (
       <div className="flex flex-col gap-2">
-        <h3 className="text-2xs font-semibold tracking-[0.06em] text-ink-muted uppercase">Steps</h3>
+        <h3 className="text-2xs font-semibold tracking-[0.06em] text-ink-muted uppercase">
+          {t("Steps")}
+        </h3>
         {list}
       </div>
     );
@@ -228,7 +234,7 @@ export function StepTimeline({
     <details open={defaultOpen} className={cn(card, "group")}>
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-4 text-sm font-medium text-ink [&::-webkit-details-marker]:hidden">
         <span>
-          Steps <span className="text-ink-muted tabular-nums">({steps.length})</span>
+          {t("Steps")} <span className="text-ink-muted tabular-nums">({steps.length})</span>
         </span>
         <ChevronRight
           className="size-4 text-ink-muted transition-transform group-open:rotate-90 motion-reduce:transition-none rtl:rotate-180 rtl:group-open:rotate-90"

@@ -17,12 +17,13 @@
 @custom-variant collapsed (&:where([data-sidebar="collapsed"] .sidebar-rail *));
 
 @theme inline {
-  /* ── fonts (variables come from src/app/fonts.ts) ── */
+  /* ── fonts (variables come from src/app/fonts.ts). Hanken has no Arabic letters, so Arabic text
+     (the Arabic UI, Arabic names) falls through to Noto Sans Arabic, before Segoe UI's own. ── */
   --font-sans:
-    "RTA", var(--font-hanken), "Segoe UI", var(--font-noto-arabic), ui-sans-serif, sans-serif;
+    "RTA", var(--font-hanken), var(--font-noto-arabic), "Segoe UI", ui-sans-serif, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
   --font-heading:
-    "RTA", var(--font-hanken), "Segoe UI", var(--font-noto-arabic), ui-sans-serif, sans-serif;
+    "RTA", var(--font-hanken), var(--font-noto-arabic), "Segoe UI", ui-sans-serif, sans-serif;
 
   /* ── shadcn semantic aliases ── */
   --color-background: var(--background);
@@ -419,6 +420,18 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ─────────────── Arabic UI (2026-10-25) ─────────────── */
+
+/* Letter-spacing breaks the joined letters of Arabic script; caps do nothing in Arabic. */
+html:lang(ar) :where(*) {
+  letter-spacing: 0 !important;
+}
+/* Set by the boot script when the saved language is Arabic: the server sends English, so the page
+   stays hidden until the first Arabic render (LocaleProvider), at most 3 s. */
+html[data-locale-pending] body {
+  visibility: hidden;
 }
 
 /* ─────────────── Document reader (P5.4–P5.7) ─────────────── */

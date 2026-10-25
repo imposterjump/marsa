@@ -5,3 +5,5 @@
  */
 export const APP_NAME = "Mizan";
 export const APP_TAGLINE = "Procurement Intelligence";
+/** The name on the Arabic UI (the tagline translates through the dictionary). */
+export const APP_NAME_AR = "ميزان";

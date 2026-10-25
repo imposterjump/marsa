@@ -8,10 +8,34 @@ import { ZodError, type ZodType } from "zod";
  */
 export { ApiError, notFound } from "./api-errors";
 import { ApiError } from "./api-errors";
+import { isLocale, LOCALE_COOKIE, translateText, type Locale } from "../lib/i18n/core";
 
-export function errorResponse(status: number, code: string, message: string, details?: unknown) {
+/** The reader's language (Arabic UI, 2026-10-25): the cookie the language switch sets. */
+function localeOf(req: unknown): Locale {
+  if (!(req instanceof Request)) return "en";
+  const value = (req.headers.get("cookie") ?? "")
+    .split(";")
+    .map((c) => c.trim().split("="))
+    .find(([k]) => k === LOCALE_COOKIE)?.[1];
+  return isLocale(value) ? value : "en";
+}
+
+export function errorResponse(
+  status: number,
+  code: string,
+  message: string,
+  details?: unknown,
+  locale: Locale = "en",
+) {
   return Response.json(
-    { error: { code, message, ...(details === undefined ? {} : { details }) } },
+    {
+      error: {
+        code,
+        // Messages are English templates; the dictionary (src/lib/i18n/ar/server.ts) translates them.
+        message: translateText(locale, message),
+        ...(details === undefined ? {} : { details }),
+      },
+    },
     { status, headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -25,25 +49,29 @@ function isSqliteError(err: unknown): err is { code: string; message: string } {
   );
 }
 
-export function toErrorResponse(err: unknown): Response {
-  if (err instanceof ApiError) return errorResponse(err.status, err.code, err.message, err.details);
+export function toErrorResponse(err: unknown, locale: Locale = "en"): Response {
+  if (err instanceof ApiError)
+    return errorResponse(err.status, err.code, err.message, err.details, locale);
   if (err instanceof ZodError) {
     return errorResponse(
       400,
       "validation_error",
       "Some fields are invalid.",
       err.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
+      locale,
     );
   }
   // HANDOFF I-05: unique-constraint violations are conflicts, not server errors.
   if (isSqliteError(err) && err.code === "SQLITE_CONSTRAINT_UNIQUE") {
-    return errorResponse(409, "conflict", "This record already exists.");
+    return errorResponse(409, "conflict", "This record already exists.", undefined, locale);
   }
   console.error("[api] unhandled error", err);
   return errorResponse(
     500,
     "internal_error",
     "Something went wrong on our side. Please try again.",
+    undefined,
+    locale,
   );
 }
 
@@ -56,7 +84,7 @@ export function withErrors<A extends unknown[]>(handler: (...args: A) => Promise
       // Next's own control-flow errors (e.g. `connection()` during build-time prerendering) must
       // reach Next, not become a logged 500 (seen on /api/runs/active).
       unstable_rethrow(err);
-      return toErrorResponse(err);
+      return toErrorResponse(err, localeOf(args[0]));
     }
   };
 }

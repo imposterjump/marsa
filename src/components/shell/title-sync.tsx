@@ -2,9 +2,9 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { useT } from "@/components/i18n-provider";
 import { useSettings } from "@/hooks/use-settings";
 import { pageTitleFor } from "./nav";
-import { APP_NAME } from "@/lib/brand";
 
 /**
  * PRD FR-1.3 tab title: "{Page} · {App} — {Customer}".
@@ -15,11 +15,13 @@ import { APP_NAME } from "@/lib/brand";
 export function TitleSync() {
   const pathname = usePathname();
   const { data } = useSettings();
+  const t = useT();
 
   useEffect(() => {
-    const app = APP_NAME;
-    const page = pageTitleFor(pathname);
-    const customer = data?.customerName?.trim();
+    const app = t.appName;
+    const page = t(pageTitleFor(pathname));
+    const stored = data?.customerName?.trim();
+    const customer = stored === "Guest" ? t("Guest") : stored;
     const desired = `${page === app ? page : `${page} · ${app}`}${customer ? ` — ${customer}` : ""}`;
 
     const apply = () => {
@@ -29,7 +31,7 @@ export function TitleSync() {
     const observer = new MutationObserver(apply);
     observer.observe(document.head, { subtree: true, childList: true, characterData: true });
     return () => observer.disconnect();
-  }, [pathname, data?.customerName]);
+  }, [pathname, data?.customerName, t]);
 
   return null;
 }

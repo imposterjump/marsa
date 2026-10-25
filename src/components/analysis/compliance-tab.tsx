@@ -12,6 +12,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { FindingCard } from "@/components/results/finding-card";
 import { STATUS_FILL } from "@/components/results/gap-bar";
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import type { AnalysisResultsDto, FindingResultDto, VendorResultDto } from "@/lib/api-types";
 import type { FindingStatus, ProposalSection } from "@/lib/domain";
+import { msg } from "@/lib/i18n/core";
 import { FINDING_STATUS_LABEL } from "@/lib/labels";
 import {
   COMPLIANCE_FILL,
@@ -46,15 +48,13 @@ const SHORT_FIRST: Record<FindingStatus, number> = {
   compliant: 3,
 };
 
-const SCOPE_TEXT: Record<Scope, { unit: [string, string]; none: string; icon: typeof FileText }> = {
+const SCOPE_TEXT: Record<Scope, { none: string; icon: typeof FileText }> = {
   rfp: {
-    unit: ["RFP requirement", "RFP requirements"],
-    none: "No RFP requirement falls in these sections",
+    none: msg("No RFP requirement falls in these sections"),
     icon: FileText,
   },
   standard: {
-    unit: ["standard rule", "standard rules"],
-    none: "No standard rule falls in these sections",
+    none: msg("No standard rule falls in these sections"),
     icon: ShieldCheck,
   },
 };
@@ -96,13 +96,15 @@ export function ComplianceTab({
   view: ComplianceView;
   onView: (view: ComplianceView) => void;
 }) {
+  const t = useT();
   const reduce = useReducedMotion();
   const vendors = d.vendors.filter((v) => v.scores);
   const inScope = d.requirements.filter((r) => r.scope === scope);
   const sections = SECTION_ORDER.filter((s) => inScope.some((r) => r.section === s));
   const empty = SECTION_ORDER.filter((s) => s !== null && !sections.includes(s));
   const Icon = SCOPE_TEXT[scope].icon;
-  const [one, many] = SCOPE_TEXT[scope].unit;
+  const none = t(SCOPE_TEXT[scope].none);
+  const codes = d.standards.map((s) => s.code).join(", ");
   const target =
     focus && focus.scope === scope
       ? { proposalId: focus.proposalId ?? vendors[0]?.proposalId, section: focus.section }
@@ -136,14 +138,20 @@ export function ComplianceTab({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="flex items-center gap-2 text-[13px] text-ink-muted">
           <Icon className="size-4" aria-hidden />
-          {inScope.length} {inScope.length === 1 ? one : many}
-          {scope === "standard" &&
-            d.standards.length > 0 &&
-            ` from ${d.standards.map((s) => s.code).join(", ")}`}{" "}
+          {scope === "rfp"
+            ? t.plural(inScope.length, "{n} RFP requirement", "{n} RFP requirements")
+            : d.standards.length > 0
+              ? t.plural(
+                  inScope.length,
+                  "{n} standard rule from {codes}",
+                  "{n} standard rules from {codes}",
+                  { codes },
+                )
+              : t.plural(inScope.length, "{n} standard rule", "{n} standard rules")}{" "}
           ·{" "}
           {view === "list"
-            ? "every point of a vendor in one list, worst first"
-            : "each vendor\u2019s score per proposal section"}
+            ? t("every point of a vendor in one list, worst first")
+            : t("each vendor\u2019s score per proposal section")}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           {vendors.length > 1 && (
@@ -155,18 +163,18 @@ export function ComplianceTab({
               }
             >
               {allClosed ? <ChevronsUpDown aria-hidden /> : <ChevronsDownUp aria-hidden />}
-              {allClosed ? "Expand all" : "Collapse all"}
+              {allClosed ? t("Expand all") : t("Collapse all")}
             </Button>
           )}
           <SegmentedControl
             size="sm"
             tone="brand"
-            aria-label="View"
+            aria-label={t("View")}
             value={view}
             onValueChange={onView}
             options={[
-              { value: "sections", label: "By section", icon: <Rows3 aria-hidden /> },
-              { value: "list", label: "Point list", icon: <LayoutList aria-hidden /> },
+              { value: "sections", label: t("By section"), icon: <Rows3 aria-hidden /> },
+              { value: "list", label: t("Point list"), icon: <LayoutList aria-hidden /> },
             ]}
           />
         </div>
@@ -225,16 +233,16 @@ export function ComplianceTab({
 
       {view === "sections" && empty.length > 0 && (
         <section
-          aria-label={SCOPE_TEXT[scope].none}
+          aria-label={none}
           className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-dashed border-border-strong/70 px-5 py-4"
         >
-          <span className="text-[13px] text-ink-muted">{SCOPE_TEXT[scope].none}:</span>
+          <span className="text-[13px] text-ink-muted">{none}:</span>
           {empty.map((s) => (
             <span
               key={s}
               className="rounded-full bg-surface-muted px-3 py-1 text-xs font-medium text-ink-muted"
             >
-              {sectionLabel(s)}
+              {t(sectionLabel(s))}
             </span>
           ))}
         </section>
@@ -265,6 +273,7 @@ function VendorCard({
   open: boolean;
   onToggle: () => void;
 }) {
+  const t = useT();
   const st = scopeStats(d, v, { scope });
   const short = st.counts.non_compliant + st.counts.not_addressed + st.counts.partial;
   return (
@@ -280,22 +289,27 @@ function VendorCard({
           <span className="flex min-w-0 flex-col gap-1">
             <VendorLabel v={v} color={color} size="md" />
             <span className="ps-[4.75rem] text-xs text-ink-muted">
-              {st.total} {scope === "rfp" ? "RFP requirements" : "standard rules"} ·{" "}
-              {short ? `${short} short` : "everything met"}
+              {scope === "rfp"
+                ? t.plural(st.total, "{n} RFP requirements", "{n} RFP requirements")
+                : t.plural(st.total, "{n} standard rules", "{n} standard rules")}{" "}
+              · {short ? t.plural(short, "{n} short", "{n} short") : t("everything met")}
               {st.mandatoryNotMet > 0 && (
-                <span className="text-fail"> · {st.mandatoryNotMet} mandatory not met</span>
+                <span className="text-fail">
+                  {" "}
+                  · {t.plural(st.mandatoryNotMet, "{n} mandatory not met", "{n} mandatory not met")}
+                </span>
               )}
             </span>
           </span>
           <span className="flex flex-wrap items-center gap-x-8 gap-y-3">
             <CountsLegend
               counts={st.counts}
-              label={`${v.vendor.name}: all points`}
+              label={t("{vendor}: all points", { vendor: v.vendor.name })}
               className="max-w-xs"
             />
             <span className="flex flex-col items-end">
               <span className="caption-caps text-ink-muted">
-                Overall {scope === "rfp" ? "RFP" : "standards"} compliance
+                {scope === "rfp" ? t("Overall RFP compliance") : t("Overall standards compliance")}
               </span>
               <span className="text-4xl kpi text-ink">{pctText(st.pct)}</span>
             </span>
@@ -304,11 +318,11 @@ function VendorCard({
       }
     >
       <div className="flex items-center justify-between border-b border-border/70 px-5 py-2.5">
-        <span className="caption-caps text-ink-muted">By proposal section</span>
-        <span className="caption-caps text-ink-faint">Score per section</span>
+        <span className="caption-caps text-ink-muted">{t("By proposal section")}</span>
+        <span className="caption-caps text-ink-faint">{t("Score per section")}</span>
       </div>
       <ul
-        aria-label={`${v.vendor.name} by section`}
+        aria-label={t("{vendor} by section", { vendor: v.vendor.name })}
         className="flex flex-col divide-y divide-border/70"
       >
         {sections.map((s) => (
@@ -342,6 +356,7 @@ function SectionRow({
   onEvidence: OpenEvidence;
   focused: boolean;
 }) {
+  const t = useT();
   const reduce = useReducedMotion();
   // A risk's "see its points" lands here open (the tab remounts on every new focus).
   const [open, setOpen] = useState(focused);
@@ -360,6 +375,7 @@ function SectionRow({
   const byStatus = (s: FindingStatus) => points.filter((f) => f.status === s);
   const active = picked ?? STATUS_PILLS.find((s) => byStatus(s).length > 0) ?? "compliant";
   const shown = byStatus(active);
+  const name = t(sectionLabel(section));
 
   return (
     <li id={rowId(v.proposalId, section)} className={cn("scroll-mt-24", focused && "marsa-pulse")}>
@@ -370,12 +386,15 @@ function SectionRow({
         className="grid w-full grid-cols-1 items-center gap-x-6 gap-y-3 px-5 py-4 text-start transition-colors outline-none hover:bg-surface-muted/50 focus-visible:bg-surface-muted md:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)_1.25rem]"
       >
         <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-sm font-medium text-ink">{sectionLabel(section)}</span>
+          <span className="text-sm font-medium text-ink">{name}</span>
           <span className="text-xs text-ink-muted">
-            {st.total} point{st.total === 1 ? "" : "s"} ·{" "}
-            {short ? `${short} short` : "everything met"}
+            {t.plural(st.total, "{n} point", "{n} points")} ·{" "}
+            {short ? t.plural(short, "{n} short", "{n} short") : t("everything met")}
             {st.mandatoryNotMet > 0 && (
-              <span className="text-fail"> · {st.mandatoryNotMet} mandatory not met</span>
+              <span className="text-fail">
+                {" "}
+                · {t.plural(st.mandatoryNotMet, "{n} mandatory not met", "{n} mandatory not met")}
+              </span>
             )}
           </span>
         </span>
@@ -384,14 +403,14 @@ function SectionRow({
             <MeterBar
               value={st.total ? st.pct : null}
               fill={COMPLIANCE_FILL}
-              label={`${sectionLabel(section)} compliance`}
+              label={t("{section} compliance", { section: name })}
               className="flex-1"
             />
             <span className="w-20 text-end text-lg font-semibold text-ink tabular-nums">
               {pctText(st.pct)}
             </span>
           </span>
-          <CountsLegend counts={st.counts} label={`${sectionLabel(section)}: points`} />
+          <CountsLegend counts={st.counts} label={t("{section}: points", { section: name })} />
         </span>
         <ChevronDown
           aria-hidden
@@ -413,7 +432,7 @@ function SectionRow({
             <div className="flex flex-col gap-3 bg-surface-muted/40 px-5 pt-1 pb-5">
               <div
                 role="radiogroup"
-                aria-label={`${sectionLabel(section)}: show points`}
+                aria-label={t("{section}: show points", { section: name })}
                 className="flex flex-wrap gap-2"
               >
                 {STATUS_PILLS.map((s) => {
@@ -435,7 +454,7 @@ function SectionRow({
                       )}
                     >
                       <span aria-hidden className={cn("size-2 rounded-full", STATUS_FILL[s])} />
-                      {FINDING_STATUS_LABEL[s]}
+                      {t(FINDING_STATUS_LABEL[s])}
                       <span
                         className={cn(
                           "rounded-full px-1.5 tabular-nums",
@@ -449,7 +468,7 @@ function SectionRow({
                 })}
               </div>
               {shown.length === 0 ? (
-                <p className="text-[13px] text-ink-muted">No points in this section.</p>
+                <p className="text-[13px] text-ink-muted">{t("No points in this section.")}</p>
               ) : (
                 <ol className="flex flex-col gap-3">
                   {shown.map((f) => (
@@ -476,6 +495,7 @@ function PointCard({
   f: FindingResultDto;
   onEvidence: OpenEvidence;
 }) {
+  const t = useT();
   const req = d.requirements.find((r) => r.id === f.requirementId);
   const sources = d.sources[f.requirementId] ?? [];
   const isRule = req?.scope === "standard";
@@ -487,10 +507,10 @@ function PointCard({
       title={f.headline}
       priority={req?.priority}
       sources={sources}
-      sourceLabel={isRule ? "Breaks rule" : "Breaks clause"}
+      sourceLabel={isRule ? t("Breaks rule") : t("Breaks clause")}
       vendorDocs={vendorDocRefs(v)}
       onEvidence={(id, page, quote) => onEvidence(id, page, quote, v.proposalId)}
-      note={req ? `${isRule ? "Standard rule" : "RFP"} · ${req.title}` : undefined}
+      note={req ? `${isRule ? t("Standard rule") : t("RFP")} · ${req.title}` : undefined}
     />
   );
 }

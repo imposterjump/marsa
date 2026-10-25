@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "./dialog";
 import { Input } from "./input";
+import { useT } from "@/components/i18n-provider";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -43,6 +44,7 @@ function ConfirmBody({
   typeToConfirm,
   destructive = true,
 }: ConfirmDialogProps) {
+  const t = useT();
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const ready = !typeToConfirm || typed.trim().toUpperCase() === typeToConfirm.toUpperCase();
@@ -65,14 +67,16 @@ function ConfirmBody({
       {typeToConfirm && (
         <label className="flex flex-col gap-2 text-[13px] text-ink-2">
           <span>
-            Type <strong className="font-mono text-ink">{typeToConfirm}</strong> to confirm
+            {t("Type {word} to confirm", {
+              word: <strong className="font-mono text-ink">{typeToConfirm}</strong>,
+            })}
           </span>
           <Input value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus />
         </label>
       )}
       <DialogFooter>
         <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
-          Cancel
+          {t("Cancel")}
         </Button>
         <Button
           variant={destructive ? "destructive" : "default"}

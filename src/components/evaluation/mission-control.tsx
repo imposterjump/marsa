@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { Square } from "lucide-react";
+import { useT } from "@/components/i18n-provider";
 import { DepthBackdrop } from "@/components/motion/depth-backdrop";
 import { MaskedText } from "@/components/motion/masked-text";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
@@ -11,7 +12,6 @@ import { useProjectContext } from "@/components/projects/project-shell";
 import { Button } from "@/components/ui/button";
 import { useRunAction } from "@/hooks/use-runs";
 import type { RunStatusDto } from "@/lib/api-types";
-import { formatDuration } from "@/lib/plan";
 import { AgentOrchestra } from "./agent-orchestra";
 import { StepTimeline, VendorChips } from "./run-parts";
 
@@ -32,6 +32,7 @@ export function formatClock(ms: number): string {
  * time and ETA, the phase rail, results as they arrive, and the step timeline.
  */
 export function MissionControl({ data }: { data: RunStatusDto }) {
+  const t = useT();
   const p = useProjectContext();
   const action = useRunAction(p.id);
   const reduce = useReducedMotion();
@@ -44,17 +45,17 @@ export function MissionControl({ data }: { data: RunStatusDto }) {
   // Elapsed clock ticks locally between polls.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, []);
   const started = Date.parse(run.startedAt ?? run.createdAt);
 
   const cancel = async () => {
     try {
       await action.mutateAsync({ runId: run.id, action: "cancel" });
-      toast.success("Cancelling…");
+      toast.success(t("Cancelling…"));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't cancel.");
+      toast.error(err instanceof Error ? err.message : t("Couldn't cancel."));
     }
   };
 
@@ -74,14 +75,14 @@ export function MissionControl({ data }: { data: RunStatusDto }) {
               id="mission-title"
               className="font-heading text-lg font-semibold tracking-tight text-ink"
             >
-              Evaluating {data.chips.length} proposal{data.chips.length === 1 ? "" : "s"}
+              {t.plural(data.chips.length, "Evaluating {n} proposal", "Evaluating {n} proposals")}
             </h2>
             <p className="truncate text-[13px] text-ink-muted" dir="auto">
-              {p.code} · {p.name} · {run.mode === "mock" ? "Demo AI" : run.model}
+              {p.code} · {p.name} · {run.mode === "mock" ? t("Demo AI") : run.model}
             </p>
           </div>
           <Button variant="secondary" onClick={() => void cancel()} disabled={action.isPending}>
-            <Square /> Cancel
+            <Square /> {t("Cancel")}
           </Button>
         </header>
 
@@ -91,11 +92,16 @@ export function MissionControl({ data }: { data: RunStatusDto }) {
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8 lg:flex-col lg:items-start lg:gap-5">
             <div
               role="progressbar"
-              aria-label="Analysis progress"
+              aria-label={t("Analysis progress")}
               aria-valuemin={0}
               aria-valuemax={run.totalSteps}
               aria-valuenow={run.doneSteps}
-              aria-valuetext={`${run.doneSteps} of ${run.totalSteps} steps finished`}
+              aria-valuetext={t.plural(
+                run.totalSteps,
+                "{done} of {n} steps finished",
+                "{done} of {n} steps finished",
+                { done: run.doneSteps },
+              )}
               className="relative grid size-28 shrink-0 place-items-center"
             >
               <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
@@ -128,24 +134,32 @@ export function MissionControl({ data }: { data: RunStatusDto }) {
 
             <div className="flex min-w-0 flex-col gap-1.5">
               <span className="text-xs font-semibold tracking-[0.06em] text-ink-muted uppercase tabular-nums">
-                Step {k} of {run.totalSteps}
+                {t("Step {k} of {n}", { k, n: run.totalSteps })}
               </span>
               <div aria-live="polite" aria-atomic className="min-h-[3.5rem]">
                 <MaskedText
                   as="p"
                   text={
                     current
-                      ? `${current.seq}/${run.totalSteps} · ${current.label}`
-                      : "Preparing the next step…"
+                      ? `${current.seq}/${run.totalSteps} · ${t.auto(current.label)}`
+                      : t("Preparing the next step…")
                   }
                   replayKey={current?.id ?? "idle"}
                   className="font-heading text-xl leading-snug font-semibold tracking-tight text-ink sm:text-2xl lg:text-xl"
                 />
               </div>
               <p className="text-[13px] text-ink-muted tabular-nums">
-                Elapsed {formatClock(now - started)}
-                {data.etaSeconds > 0 && <> · ~{formatDuration(data.etaSeconds)} left</>}
-                {running.length > 1 && <> · {running.length} running in parallel</>}
+                {t("Elapsed {time}", { time: formatClock(now - started) })}
+                {data.etaSeconds > 0 && (
+                  <> · {t("~{time} left", { time: t.duration(data.etaSeconds) })}</>
+                )}
+                {running.length > 1 && (
+                  <>
+                    {" "}
+                    ·{" "}
+                    {t.plural(running.length, "{n} running in parallel", "{n} running in parallel")}
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -156,7 +170,7 @@ export function MissionControl({ data }: { data: RunStatusDto }) {
 
         <div className="flex flex-col gap-3">
           <h3 className="text-2xs font-semibold tracking-[0.06em] text-ink-muted uppercase">
-            Results so far
+            {t("Results so far")}
           </h3>
           <VendorChips chips={data.chips} projectId={p.id} active />
         </div>

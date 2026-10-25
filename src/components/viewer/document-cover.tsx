@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/components/i18n-provider";
 import { FileIcon } from "@/components/ui/file-icon";
 import type { DocumentDto } from "@/lib/api-types";
 import { fileKind } from "@/lib/files";
@@ -20,6 +21,7 @@ export function DocumentCover({
   width?: number;
   className?: string;
 }) {
+  const t = useT();
   const kind = fileKind(doc.originalName);
   const { pdf } = usePdf(kind === "pdf" ? doc.url : null);
   const height = Math.round(width * 1.414); // A4 portrait
@@ -48,7 +50,7 @@ export function DocumentCover({
             pdf={pdf}
             pageNumber={1}
             width={width}
-            label={`First page of ${doc.originalName}`}
+            label={t("First page of {name}", { name: doc.originalName })}
           />
         ) : kind === "image" ? (
           /* eslint-disable-next-line @next/next/no-img-element -- user-uploaded file served by our API */

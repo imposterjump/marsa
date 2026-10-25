@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -43,11 +44,19 @@ import {
 import { ApiClientError } from "@/lib/api-client";
 import type { RuleDto, StandardDetailDto } from "@/lib/api-types";
 import { PRIORITIES, type Priority } from "@/lib/domain";
+import { msg } from "@/lib/i18n/core";
 import { PRIORITY_LABEL } from "@/lib/labels";
 import { nextRuleCode, RULE_TEXT_MAX } from "@/lib/rules-parse";
 import { PasteRulesDialog } from "./paste-rules-dialog";
 
 const CODE_RE = /^[A-Za-z][A-Za-z0-9._-]{0,23}$/;
+
+/** "3 mandatory" in the rules header: one sentence per priority. */
+const PRIORITY_COUNT: Record<Priority, string> = {
+  mandatory: msg("{n} mandatory"),
+  important: msg("{n} important"),
+  desirable: msg("{n} desirable"),
+};
 
 function suggestCode(standard: StandardDetailDto): string {
   const codes = standard.rules.map((r) => r.code);
@@ -56,6 +65,7 @@ function suggestCode(standard: StandardDetailDto): string {
 }
 
 export function RulesEditor({ standard }: { standard: StandardDetailDto }) {
+  const t = useT();
   const reorder = useReorderRules(standard.id);
   // Delete/undo live here, not in the row: the row unmounts as soon as the optimistic delete
   // removes it, and TanStack skips per-call callbacks of unmounted components (HANDOFF G-33).
@@ -65,9 +75,9 @@ export function RulesEditor({ standard }: { standard: StandardDetailDto }) {
     removeRule
       .mutateAsync(rule.id)
       .then(() =>
-        toast(`Rule ${rule.code} deleted`, {
+        toast(t("Rule {code} deleted", { code: rule.code }), {
           action: {
-            label: "Undo",
+            label: t("Undo"),
             onClick: () => {
               restoreRule
                 .mutateAsync({
@@ -76,13 +86,13 @@ export function RulesEditor({ standard }: { standard: StandardDetailDto }) {
                   priority: rule.priority,
                   sortOrder: rule.sortOrder,
                 })
-                .then(() => toast.success(`${rule.code} restored.`))
-                .catch(() => toast.error(`Couldn't restore ${rule.code}.`));
+                .then(() => toast.success(t("{code} restored.", { code: rule.code })))
+                .catch(() => toast.error(t("Couldn't restore {code}.", { code: rule.code })));
             },
           },
         }),
       )
-      .catch(() => toast.error("Couldn't delete the rule."));
+      .catch(() => toast.error(t("Couldn't delete the rule.")));
   };
   const [dragOrder, setDragOrder] = useState<string[] | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -95,8 +105,8 @@ export function RulesEditor({ standard }: { standard: StandardDetailDto }) {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
     el.classList.add("marsa-pulse", "marsa-rule-hit");
-    const t = setTimeout(() => el.classList.remove("marsa-pulse", "marsa-rule-hit"), 2600);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => el.classList.remove("marsa-pulse", "marsa-rule-hit"), 2600);
+    return () => clearTimeout(timer);
   }, [standard.rules.length]);
 
   const byId = useMemo(() => new Map(standard.rules.map((r) => [r.id, r])), [standard.rules]);
@@ -108,7 +118,7 @@ export function RulesEditor({ standard }: { standard: StandardDetailDto }) {
   const persistOrder = (ids: string[]) => {
     const current = standard.rules.map((r) => r.id);
     if (ids.join() !== current.join())
-      reorder.mutate(ids, { onError: () => toast.error("Couldn't save the new order.") });
+      reorder.mutate(ids, { onError: () => toast.error(t("Couldn't save the new order.")) });
   };
   const move = (id: string, delta: -1 | 1) => {
     const ids = standard.rules.map((r) => r.id);
@@ -130,35 +140,37 @@ export function RulesEditor({ standard }: { standard: StandardDetailDto }) {
             id="rules-title"
             className="font-heading text-base font-semibold tracking-tight text-ink"
           >
-            Rules
+            {t("Rules")}
           </h2>
           <p className="text-[13px] text-ink-muted">
             {standard.rules.length === 0 ? (
-              "No rules yet"
+              t("No rules yet")
             ) : (
               <>
-                {standard.rules.length} rules ·{" "}
+                {t.plural(standard.rules.length, "{n} rule", "{n} rules")} ·{" "}
                 {counts
                   .filter(([, n]) => n > 0)
-                  .map(([p, n]) => `${n} ${PRIORITY_LABEL[p].toLowerCase()}`)
+                  .map(([p, n]) => t(PRIORITY_COUNT[p], { n }))
                   .join(" · ")}
               </>
             )}
           </p>
         </div>
         <Button variant="secondary" size="sm" onClick={() => setPasteOpen(true)}>
-          <ClipboardPaste /> Paste rules
+          <ClipboardPaste /> {t("Paste rules")}
         </Button>
       </header>
 
       {standard.rules.length === 0 ? (
         <EmptyState
           art={<ListChecks className="size-10 text-brand" strokeWidth={1.5} />}
-          title="Add the first rule"
-          description="Type a rule below, or paste many at once (one per line: CODE | text | priority)."
+          title={t("Add the first rule")}
+          description={t(
+            "Type a rule below, or paste many at once (one per line: CODE | text | priority).",
+          )}
           actions={
             <Button variant="soft" onClick={() => setPasteOpen(true)}>
-              <ClipboardPaste /> Paste rules
+              <ClipboardPaste /> {t("Paste rules")}
             </Button>
           }
         />
@@ -168,7 +180,7 @@ export function RulesEditor({ standard }: { standard: StandardDetailDto }) {
           values={order}
           onReorder={setDragOrder}
           className="flex flex-col"
-          aria-label="Rules (drag the handle or use Alt + arrow keys to reorder)"
+          aria-label={t("Rules (drag the handle or use Alt + arrow keys to reorder)")}
         >
           {order.map((id, index) => {
             const rule = byId.get(id);
@@ -224,6 +236,7 @@ function RuleRow({
   onDelete: () => void;
   onDragEnd: () => void;
 }) {
+  const t = useT();
   const controls = useDragControls();
   const update = useUpdateRule(standardId);
   const del = onDelete;
@@ -256,7 +269,10 @@ function RuleRow({
               actions[e.key]();
             }
           }}
-          aria-label={`Rule ${rule.code}, ${PRIORITY_LABEL[rule.priority]}: ${rule.text}. Enter to edit, Alt+arrows to move, Delete to remove.`}
+          aria-label={t(
+            "Rule {code}, {priority}: {text}. Enter to edit, Alt+arrows to move, Delete to remove.",
+            { code: rule.code, priority: t(PRIORITY_LABEL[rule.priority]), text: rule.text },
+          )}
           className="flex items-start gap-3 px-4 py-3.5 transition-colors outline-none hover:bg-surface-muted/40 focus-visible:bg-brand-soft/30 sm:px-6"
         >
           <button
@@ -286,7 +302,7 @@ function RuleRow({
           >
             <SelectTrigger
               size="sm"
-              aria-label={`Priority of ${rule.code}`}
+              aria-label={t("Priority of {code}", { code: rule.code })}
               className="h-7 w-auto shrink-0 border-transparent bg-transparent px-1 shadow-none hover:border-border"
             >
               <SelectValue>
@@ -301,7 +317,7 @@ function RuleRow({
             <SelectContent align="end">
               {PRIORITIES.map((p) => (
                 <SelectItem key={p} value={p}>
-                  {PRIORITY_LABEL[p]}
+                  {t(PRIORITY_LABEL[p])}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -312,32 +328,32 @@ function RuleRow({
                 variant="ghost"
                 size="icon-xs"
                 className="text-ink-muted"
-                aria-label={`Actions for rule ${rule.code}`}
+                aria-label={t("Actions for rule {code}", { code: rule.code })}
               >
                 <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={onEdit} className="gap-2.5">
-                <Pencil className="size-4 text-ink-muted" /> Edit
+                <Pencil className="size-4 text-ink-muted" /> {t("Edit")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => onMove(-1)}
                 disabled={index === 0}
                 className="gap-2.5"
               >
-                <ArrowUp className="size-4 text-ink-muted" /> Move up
+                <ArrowUp className="size-4 text-ink-muted" /> {t("Move up")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => onMove(1)}
                 disabled={index === total - 1}
                 className="gap-2.5"
               >
-                <ArrowDown className="size-4 text-ink-muted" /> Move down
+                <ArrowDown className="size-4 text-ink-muted" /> {t("Move down")}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onSelect={del} className="gap-2.5">
-                <Trash2 className="size-4" /> Delete
+                <Trash2 className="size-4" /> {t("Delete")}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -356,6 +372,7 @@ function RuleEditForm({
   standardId: string;
   onDone: () => void;
 }) {
+  const t = useT();
   const update = useUpdateRule(standardId);
   const [code, setCode] = useState(rule.code);
   const [text, setText] = useState(rule.text);
@@ -365,13 +382,13 @@ function RuleEditForm({
   const save = async () => {
     const c = code.trim().toUpperCase();
     if (!CODE_RE.test(c))
-      return setError("Code: letters, digits, - . _ (max 24), starting with a letter.");
-    if (!text.trim()) return setError("Rule text is required.");
+      return setError(t("Code: letters, digits, - . _ (max 24), starting with a letter."));
+    if (!text.trim()) return setError(t("Rule text is required."));
     try {
       await update.mutateAsync({ id: rule.id, code: c, text: text.trim(), priority });
       onDone();
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "Couldn't save the rule.");
+      setError(err instanceof ApiClientError ? err.message : t("Couldn't save the rule."));
     }
   };
 
@@ -390,26 +407,26 @@ function RuleEditForm({
     >
       <div className="flex flex-col gap-3 sm:flex-row">
         <Input
-          aria-label="Rule code"
+          aria-label={t("Rule code")}
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           className="h-9 font-mono sm:w-32"
         />
         <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
-          <SelectTrigger size="sm" className="h-9 sm:w-40" aria-label="Priority">
+          <SelectTrigger size="sm" className="h-9 sm:w-40" aria-label={t("Priority")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {PRIORITIES.map((p) => (
               <SelectItem key={p} value={p}>
-                {PRIORITY_LABEL[p]}
+                {t(PRIORITY_LABEL[p])}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
       <Textarea
-        aria-label="Rule text"
+        aria-label={t("Rule text")}
         value={text}
         onChange={(e) => setText(e.target.value)}
         autoFocus
@@ -420,14 +437,14 @@ function RuleEditForm({
       {error && <p className="text-xs text-fail">{error}</p>}
       <div className="flex items-center justify-between gap-3">
         <span className="text-xs text-ink-muted">
-          Enter to save · Shift+Enter for a new line · Esc to cancel
+          {t("Enter to save · Shift+Enter for a new line · Esc to cancel")}
         </span>
         <div className="flex gap-2">
           <Button size="sm" variant="ghost" onClick={onDone}>
-            Cancel
+            {t("Cancel")}
           </Button>
           <Button size="sm" onClick={save} loading={update.isPending}>
-            Save
+            {t("Save")}
           </Button>
         </div>
       </div>
@@ -436,6 +453,7 @@ function RuleEditForm({
 }
 
 function AddRuleRow({ standard }: { standard: StandardDetailDto }) {
+  const t = useT();
   const create = useCreateRule(standard.id);
   const [code, setCode] = useState("");
   const [text, setText] = useState("");
@@ -447,17 +465,17 @@ function AddRuleRow({ standard }: { standard: StandardDetailDto }) {
   const add = async () => {
     const c = code.trim().toUpperCase();
     if (c && !CODE_RE.test(c))
-      return setError("Code: letters, digits, - . _ (max 24), starting with a letter.");
-    if (!text.trim()) return setError("Write the rule text first.");
+      return setError(t("Code: letters, digits, - . _ (max 24), starting with a letter."));
+    if (!text.trim()) return setError(t("Write the rule text first."));
     try {
       const rule = await create.mutateAsync({ code: c || null, text: text.trim(), priority });
       setCode("");
       setText("");
       setError(null);
-      toast.success(`Rule ${rule.code} added.`);
+      toast.success(t("Rule {code} added.", { code: rule.code }));
       textRef.current?.focus();
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : "Couldn't add the rule.");
+      setError(err instanceof ApiClientError ? err.message : t("Couldn't add the rule."));
     }
   };
 
@@ -475,7 +493,7 @@ function AddRuleRow({ standard }: { standard: StandardDetailDto }) {
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         <Input
-          aria-label="New rule code (optional)"
+          aria-label={t("New rule code (optional)")}
           placeholder={suggested}
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
@@ -483,8 +501,8 @@ function AddRuleRow({ standard }: { standard: StandardDetailDto }) {
         />
         <Textarea
           ref={textRef}
-          aria-label="New rule text"
-          placeholder="Write a rule the proposals must meet…"
+          aria-label={t("New rule text")}
+          placeholder={t("Write a rule the proposals must meet…")}
           value={text}
           onChange={(e) => {
             setText(e.target.value);
@@ -496,27 +514,28 @@ function AddRuleRow({ standard }: { standard: StandardDetailDto }) {
           dir="auto"
         />
         <Select value={priority} onValueChange={(v) => setPriority(v as Priority)}>
-          <SelectTrigger className="sm:w-36" aria-label="New rule priority">
+          <SelectTrigger className="sm:w-36" aria-label={t("New rule priority")}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {PRIORITIES.map((p) => (
               <SelectItem key={p} value={p}>
-                {PRIORITY_LABEL[p]}
+                {t(PRIORITY_LABEL[p])}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Button onClick={add} loading={create.isPending} className="h-10">
-          <Plus /> Add rule
+          <Plus /> {t("Add rule")}
         </Button>
       </div>
       {error ? (
         <p className="text-xs text-fail">{error}</p>
       ) : (
         <p className="text-xs text-ink-muted">
-          Leave the code empty to use <span className="font-mono">{suggested}</span>. Press Enter to
-          add.
+          {t("Leave the code empty to use {code}. Press Enter to add.", {
+            code: <span className="font-mono">{suggested}</span>,
+          })}
         </p>
       )}
     </div>

@@ -15,6 +15,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { cn } from "cn";
+import { type T, useT } from "@/components/i18n-provider";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { EvidenceChip, SourceChips } from "@/components/results/finding-card";
 import { STATUS_FILL } from "@/components/results/gap-bar";
@@ -34,6 +35,7 @@ import type {
   VendorResultDto,
 } from "@/lib/api-types";
 import { type FindingStatus, type Priority, type ProposalSection } from "@/lib/domain";
+import { msg } from "@/lib/i18n/core";
 import { FINDING_STATUS_LABEL } from "@/lib/labels";
 import {
   CountsLegend,
@@ -81,19 +83,20 @@ const STATUS_RANK: Record<FindingStatus, number> = {
   compliant: 3,
 };
 const PRIORITY_RANK: Record<Priority, number> = { mandatory: 0, important: 1, desirable: 2 };
-const CONFIDENCE = { high: "High", medium: "Medium", low: "Low" } as const;
+const CONFIDENCE = { high: msg("High"), medium: msg("Medium"), low: msg("Low") } as const;
 
+/** English labels, msg()-marked: show them with t(TYPE_TEXT[type].label). */
 export const TYPE_TEXT: Record<PointType, { label: string; icon: typeof Cpu }> = {
-  technical: { label: "Technical", icon: Cpu },
-  commercial: { label: "Commercial", icon: Banknote },
+  technical: { label: msg("Technical"), icon: Cpu },
+  commercial: { label: msg("Commercial"), icon: Banknote },
 };
 
 /** The line under a point's title: what the AI found, tinted by the status. */
 const VERDICT: Record<FindingStatus, { label: string; tint: string; ink: string }> = {
-  non_compliant: { label: "Why it falls short", tint: "bg-fail-soft", ink: "text-fail" },
-  partial: { label: "What is missing", tint: "bg-partial-soft", ink: "text-partial" },
-  not_addressed: { label: "Not addressed", tint: "bg-missing-soft", ink: "text-missing" },
-  compliant: { label: "Why it is met", tint: "bg-ok-soft", ink: "text-ok" },
+  non_compliant: { label: msg("Why it falls short"), tint: "bg-fail-soft", ink: "text-fail" },
+  partial: { label: msg("What is missing"), tint: "bg-partial-soft", ink: "text-partial" },
+  not_addressed: { label: msg("Not addressed"), tint: "bg-missing-soft", ink: "text-missing" },
+  compliant: { label: msg("Why it is met"), tint: "bg-ok-soft", ink: "text-ok" },
 };
 
 interface Point {
@@ -125,13 +128,16 @@ function pointsOf(d: AnalysisResultsDto, v: VendorResultDto, scope: Scope): Poin
     );
 }
 
+/** A type or a section is picked: the list shows a slice of the tab. */
+const isSliced = (f: ListFilters) => f.type !== "all" || f.section !== "all";
+
 /** "Commercial · Terms & deviations", or "All points" with no type or section picked. */
-function sliceName(f: ListFilters) {
+function sliceName(f: ListFilters, t: T) {
   const parts = [
-    f.type !== "all" && TYPE_TEXT[f.type].label,
-    f.section !== "all" && sectionLabel(f.section === "none" ? null : f.section),
+    f.type !== "all" && t(TYPE_TEXT[f.type].label),
+    f.section !== "all" && t(sectionLabel(f.section === "none" ? null : f.section)),
   ].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "All points";
+  return parts.length ? parts.join(" · ") : t("All points");
 }
 
 export function PointListView({
@@ -188,6 +194,7 @@ function VendorPoints({
   onToggle: () => void;
   onEvidence: OpenEvidence;
 }) {
+  const t = useT();
   // Kept here, outside the folding body, so a vendor keeps its filters while folded.
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const points = pointsOf(d, v, scope);
@@ -203,9 +210,13 @@ function VendorPoints({
   });
   const all = scopeStats(d, v, { scope });
   const short = all.counts.non_compliant + all.counts.not_addressed + all.counts.partial;
-  const slice = sliceName(filters);
-  const what = scope === "rfp" ? "RFP" : "Standards";
-  const unit = scope === "rfp" ? "requirements" : "rules";
+  const slice = sliceName(filters, t);
+  const sliced = isSliced(filters);
+  const compliance = scope === "rfp" ? t("RFP compliance") : t("Standards compliance");
+  const statusText =
+    filters.status === "all" ? "" : t(FINDING_STATUS_LABEL[filters.status]).toLowerCase();
+  const vendorName = <span dir="auto">{v.vendor.name}</span>;
+  const shownCount = <span className="font-semibold text-ink-2 tabular-nums">{shown.length}</span>;
   const reset = () => setFilters(DEFAULT_FILTERS);
 
   return (
@@ -218,10 +229,16 @@ function VendorPoints({
           <span className="flex min-w-0 flex-col gap-1">
             <VendorLabel v={v} color={color} size="md" />
             <span className="ps-[4.75rem] text-xs text-ink-muted">
-              {all.total} {scope === "rfp" ? "RFP requirements" : "standard rules"} ·{" "}
-              {short ? `${short} short` : "everything met"}
+              {scope === "rfp"
+                ? t.plural(all.total, "{n} RFP requirements", "{n} RFP requirements")
+                : t.plural(all.total, "{n} standard rules", "{n} standard rules")}{" "}
+              · {short ? t.plural(short, "{n} short", "{n} short") : t("everything met")}
               {all.mandatoryNotMet > 0 && (
-                <span className="text-fail"> · {all.mandatoryNotMet} mandatory not met</span>
+                <span className="text-fail">
+                  {" "}
+                  ·{" "}
+                  {t.plural(all.mandatoryNotMet, "{n} mandatory not met", "{n} mandatory not met")}
+                </span>
               )}
             </span>
           </span>
@@ -233,14 +250,18 @@ function VendorPoints({
             />
             <span className="flex items-center gap-3">
               <span className="flex flex-col items-end text-end">
-                <span className="caption-caps text-ink-muted">{what} compliance</span>
+                <span className="caption-caps text-ink-muted">{compliance}</span>
                 <span className="text-xs text-ink-muted">{slice}</span>
               </span>
               <ScoreRing
                 value={st.total ? st.pct : null}
                 color={pctTone(st.pct)}
                 text={pctText(st.total ? st.pct : null)}
-                label={`${v.vendor.name}: ${what} compliance, ${slice}`}
+                label={t("{vendor}: {score}, {slice}", {
+                  vendor: v.vendor.name,
+                  score: compliance,
+                  slice,
+                })}
               />
             </span>
           </span>
@@ -249,10 +270,17 @@ function VendorPoints({
     >
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-b border-border/70 bg-surface px-5 py-3">
         <span className="text-xs text-ink-muted">
-          Showing <span className="font-semibold text-ink-2 tabular-nums">{shown.length}</span> of{" "}
-          {st.total} {unit}
-          {filters.status !== "all" &&
-            ` · ${FINDING_STATUS_LABEL[filters.status].toLowerCase()} only`}
+          {scope === "rfp"
+            ? t.plural(
+                st.total,
+                "Showing {shown} of {n} requirements",
+                "Showing {shown} of {n} requirements",
+                { shown: shownCount },
+              )
+            : t.plural(st.total, "Showing {shown} of {n} rules", "Showing {shown} of {n} rules", {
+                shown: shownCount,
+              })}
+          {statusText && ` · ${t("{status} only", { status: statusText })}`}
         </span>
         <VendorFilters
           vendor={v.vendor.name}
@@ -267,18 +295,25 @@ function VendorPoints({
         // The type and section picked hold nothing of this tab at all.
         <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
           <SearchX className="size-7 text-ink-faint" aria-hidden />
-          <p className="text-sm font-medium text-ink">No data related to {slice}</p>
+          <p className="text-sm font-medium text-ink">
+            {t("No data related to {slice}", { slice })}
+          </p>
           <p className="max-w-md text-[13px] text-ink-muted">
-            No {scope === "rfp" ? "RFP requirement" : "standard rule"} of this project falls in{" "}
-            {slice.toLowerCase()}.
+            {scope === "rfp"
+              ? t("No RFP requirement of this project falls in {slice}.", {
+                  slice: slice.toLowerCase(),
+                })
+              : t("No standard rule of this project falls in {slice}.", {
+                  slice: slice.toLowerCase(),
+                })}
           </p>
           <Button variant="link" size="sm" onClick={reset}>
-            Reset filters
+            {t("Reset filters")}
           </Button>
         </div>
       ) : shown.length > 0 ? (
         <ol
-          aria-label={`${v.vendor.name}: points`}
+          aria-label={t("{vendor}: points", { vendor: v.vendor.name })}
           className="flex flex-col divide-y divide-border/70"
         >
           {shown.map((p) => (
@@ -293,12 +328,17 @@ function VendorPoints({
             <SearchX className="size-7 text-ink-faint" aria-hidden />
           )}
           <p className="text-sm font-medium text-ink">
-            No{" "}
-            {filters.status === "all"
-              ? ""
-              : `${FINDING_STATUS_LABEL[filters.status].toLowerCase()} `}
-            points for <span dir="auto">{v.vendor.name}</span>
-            {slice === "All points" ? "" : ` in ${slice}`}
+            {!statusText
+              ? sliced
+                ? t("No points for {vendor} in {slice}", { vendor: vendorName, slice })
+                : t("No points for {vendor}", { vendor: vendorName })
+              : sliced
+                ? t("No {status} points for {vendor} in {slice}", {
+                    status: statusText,
+                    vendor: vendorName,
+                    slice,
+                  })
+                : t("No {status} points for {vendor}", { status: statusText, vendor: vendorName })}
           </p>
           {filters.status !== "all" && (
             <Button
@@ -306,7 +346,7 @@ function VendorPoints({
               size="sm"
               onClick={() => setFilters({ ...filters, status: "all" })}
             >
-              Show every status
+              {t("Show every status")}
             </Button>
           )}
         </div>
@@ -335,6 +375,7 @@ function VendorFilters({
   reqs: RequirementResultDto[];
   onReset: () => void;
 }) {
+  const t = useT();
   const count = (over: Partial<ListFilters>) =>
     points.filter((p) => matches(p, { ...filters, ...over })).length;
   const sections = SECTION_ORDER.filter((s) => s !== null || reqs.some((r) => r.section === null));
@@ -350,56 +391,64 @@ function VendorFilters({
   return (
     <div
       role="group"
-      aria-label={`Filters for ${vendor}`}
+      aria-label={t("Filters for {vendor}", { vendor })}
       className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto"
     >
       {changed && (
         <Button variant="ghost" size="sm" onClick={onReset}>
-          <FilterX aria-hidden /> Reset
+          <FilterX aria-hidden /> {t("Reset")}
         </Button>
       )}
       <FilterSelect
-        label="Status"
+        label={t("Status")}
         value={filters.status}
         onChange={(status) => set({ status })}
         className="sm:w-56"
       >
-        <SelectItem value="all">All statuses {n(count({ status: "all" }))}</SelectItem>
+        <SelectItem value="all">
+          {t("All statuses")} {n(count({ status: "all" }))}
+        </SelectItem>
         {STATUS_OPTIONS.map((s) => (
           <SelectItem key={s} value={s}>
             <span aria-hidden className={cn("size-2 rounded-full", STATUS_FILL[s])} />
-            {FINDING_STATUS_LABEL[s]} {n(count({ status: s }))}
+            {t(FINDING_STATUS_LABEL[s])} {n(count({ status: s }))}
           </SelectItem>
         ))}
       </FilterSelect>
       <FilterSelect
-        label="Type"
+        label={t("Type")}
         value={filters.type}
         onChange={(type) => set({ type })}
         className="sm:w-52"
       >
-        <SelectItem value="all">All types {n(count({ type: "all" }))}</SelectItem>
-        {(["technical", "commercial"] as const).map((t) => {
-          const Icon = TYPE_TEXT[t].icon;
+        <SelectItem value="all">
+          {t("All types")} {n(count({ type: "all" }))}
+        </SelectItem>
+        {(["technical", "commercial"] as const).map((ty) => {
+          const Icon = TYPE_TEXT[ty].icon;
           return (
-            <SelectItem key={t} value={t}>
-              <Icon aria-hidden className="text-ink-muted" /> {TYPE_TEXT[t].label}{" "}
-              {n(count({ type: t }))}
+            <SelectItem key={ty} value={ty}>
+              <Icon aria-hidden className="text-ink-muted" /> {t(TYPE_TEXT[ty].label)}{" "}
+              {n(count({ type: ty }))}
             </SelectItem>
           );
         })}
       </FilterSelect>
       <FilterSelect
-        label="Section"
+        label={t("Section")}
         value={filters.section}
         onChange={(section) => set({ section })}
         className="sm:w-60"
       >
-        <SelectItem value="all">All sections {n(count({ section: "all" }))}</SelectItem>
+        <SelectItem value="all">
+          {t("All sections")} {n(count({ section: "all" }))}
+        </SelectItem>
         {sections.map((s) => (
           <SelectItem key={sectionKey(s)} value={sectionKey(s)}>
-            {sectionLabel(s)}{" "}
-            {n(reqs.some((r) => r.section === s) ? count({ section: sectionKey(s) }) : "no data")}
+            {t(sectionLabel(s))}{" "}
+            {n(
+              reqs.some((r) => r.section === s) ? count({ section: sectionKey(s) }) : t("no data"),
+            )}
           </SelectItem>
         ))}
       </FilterSelect>
@@ -458,6 +507,7 @@ function PointRow({
   p: Point;
   onEvidence: OpenEvidence;
 }) {
+  const t = useT();
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
   const isRule = r.scope === "standard";
@@ -468,7 +518,7 @@ function PointRow({
       ? f.assessment
       : f.gap ||
         f.assessment ||
-        (f.status === "not_addressed" ? "Nothing in the proposal answers this point." : "");
+        (f.status === "not_addressed" ? t("Nothing in the proposal answers this point.") : "");
   const onOpen = (id: string, page: number | null, quote: string) =>
     onEvidence(id, page, quote, v.proposalId);
   const TypeIcon = type ? TYPE_TEXT[type].icon : null;
@@ -485,10 +535,10 @@ function PointRow({
           <PriorityPill priority={r.priority} size="sm" />
           {type && TypeIcon && (
             <span className="inline-flex h-5 items-center gap-1 rounded-full border border-border px-2 text-2xs font-medium text-ink-2">
-              <TypeIcon className="size-3" aria-hidden /> {TYPE_TEXT[type].label}
+              <TypeIcon className="size-3" aria-hidden /> {t(TYPE_TEXT[type].label)}
             </span>
           )}
-          <span className="text-xs text-ink-muted">{sectionLabel(r.section)}</span>
+          <span className="text-xs text-ink-muted">{t(sectionLabel(r.section))}</span>
           <span className="ms-auto font-mono text-xs text-ink-muted">
             {isRule ? r.sourceRef : f.code}
           </span>
@@ -499,7 +549,7 @@ function PointRow({
             {f.headline}
           </p>
           <p className="line-clamp-1 text-[13px] text-ink-muted" dir="auto">
-            {isRule ? "Standard rule" : "RFP"} · {r.title}
+            {isRule ? t("Standard rule") : t("RFP")} · {r.title}
           </p>
         </div>
 
@@ -512,8 +562,9 @@ function PointRow({
             )}
             dir="auto"
           >
-            <span className={cn("me-1.5 font-semibold", verdict.ink)}>{verdict.label}:</span>
-            <span className="text-ink-2">{verdictText}</span>
+            <span className={cn("me-1.5 font-semibold", verdict.ink)}>{t(verdict.label)}:</span>
+            {/* <bdi>: AI text in the other language keeps its own direction and punctuation. */}
+            <bdi className="text-ink-2">{verdictText}</bdi>
           </p>
         )}
 
@@ -530,7 +581,7 @@ function PointRow({
             aria-expanded={open}
             className="ms-auto inline-flex items-center gap-1 rounded-sm text-xs font-medium text-brand-ink outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
           >
-            {open ? "Hide details" : "Details"}
+            {open ? t("Hide details") : t("Details")}
             <ChevronDown
               aria-hidden
               className={cn("size-3.5 transition-transform", open && "rotate-180")}
@@ -551,16 +602,18 @@ function PointRow({
             <div className="grid gap-3 ps-6 pe-5 pb-5 md:grid-cols-2">
               <DetailPanel
                 icon={isRule ? ShieldCheck : FileText}
-                title={isRule ? "The rule requires" : "The RFP requires"}
+                title={isRule ? t("The rule requires") : t("The RFP requires")}
               >
                 {r.description || r.title}
                 {r.acceptance && (
-                  <span className="mt-2 block text-ink-muted">Accepted when: {r.acceptance}</span>
+                  <span className="mt-2 block text-ink-muted">
+                    {t("Accepted when: {acceptance}", { acceptance: r.acceptance })}
+                  </span>
                 )}
               </DetailPanel>
-              <DetailPanel icon={BookOpen} title={`${v.vendor.name} offers`}>
+              <DetailPanel icon={BookOpen} title={t("{vendor} offers", { vendor: v.vendor.name })}>
                 {f.vendorResponse || (
-                  <span className="text-ink-muted italic">Nothing in the proposal.</span>
+                  <span className="text-ink-muted italic">{t("Nothing in the proposal.")}</span>
                 )}
                 {f.evidenceQuote && (
                   <span className="mt-2 flex items-start gap-2 text-ink-muted">
@@ -572,9 +625,11 @@ function PointRow({
                 )}
               </DetailPanel>
               <p className="text-xs text-ink-muted md:col-span-2">
-                AI confidence: {CONFIDENCE[f.confidence]}
+                {t("AI confidence: {level}", { level: t(CONFIDENCE[f.confidence]) })}
                 {f.aiStatus !== f.status &&
-                  ` · status changed by a reviewer (the AI said ${FINDING_STATUS_LABEL[f.aiStatus].toLowerCase()})`}
+                  ` · ${t("status changed by a reviewer (the AI said {status})", {
+                    status: t(FINDING_STATUS_LABEL[f.aiStatus]).toLowerCase(),
+                  })}`}
               </p>
             </div>
           </motion.div>

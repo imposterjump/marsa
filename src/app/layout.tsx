@@ -7,7 +7,7 @@ import { APP_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: APP_NAME,
-  description: "Procurement Intelligence for Ports & Customs",
+  description: "Procurement Intelligence for Ports & Customs", // i18n-ignore (meta tag)
   applicationName: APP_NAME,
   // Static file, not src/app/icon.svg: a metadata icon route made the dev server rebuild and reload
   // the page on every request.

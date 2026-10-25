@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight, ShieldCheck, TriangleAlert } from "lucide-react";
 import { cn } from "cn";
+import { useT } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -49,7 +50,7 @@ export function StandardRuleChip({
           {source.ruleCode}: {source.ruleText}
         </TooltipContent>
       </Tooltip>
-      <SheetContent className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-xl">
+      <SheetContent className="gap-0 p-0 data-[side=left]:w-full data-[side=right]:w-full data-[side=left]:sm:max-w-xl data-[side=right]:sm:max-w-xl">
         <RulePanel source={source} />
       </SheetContent>
     </Sheet>
@@ -62,6 +63,7 @@ export function StandardRuleChip({
  * rule is said plainly instead of silently showing other wording.
  */
 function RulePanel({ source }: { source: RuleSource }) {
+  const t = useT();
   const { data: std, isError } = useStandard(source.standardId);
   const live = std?.rules.find((r) => r.code === source.ruleCode);
   const changed = !!live && live.text.trim() !== source.ruleText.trim();
@@ -70,19 +72,19 @@ function RulePanel({ source }: { source: RuleSource }) {
   return (
     <>
       <SheetHeader className="gap-1 border-b border-border px-6 pe-14 pt-6 pb-5">
-        <span className="caption-caps text-ink-faint">Standard rule</span>
+        <span className="caption-caps text-ink-faint">{t("Standard rule")}</span>
         <SheetTitle className="text-lg leading-snug font-semibold text-ink">
           {std?.title ?? source.standardCode}
         </SheetTitle>
         <SheetDescription className="text-xs text-ink-muted">
           <span className="font-mono">{source.standardCode}</span>
-          {std && ` · ${std.rules.length} rule${std.rules.length === 1 ? "" : "s"}`}
+          {std && ` · ${t.plural(std.rules.length, "{n} rule", "{n} rules")}`}
         </SheetDescription>
       </SheetHeader>
 
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-5">
         <section
-          aria-label={`Rule ${source.ruleCode}`}
+          aria-label={t("Rule {code}", { code: source.ruleCode })}
           className="flex flex-col gap-2 rounded-xl border border-brand/30 bg-brand-soft p-4"
         >
           <div className="flex flex-wrap items-center gap-2">
@@ -97,10 +99,14 @@ function RulePanel({ source }: { source: RuleSource }) {
             <p className="flex items-start gap-1.5 pt-1 text-xs text-ink-2">
               <TriangleAlert className="mt-px size-3.5 shrink-0 text-partial" aria-hidden />
               {isError
-                ? "This is the wording the analysis used. The standard has been deleted since."
+                ? t("This is the wording the analysis used. The standard has been deleted since.")
                 : removed
-                  ? "This is the wording the analysis used. The rule has been removed from the standard since."
-                  : "This is the wording the analysis used. The rule has been edited since; its current wording is in the list below."}
+                  ? t(
+                      "This is the wording the analysis used. The rule has been removed from the standard since.",
+                    )
+                  : t(
+                      "This is the wording the analysis used. The rule has been edited since; its current wording is in the list below.",
+                    )}
             </p>
           )}
         </section>
@@ -108,7 +114,7 @@ function RulePanel({ source }: { source: RuleSource }) {
         {!isError && (
           <section aria-labelledby="rule-sheet-all" className="flex flex-col gap-3">
             <h3 id="rule-sheet-all" className="caption-caps text-ink-faint">
-              All rules in this standard
+              {t("All rules in this standard")}
             </h3>
             {!std ? (
               <div className="flex flex-col gap-2">
@@ -154,7 +160,7 @@ function RulePanel({ source }: { source: RuleSource }) {
             <Link
               href={`/standards/${source.standardId}?rule=${encodeURIComponent(source.ruleCode)}`}
             >
-              Open full standard <ArrowUpRight />
+              {t("Open full standard")} <ArrowUpRight className="rtl:-scale-x-100" />
             </Link>
           </Button>
         </SheetFooter>

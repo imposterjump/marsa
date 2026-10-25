@@ -15,11 +15,14 @@ import {
 } from "@/components/ui/dialog";
 import { PriorityPill } from "@/components/ui/status-pill";
 import { Textarea } from "@/components/ui/textarea";
+import { useT } from "@/components/i18n-provider";
 import { useBulkCreateRules } from "@/hooks/use-standards";
 import { ApiClientError } from "@/lib/api-client";
 import type { StandardDetailDto } from "@/lib/api-types";
 import { parseRules } from "@/lib/rules-parse";
 
+// A sample of the format the parser reads (English priority keywords): kept as is in Arabic.
+// i18n-ignore
 const EXAMPLE = `SEC-01 | All customs data is stored and processed in-country. | mandatory
 SEC-02 | Multi-factor authentication for administrators. | M
 Backups are encrypted and kept on a second site. | important`;
@@ -43,6 +46,7 @@ export function PasteRulesDialog({
 }
 
 function PasteBody({ standard, onDone }: { standard: StandardDetailDto; onDone: () => void }) {
+  const t = useT();
   const bulk = useBulkCreateRules(standard.id);
   const [text, setText] = useState("");
   const [serverError, setServerError] = useState<string | null>(null);
@@ -58,40 +62,46 @@ function PasteBody({ standard, onDone }: { standard: StandardDetailDto; onDone: 
         ...clash.map((r) => ({
           line: r.line,
           raw: r.text,
-          message: `Code ${r.code} already exists in this standard.`,
+          message: t("Code {code} already exists in this standard.", { code: r.code ?? "" }),
         })),
       ].sort((a, b) => a.line - b.line),
     };
-  }, [text, standard.rules]);
+  }, [text, standard.rules, t]);
 
   const submit = async () => {
     try {
       await bulk.mutateAsync(
-        rules.map(({ code, text: t, priority }) => ({ code, text: t, priority })),
+        rules.map(({ code, text: ruleText, priority }) => ({ code, text: ruleText, priority })),
       );
       toast.success(
-        `${rules.length} rule${rules.length === 1 ? "" : "s"} added to ${standard.code}.`,
+        t.plural(rules.length, "{n} rule added to {code}.", "{n} rules added to {code}.", {
+          code: standard.code,
+        }),
       );
       onDone();
     } catch (err) {
-      setServerError(err instanceof ApiClientError ? err.message : "Couldn't add the rules.");
+      setServerError(err instanceof ApiClientError ? err.message : t("Couldn't add the rules."));
     }
   };
 
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Paste rules</DialogTitle>
+        <DialogTitle>{t("Paste rules")}</DialogTitle>
         <DialogDescription>
-          One rule per line:{" "}
-          <code className="font-mono text-ink-2">CODE | rule text | priority</code>. Priority is
-          mandatory, important or desirable (or M / I / D). The code is optional and generated if
-          empty. Rows copied from Excel or Word tables (tab-separated) work too.
+          {t(
+            "One rule per line: {format}. Priority is mandatory, important or desirable (or M / I / D). The code is optional and generated if empty. Rows copied from Excel or Word tables (tab-separated) work too.",
+            {
+              format: (
+                <code className="font-mono text-ink-2">{t("CODE | rule text | priority")}</code>
+              ),
+            },
+          )}
         </DialogDescription>
       </DialogHeader>
       <DialogBody>
         <Textarea
-          aria-label="Rules to paste"
+          aria-label={t("Rules to paste")}
           value={text}
           onChange={(e) => {
             setText(e.target.value);
@@ -108,7 +118,7 @@ function PasteBody({ standard, onDone }: { standard: StandardDetailDto; onDone: 
             {errors.length > 0 && (
               <ul
                 className="flex flex-col gap-1.5 border-b border-border bg-fail-soft/40 px-4 py-3"
-                aria-label="Lines with problems"
+                aria-label={t("Lines with problems")}
               >
                 {errors.map((e) => (
                   <li
@@ -117,7 +127,7 @@ function PasteBody({ standard, onDone }: { standard: StandardDetailDto; onDone: 
                   >
                     <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
                     <span>
-                      <strong>Line {e.line}:</strong> {e.message}
+                      <strong>{t("Line {n}:", { n: e.line })}</strong> {t.auto(e.message)}
                     </span>
                   </li>
                 ))}
@@ -125,19 +135,19 @@ function PasteBody({ standard, onDone }: { standard: StandardDetailDto; onDone: 
             )}
             {rules.length > 0 && (
               <table className="w-full text-[13px]">
-                <caption className="sr-only">Preview of rules to add</caption>
+                <caption className="sr-only">{t("Preview of rules to add")}</caption>
                 <thead>
                   <tr className="text-start text-xs text-ink-muted">
-                    <th className="px-4 py-2 text-start font-medium">Code</th>
-                    <th className="px-2 py-2 text-start font-medium">Rule</th>
-                    <th className="px-4 py-2 text-end font-medium">Priority</th>
+                    <th className="px-4 py-2 text-start font-medium">{t("Code")}</th>
+                    <th className="px-2 py-2 text-start font-medium">{t("Rule")}</th>
+                    <th className="px-4 py-2 text-end font-medium">{t("Priority")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rules.map((r) => (
                     <tr key={r.line} className="border-t border-border/70 align-top">
                       <td className="px-4 py-2 font-mono text-xs whitespace-nowrap text-ink-2">
-                        {r.code ?? <span className="text-ink-faint">auto</span>}
+                        {r.code ?? <span className="text-ink-faint">{t("auto")}</span>}
                       </td>
                       <td className="px-2 py-2 text-ink" dir="auto">
                         {r.text}
@@ -157,17 +167,19 @@ function PasteBody({ standard, onDone }: { standard: StandardDetailDto; onDone: 
 
       <DialogFooter>
         <span className="me-auto self-center text-xs text-ink-muted">
-          {rules.length} ready{errors.length ? ` · ${errors.length} to fix` : ""}
+          {t("{n} ready", { n: rules.length })}
+          {errors.length ? ` · ${t("{n} to fix", { n: errors.length })}` : ""}
         </span>
         <Button variant="ghost" onClick={onDone}>
-          Cancel
+          {t("Cancel")}
         </Button>
         <Button
           onClick={submit}
           disabled={rules.length === 0 || errors.length > 0}
           loading={bulk.isPending}
         >
-          <ClipboardPaste /> Add {rules.length || ""} rule{rules.length === 1 ? "" : "s"}
+          <ClipboardPaste />{" "}
+          {rules.length ? t.plural(rules.length, "Add {n} rule", "Add {n} rules") : t("Add rules")}
         </Button>
       </DialogFooter>
     </>

@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 
-const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"; // i18n-ignore
+const ARABIC_GLYPHS = "ابتثجحخدذرزسشصضطظعغفقكلمنهوي";
 
 /**
  * M4 Scramble text (epic-design text-animations #5): when `text` changes, letters scramble
@@ -25,6 +26,7 @@ export function ScrambleText({
   useEffect(() => {
     if (reduce) return;
     const start = performance.now();
+    const glyphs = /[\u0600-\u06ff]/.test(text) ? ARABIC_GLYPHS : GLYPHS;
     const tick = (now: number) => {
       const p = Math.min(1, (now - start) / duration);
       const settled = Math.floor(p * text.length);
@@ -32,7 +34,7 @@ export function ScrambleText({
         text
           .split("")
           .map((ch, i) =>
-            i < settled || ch === " " ? ch : GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
+            i < settled || ch === " " ? ch : glyphs[Math.floor(Math.random() * glyphs.length)],
           )
           .join(""),
       );

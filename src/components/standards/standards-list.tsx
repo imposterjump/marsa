@@ -32,15 +32,16 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pill } from "@/components/ui/status-pill";
 import { Switch } from "@/components/ui/switch";
+import { useT } from "@/components/i18n-provider";
 import { useDeleteStandard, useStandards, useUpdateStandard } from "@/hooks/use-standards";
 import type { StandardSummaryDto } from "@/lib/api-types";
-import { formatDate } from "@/lib/format";
+import { PROJECT_CATEGORY_LABEL } from "@/lib/labels";
 import { StandardFormDialog } from "./standard-form-dialog";
-import { APP_NAME } from "@/lib/brand";
 
 type Filter = "all" | "active" | "inactive";
 
 export function StandardsList() {
+  const t = useT();
   const { data, isLoading, isError, refetch } = useStandards();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -54,20 +55,24 @@ export function StandardsList() {
         (!q ||
           s.code.toLowerCase().includes(q) ||
           s.title.toLowerCase().includes(q) ||
-          s.category.toLowerCase().includes(q)),
+          s.category.toLowerCase().includes(q) ||
+          t(PROJECT_CATEGORY_LABEL[s.category]).toLowerCase().includes(q)),
     );
-  }, [data, query, filter]);
+  }, [data, query, filter, t]);
 
   const activeCount = data?.filter((s) => s.isActive).length ?? 0;
 
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
-        title="Standards"
-        description={`Your organization's rules that every proposal must respect, such as IT security, safety and commercial terms. ${APP_NAME} checks each vendor against the active standards of a project, alongside its RFP.`}
+        title={t("Standards")}
+        description={t(
+          "Your organization's rules that every proposal must respect, such as IT security, safety and commercial terms. {app} checks each vendor against the active standards of a project, alongside its RFP.",
+          { app: t.appName },
+        )}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
-            <Plus /> New standard
+            <Plus /> {t("New standard")}
           </Button>
         }
       />
@@ -80,9 +85,9 @@ export function StandardsList() {
         </div>
       ) : isError ? (
         <div className="rounded-xl border border-fail/30 bg-fail-soft/40 p-6 text-fail">
-          Couldn&apos;t load standards.{" "}
+          {t("Couldn't load standards.")}{" "}
           <button className="font-medium underline" onClick={() => refetch()}>
-            Try again
+            {t("Try again")}
           </button>
         </div>
       ) : data && data.length === 0 ? (
@@ -90,17 +95,19 @@ export function StandardsList() {
           <EmptyState
             size="lg"
             art={<StandardsArt />}
-            title="No standards yet"
-            description="Create a standard for each rule set you apply to tenders (for example IT security, safety, commercial terms), then add its rules and upload the official document."
+            title={t("No standards yet")}
+            description={t(
+              "Create a standard for each rule set you apply to tenders (for example IT security, safety, commercial terms), then add its rules and upload the official document.",
+            )}
             actions={
               <Button onClick={() => setCreateOpen(true)}>
-                <Plus /> Create your first standard
+                <Plus /> {t("Create your first standard")}
               </Button>
             }
           />
         </div>
       ) : (
-        <section aria-label="Standards library" className="flex flex-col gap-5">
+        <section aria-label={t("Standards library")} className="flex flex-col gap-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative sm:w-80">
               <Search
@@ -108,22 +115,26 @@ export function StandardsList() {
                 className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-ink-faint"
               />
               <Input
-                aria-label="Search standards"
-                placeholder="Search by code, title or category"
+                aria-label={t("Search standards")}
+                placeholder={t("Search by code, title or category")}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="ps-9"
               />
             </div>
             <SegmentedControl<Filter>
-              aria-label="Filter standards"
+              aria-label={t("Filter standards")}
               size="sm"
               value={filter}
               onValueChange={setFilter}
               options={[
-                { value: "all", label: "All", count: data?.length ?? 0 },
-                { value: "active", label: "Active", count: activeCount },
-                { value: "inactive", label: "Inactive", count: (data?.length ?? 0) - activeCount },
+                { value: "all", label: t("All"), count: data?.length ?? 0 },
+                { value: "active", label: t("Active"), count: activeCount },
+                {
+                  value: "inactive",
+                  label: t("Inactive"),
+                  count: (data?.length ?? 0) - activeCount,
+                },
               ]}
             />
           </div>
@@ -131,8 +142,12 @@ export function StandardsList() {
           {list.length === 0 ? (
             <EmptyState
               art={<SearchX className="size-10 text-ink-faint" strokeWidth={1.5} />}
-              title="No standards match"
-              description={query ? `Nothing matches "${query}".` : "No standards in this filter."}
+              title={t("No standards match")}
+              description={
+                query
+                  ? t('Nothing matches "{query}".', { query })
+                  : t("No standards in this filter.")
+              }
               actions={
                 <Button
                   variant="secondary"
@@ -141,7 +156,7 @@ export function StandardsList() {
                     setFilter("all");
                   }}
                 >
-                  Clear filters
+                  {t("Clear filters")}
                 </Button>
               }
             />
@@ -166,6 +181,7 @@ export function StandardsList() {
 }
 
 function StandardCard({ standard: s }: { standard: StandardSummaryDto }) {
+  const t = useT();
   const update = useUpdateStandard(s.id);
   const remove = useDeleteStandard();
   const [editOpen, setEditOpen] = useState(false);
@@ -198,14 +214,14 @@ function StandardCard({ standard: s }: { standard: StandardSummaryDto }) {
               variant="ghost"
               size="icon-sm"
               className="relative z-10 -me-2 -mt-1 text-ink-muted"
-              aria-label={`Actions for ${s.code}`}
+              aria-label={t("Actions for {code}", { code: s.code })}
             >
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={() => setEditOpen(true)} className="gap-2.5">
-              <Pencil className="size-4 text-ink-muted" /> Edit details
+              <Pencil className="size-4 text-ink-muted" /> {t("Edit details")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -213,7 +229,7 @@ function StandardCard({ standard: s }: { standard: StandardSummaryDto }) {
               onSelect={() => setDeleteOpen(true)}
               className="gap-2.5"
             >
-              <Trash2 className="size-4" /> Delete standard
+              <Trash2 className="size-4" /> {t("Delete standard")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -221,11 +237,11 @@ function StandardCard({ standard: s }: { standard: StandardSummaryDto }) {
 
       <div className="flex flex-wrap gap-2">
         <Pill tone="neutral" size="sm">
-          {s.category}
+          {t(PROJECT_CATEGORY_LABEL[s.category])}
         </Pill>
         {s.isSample && (
           <Pill tone="info" size="sm">
-            Sample
+            {t("Sample")}
           </Pill>
         )}
       </div>
@@ -233,55 +249,69 @@ function StandardCard({ standard: s }: { standard: StandardSummaryDto }) {
       {s.description ? (
         <p className="line-clamp-2 text-[13px] leading-relaxed text-ink-muted">{s.description}</p>
       ) : (
-        <p className="text-[13px] text-ink-faint italic">No description</p>
+        <p className="text-[13px] text-ink-faint italic">{t("No description")}</p>
       )}
 
       <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/70 pt-4">
         <div className="flex items-center gap-4 text-xs text-ink-2">
           <span
             className="inline-flex items-center gap-1.5"
-            title={`${s.mandatoryCount} mandatory`}
+            title={t("{n} mandatory", { n: s.mandatoryCount })}
           >
             <ListChecks className="size-3.5 text-ink-faint" aria-hidden />
-            <span className="font-medium tabular-nums">{s.rulesCount}</span> rules
-            {s.mandatoryCount > 0 && <span className="text-ink-muted">· {s.mandatoryCount} M</span>}
+            {t.plural(s.rulesCount, "{n} rule", "{n} rules", {
+              n: <span className="font-medium tabular-nums">{s.rulesCount}</span>,
+            })}
+            {s.mandatoryCount > 0 && (
+              <span className="text-ink-muted">· {t("{n} M", { n: s.mandatoryCount })}</span>
+            )}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <FileText className="size-3.5 text-ink-faint" aria-hidden />
-            <span className="font-medium tabular-nums">{s.documentsCount}</span> docs
+            {t.plural(s.documentsCount, "{n} doc", "{n} docs", {
+              n: <span className="font-medium tabular-nums">{s.documentsCount}</span>,
+            })}
           </span>
         </div>
         <label className="relative z-10 flex items-center gap-2 text-xs font-medium text-ink-2">
-          {s.isActive ? "Active" : "Inactive"}
+          {s.isActive ? t("Active") : t("Inactive")}
           <Switch
             checked={s.isActive}
             onCheckedChange={(v) =>
               update.mutate(
                 { isActive: v },
-                { onSuccess: () => toast.success(`${s.code} ${v ? "activated" : "deactivated"}.`) },
+                {
+                  onSuccess: () =>
+                    toast.success(
+                      v
+                        ? t("{code} activated.", { code: s.code })
+                        : t("{code} deactivated.", { code: s.code }),
+                    ),
+                },
               )
             }
-            aria-label={`${s.code} active`}
+            aria-label={t("{code} active", { code: s.code })}
           />
         </label>
       </div>
-      <p className="text-2xs text-ink-faint">Updated {formatDate(s.updatedAt)}</p>
+      <p className="text-2xs text-ink-faint">
+        {t("Updated {date}", { date: t.date(s.updatedAt) })}
+      </p>
 
       <StandardFormDialog open={editOpen} onOpenChange={setEditOpen} standard={s} />
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title={`Delete ${s.code}?`}
-        description={
-          <>
-            This permanently deletes <strong>{s.title}</strong>, its {s.rulesCount} rules and{" "}
-            {s.documentsCount} uploaded documents. Projects that used it keep their past evaluation
-            results.
-          </>
-        }
+        title={t("Delete {code}?", { code: s.code })}
+        description={t(
+          "This permanently deletes {title}, its {rules} rules and {docs} uploaded documents. Projects that used it keep their past evaluation results.",
+          { title: <strong>{s.title}</strong>, rules: s.rulesCount, docs: s.documentsCount },
+        )}
         typeToConfirm={s.code}
-        confirmLabel="Delete standard"
-        onConfirm={() => remove.mutateAsync(s.id).then(() => toast.success(`${s.code} deleted.`))}
+        confirmLabel={t("Delete standard")}
+        onConfirm={() =>
+          remove.mutateAsync(s.id).then(() => toast.success(t("{code} deleted.", { code: s.code })))
+        }
       />
     </article>
   );
