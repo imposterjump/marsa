@@ -1,6 +1,6 @@
 /**
  * Run engine (RDD §7.2, P6.7). Phases run in strict order (P8: checklist → standards → analyze
- * (RFP) → risk → summary; `compare` only in older runs); inside a phase, steps run up to
+ * (RFP) → risk → summary → report; `compare` only in older runs); inside a phase, steps run up to
  * `concurrency` at a time. The first step of a phase
  * goes alone until its response starts streaming, so the others can read the prompt-cache entry
  * it writes (parallel requests with the same prefix can't share a cache entry).
@@ -21,6 +21,7 @@ import type {
   AnalysisOutput,
   ChecklistOutput,
   ComparisonOutput,
+  ReportOutput,
   RiskOutput,
   SummaryOutput,
 } from "../ai/schemas";
@@ -28,6 +29,7 @@ import type { AiEngine, RunContext, SourceDoc, StepInput } from "../ai/types";
 import { loadRunContext } from "./context";
 import { computeVendorScores } from "./scores";
 import {
+  addReportSteps,
   addStepUsage,
   createRun,
   findActiveRun,
@@ -42,10 +44,12 @@ import {
   outcomeOf,
   readChecklist,
   readDigests,
+  readRiskOutput,
   reconcileInterruptedRuns,
   saveAnalysis,
   saveChecklist,
   saveComparison,
+  saveReport,
   saveRisks,
   saveSummary,
   type RunRow,
@@ -87,7 +91,8 @@ export function createRunner(deps: RunnerDeps) {
       step.phase === "standards" ||
       step.phase === "analyze" ||
       step.phase === "compare" ||
-      step.phase === "risk"
+      step.phase === "risk" ||
+      step.phase === "report"
     ) {
       if (!ctx.vendors.some((v) => v.proposalId === step.proposalId))
         return "The proposal was removed.";
@@ -102,6 +107,12 @@ export function createRunner(deps: RunnerDeps) {
       return "Needs this vendor's analysis.";
     }
     if (step.phase === "summary" && !digests.length) return "Needs at least one analysed proposal.";
+    if (step.phase === "report") {
+      if (!digests.some((d) => d.proposalId === step.proposalId))
+        return "Needs this vendor's analysis.";
+      const summary = listSteps(db, run.id).find((s) => s.phase === "summary");
+      if (summary?.status !== "done") return "Needs the recommendation.";
+    }
     return null;
   }
 
@@ -141,6 +152,31 @@ export function createRunner(deps: RunnerDeps) {
           missing,
         };
       }
+      case "report": {
+        const scores = computeVendorScores(db, run, vendorNames(ctx));
+        const own = scores.find((s) => s.proposalId === step.proposalId);
+        if (!own) throw new Error("This vendor has no scores.");
+        return {
+          phase: "report",
+          ctx,
+          checklist,
+          vendor: vendor!,
+          analysis: analyses.find((a) => a.proposalId === step.proposalId)!,
+          risks: readRiskOutput(db, run.id, step.proposalId!),
+          scores: own,
+          ranked: scores.length,
+          recommended: scores[0]?.vendor ?? null,
+          otherPrices: analyses
+            .filter((a) => a.proposalId !== step.proposalId)
+            .map((a) => ({
+              vendor: a.vendor,
+              totalPrice: a.analysis.commercial.totalPrice,
+              currency: a.analysis.commercial.currency,
+            })),
+        };
+      }
+      default:
+        throw new Error(`Unknown phase: ${step.phase}`);
     }
   }
 
@@ -170,6 +206,8 @@ export function createRunner(deps: RunnerDeps) {
           usage,
           computeVendorScores(db, run, vendorNames(ctx)),
         );
+      case "report":
+        return saveReport(db, step, data as ReportOutput, usage);
     }
   }
 
@@ -384,7 +422,48 @@ export function createRunner(deps: RunnerDeps) {
       return getRun(db, runId);
     },
 
-    /** Re-run one failed (or cancelled) step, plus whatever it unblocks and the summary. */
+    /**
+     * Reports for a run that finished before reports existed (one-time backfill, 2026-10-25, no
+     * button): one report step per ranked vendor that has none, plus report steps that did not
+     * finish; only those run (finished steps are never re-run or re-billed).
+     */
+    addReports(runId: string): RunRow {
+      const run = getRun(db, runId);
+      if (run.status !== "completed" && run.status !== "completed_with_errors") {
+        throw new ApiError(
+          409,
+          "invalid_transition",
+          "Reports can only be added to a finished analysis.",
+        );
+      }
+      assertIdle(run);
+      const steps = listSteps(db, runId);
+      if (!steps.some((s) => s.phase === "summary" && s.status === "done")) {
+        throw new ApiError(409, "invalid_transition", "This analysis has no recommendation.");
+      }
+      const ctx = loadRunContext(db, run.projectId, run.config);
+      const have = new Set(steps.filter((s) => s.phase === "report").map((s) => s.proposalId));
+      const added = addReportSteps(
+        db,
+        run,
+        computeVendorScores(db, run, vendorNames(ctx))
+          .filter((s) => !have.has(s.proposalId))
+          .map((s) => ({ proposalId: s.proposalId, name: s.vendor })),
+      );
+      const again = steps
+        .filter((s) => s.phase === "report" && s.status !== "done")
+        .map((s) => s.id);
+      if (!added.length && !again.length) return run;
+      requeue(run, [...added, ...again]);
+      launch(runId);
+      return getRun(db, runId);
+    },
+
+    /**
+     * Re-run one failed (or cancelled) step, plus whatever it unblocks. A retried check changes
+     * the scores, so the recommendation and every report are written again; a retried report
+     * only re-runs itself.
+     */
     retryStep(runId: string, stepId: string): RunRow {
       const run = getRun(db, runId);
       assertIdle(run);
@@ -405,7 +484,8 @@ export function createRunner(deps: RunnerDeps) {
             s.id === step.id ||
             (order(s.phase) > order(step.phase) &&
               (s.status === "skipped" || s.status === "cancelled")) ||
-            (s.phase === "summary" && step.phase !== "summary"),
+            (order(step.phase) < order("summary") &&
+              (s.phase === "summary" || s.phase === "report")),
         )
         .map((s) => s.id);
       requeue(run, ids);

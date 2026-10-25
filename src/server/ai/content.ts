@@ -20,6 +20,7 @@ import {
   answerIn,
   checklistTask,
   compareTask,
+  reportTask,
   riskTask,
   standardsTask,
   summaryTask,
@@ -232,6 +233,46 @@ function stepBlocks(input: StepInput): Block[] {
         }),
         text(summaryTask(input.recommended, input.missing)),
       ];
+    // The report reads the bid itself and the tender, like the risk step, with the vendor's
+    // evaluation as a reference. Its own output format: ① ② are shared between the vendors'
+    // reports, ③ is each vendor's own.
+    case "report": {
+      const s = input.scores;
+      return [
+        ...shared,
+        ...cached(checklistSection(input.checklist)),
+        ...cached(vendorSection(input.vendor)),
+        ...analysesSection(`Evaluation of ${input.vendor.name}`, {
+          scores: {
+            rank: s.rank,
+            ofVendors: input.ranked,
+            overall: s.overall,
+            rfpCompliancePct: s.rfpPct,
+            standardsCompliancePct: s.standardsPct,
+            mandatoryRequirementsNotMet: s.mandatoryNotMet,
+            riskScore: s.riskScore,
+            riskLevel: s.riskLevel,
+          },
+          recommendedVendor: input.recommended,
+          // Findings with their evidence, so the report can cite document and page.
+          analysis: {
+            ...digestForPrompt(input.analysis),
+            findings: input.analysis.analysis.findings.map((f) => ({
+              code: f.code,
+              status: f.status,
+              headline: f.headline,
+              assessment: f.assessment,
+              gap: f.gap,
+              evidenceDocument: f.evidenceDocument,
+              evidencePage: f.evidencePage,
+            })),
+          },
+          riskRegister: input.risks,
+          otherBidPrices: input.otherPrices,
+        }),
+        text(reportTask(input.vendor.name, input.recommended)),
+      ];
+    }
   }
 }
 
@@ -239,7 +280,12 @@ function stepBlocks(input: StepInput): Block[] {
 export function nativeDocsFor(input: StepInput): SourceDoc[] {
   if (input.phase === "summary") return [];
   const docs = [...input.ctx.rfpDocs, ...input.ctx.standards.flatMap((s) => s.docs)];
-  if (input.phase === "standards" || input.phase === "analyze" || input.phase === "risk")
+  if (
+    input.phase === "standards" ||
+    input.phase === "analyze" ||
+    input.phase === "risk" ||
+    input.phase === "report"
+  )
     docs.push(...input.vendor.docs);
   return docs.filter((d) => d.aiReadable && isNativeDoc(d));
 }

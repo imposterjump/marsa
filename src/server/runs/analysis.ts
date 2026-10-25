@@ -28,7 +28,8 @@ import type { LocalStorage } from "../storage/local";
 import { evaluationDtos, proposalVendors, requirementDtos, toRunDto } from "./read";
 import { computeVendorScores } from "./scores";
 import { resolveSources } from "./sources";
-import { getRun, readChecklist } from "./store";
+import { getRun, listSteps, readChecklist } from "./store";
+import type { ReportOutput } from "../ai/schemas";
 
 export async function getAnalysisResults(
   db: Db,
@@ -185,5 +186,23 @@ export async function getAnalysisResults(
         }
       : null,
     keyConstraints: readChecklist(db, run.id)?.keyConstraints ?? [],
+    reports: reportSummaries(db, run.id, vendors),
   };
+}
+
+function reportSummaries(db: Db, runId: string, vendors: VendorResultDto[]) {
+  const steps = listSteps(db, runId).filter((s) => s.phase === "report");
+  return vendors.map((v) => {
+    const step = steps.find((s) => s.proposalId === v.proposalId);
+    const out = step?.status === "done" ? (step.output as ReportOutput) : null;
+    return {
+      proposalId: v.proposalId,
+      status: step?.status ?? ("none" as const),
+      verdict: out?.verdict ?? null,
+      headline: out?.headline ?? null,
+      generatedAt: out ? step!.finishedAt : null,
+      error: step?.status === "failed" || step?.status === "skipped" ? step.error : null,
+      url: `/api/runs/${runId}/reports/${v.proposalId}`,
+    };
+  });
 }

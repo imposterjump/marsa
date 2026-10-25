@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   Lock,
   Play,
+  ScrollText,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
@@ -56,6 +57,7 @@ import { setSidebarCollapsed } from "@/lib/theme";
 import { ComparisonTab } from "./comparison-tab";
 import { type ComplianceFocus, ComplianceTab } from "./compliance-tab";
 import { OverviewTab } from "./overview-tab";
+import { ReportsTab } from "./reports-tab";
 import type { ComplianceView } from "./point-list";
 import { RisksTab } from "./risks-tab";
 import { type OpenEvidence, type Scope, vendorColors } from "./shared";
@@ -71,6 +73,7 @@ const TABS = [
   { id: "standards", label: "Standards", icon: ShieldCheck },
   { id: "risks", label: "Risks", icon: ShieldAlert },
   { id: "comparison", label: "Comparison", icon: Columns3 },
+  { id: "reports", label: "Reports", icon: ScrollText },
   { id: "quality", label: "AI quality", icon: ClipboardCheck },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
@@ -484,6 +487,9 @@ function Results({ d }: { d: AnalysisResultsDto }) {
         </TabsContent>
         <TabsContent value="comparison">
           <ComparisonTab d={d} colors={colors} onEvidence={onEvidence} />
+        </TabsContent>
+        <TabsContent value="reports">
+          <ReportsTab d={d} colors={colors} />
         </TabsContent>
         <TabsContent value="quality" className="flex flex-col gap-6">
           {status && <RunSummary run={status.run} />}

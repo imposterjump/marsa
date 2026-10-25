@@ -185,6 +185,7 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
 | G-83 | ✅ Solved | The AI wrote "the highest standards compliance in **Section E**" in the recommendation: the prompt labels its input blocks Section A–E, and the model echoed them | System prompt rule: never write the input's section letters; name the document, vendor, requirement or proposal section. Snapshot updated (the change invalidates the prompt cache once) |
 | G-84 | 🟡 Workaround | **Page reloads every half second** on `npm run dev` (user, 2026-10-23): Visual Studio has the repo open and keeps writing its index under `.vs/` (gitignored). Turbopack still watches it: "✓ Compiled in 0ms" → full reload, in a loop (the log also says "waiting for the filesystem to settle … .vs\slnx.sqlite-journal"). Next 16 has no option to make the watcher skip a folder | The user's app on :3000 now runs as a **production build**: `NEXT_DIST_DIR=.next-design npx next build`, then `NEXT_DIST_DIR=.next-design npx next start -p 3000` (no watcher; rebuild after code changes). Or close Visual Studio while `npm run dev` runs |
 | G-85 | ℹ️ Rule | **Two names (user, 2026-10-23):** the product is shown as **Mizan** ("Marsa" means harbour; the user wanted a procurement name). **Marsa stays the codename everywhere in code:** repo, `package.json`, DB, folders, docs, comments, the `analysis_meta` etc. The user asked for "the simplest way, just the name in the UI". | Displayed name = `APP_NAME` in `src/lib/brand.ts`, used by the tab title (layout metadata + `TitleSync`), sidebar `Wordmark`, welcome dialog, UI texts, the settings API (`appName` is overridden; the stored settings row still says "Marsa": don't migrate it, G-52) and the AI's recommendation prompt (so summaries don't say "Marsa"). E2E expects "Welcome to Mizan" and "· Mizan —" in titles. Never rename code identifiers, tables or files |
+| G-87 | ℹ️ Fact | **Consultant report PDFs need Chromium at runtime** (`playwright-core`, the same one the tests and the generated bids use). A fresh clone must run `npx playwright install chromium` once, or Download / View of a report fails with that hint. PDFs are cached under the storage root (`DATA_DIR/uploads/reports/<run>/<proposal>-v1-<finishedAt>.pdf`); bump `LAYOUT_VERSION` in `src/server/reports/pdf.ts` after a layout change, or old PDFs keep being served | Fonts (Hanken Grotesk, Noto Sans Arabic) and the emblem are embedded from `node_modules/@fontsource-variable` and `public/brand` (paths from `process.cwd()`), so the PDF looks the same everywhere |
 | G-86 | ℹ️ Fact | **npm's `script-shell` is PowerShell on this machine**, so a backgrounded `npx next start` runs as `npx-cli.js` → `powershell.exe -c "next start -p 3000"` → `node …/next start`. When Claude Code reaps the task for low memory (or `TaskStop`), only the wrapper dies: the server keeps listening (2026-10-24: it ran on for hours after the "killed" notice). The orphan's command line does not show `NEXT_DIST_DIR` | Before saying a server is down, `curl` the port. To tell whose it is, match its creation time to the task's output file and the chunks it serves to a build folder (`.next-design` = the one built for the user's :3000). Never rebuild a dist folder under a running server: stop it first |
 | G-50 | ✅ Solved | Dev log: "Route /projects/[projectId]: Could not validate that a segment in your UI has instant navigation … Dropped segment: page.tsx". The layout awaited `params` in a Suspense boundary that **wrapped `{children}`**, so the tab pages were never part of the static shell | The layout renders `<Suspense><ProjectHeader/></Suspense>` and `{children}` **side by side**. Each page wraps its content in `<ProjectRoute params fallback>` (server: own Suspense + await params → client `ProjectGate` providing `useProjectContext()`). The tab fade moved to `[projectId]/template.tsx`. Never pass `{children}` into a component that awaits params |
 
@@ -457,3 +458,41 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
     - **View switch red:** `SegmentedControl` got `tone="brand"` (picked segment in the RTA gradient, white text); only the view switch uses it.
     - **First vendor open, the others folded** on load, in both views (`closed` initial state in `ComplianceTab`); a risk's "see its points" opens its own vendor instead.
 - **Open issue I-27 (seen 2026-10-25):** `tests/integration/runner.test.ts` › "survives a crash … resumes without re-running finished steps" is **flaky** (expected ≥ 2, got 1), 2 fails out of 3 runs, also on the committed code before these UI changes; it passed in other `npm run check` runs. Timing-dependent; not looked into.
+- **Pushed** on the user's word ("push and commit these"): up to `f35ecb9`.
+- **Consultant reports (new feature, user-designed, 2026-10-25).** The user asked for a Reports tab with one AI report per vendor, "like an actual report" by "a very professional business consultant", as a PDF with structured output. Structure proposed and approved in chat. The user's choices:
+  - The agent reads the proposal files as well as the analysis ("not biased by the analysis"). Measured cost on their Haiku set: +~$0.015 per run on Haiku, ~$0.55 more on Opus for 3 vendors.
+  - Old runs get reports once, with no permanent button.
+  - Rows have View plus a red Download.
+  - Verdicts are *Preferred bidder / Acceptable with conditions / Not recommended*.
+  - At most 2 pages. No comparison section and no section scores: only the overall, RFP, Standards and Risk rings at the top right.
+  - **Pipeline:** new last phase `report` (`RUN_PHASES`), one step per vendor after the summary: T = **4N + 2** (3N + 2 without standards). Step label "Writing the consultant report on <vendor>".
+    - **Input:** the tender ① and checklist ② as cached blocks, the vendor's documents ③, then Section E: Marsa's scores, rank, the recommended vendor, the vendor's digest, its risk register and the other bids' stated prices (only to judge price level).
+    - **Own system prompt** (`reportSystemPrompt`: senior procurement and business consultant to the client, same document-safety rules). Its **own output format** (`ReportOutputSchema`): a third format costs no shared cache, because reports come after every cache entry they could share.
+    - **Task text** `reportTask`: word limits (~1,100 words), the verdict rule, refs on every point.
+  - **Schema** `ReportSchema` (`schemas.ts`):
+    - verdict, headline and executiveSummary;
+    - technical and commercial: rating strong/adequate/weak, assessment, 3–5 strengths/weaknesses each with a reference;
+    - balance: assessment, valueForMoney;
+    - concerns (title, detail);
+    - recommendation: opinion, conditions, negotiationPoints, clarifications.
+  - **Normalisation** `normalizeReport`: Marsa's pick is always `preferred_bidder`, the others never are. Lists are capped (5 points, 4 concerns, 5 actions) and blanks dropped. Output stored on the step (no new table); `readReport`.
+  - **Runner:** a report is blocked without its vendor's analysis or the summary. **Retry:** a retried check (before the summary) re-runs the summary **and every report** (scores changed); a retried report only itself; a failed summary re-runs the skipped reports. **`addReports(runId)`** = the one-time backfill: adds missing report steps (rank order, `addReportSteps`), re-queues unfinished ones, runs only those. Its endpoint is `POST /api/runs/:id/reports`, with **no UI**.
+  - **PDF:** `src/server/reports/`.
+    - `html.ts` is the pure template: EN/AR, RTL, escaped, rings in the app's bands, verdict and rating chips, strengths beside weaknesses, the recommendation box with 3 columns, a method note, and a Chromium footer with page x of y.
+    - `view.ts` builds it from the DB.
+    - `pdf.ts` renders it with the shared `src/server/pdf/print.ts` (`withBrowser`, also used by `simulate/render.ts` now). It shrinks the scale 1 → 0.94 → 0.88 → 0.82 until `pdfPageCount` ≤ 2, caches on disk (G-87), and renders concurrent requests once.
+    - Route `GET /api/runs/:id/reports/:proposalId` (`?download=1` = attachment).
+    - A maximum-length sample prints on 2 pages at scale 1.
+  - **UI:**
+    - **Reports tab** (`reports-tab.tsx`), after Comparison: section title, one row per vendor (rank, vendor, `VerdictPill`, headline, date, **View** in the app's reader, red **Download PDF**). Rows also cover writing, failed (retry under AI quality), skipped, cancelled and missing reports.
+    - **Analyse panel:** "18 (4 × 4 + 2)", a "Report" chip, and text that mentions the report.
+    - **Mission control:** the rail shows "Reports".
+  - **Estimate:** `estimateRun` adds the reports (the first writes ①②③, the others ③) and returns `reportsUsd`; the calibration tests compare `usd − reportsUsd` with the measured runs.
+  - **Mock engine:** the demo report is assembled from findings, commercial terms and risks.
+  - **Tests:**
+    - unit `report.test.ts` (verdict rule, caps, escaping, RTL);
+    - integration `report-pdf.test.ts` (a real Chromium render of a maximum-length report: ≤ 2 pages, text selectable);
+    - runner tests: 18 steps, one preferred bidder, retry rules, the backfill runs once;
+    - E2E: Reports tab, PDF headers and `%PDF-`, View opens the reader.
+  - `npm run check` ✔ (185), full E2E ✔ (20).
+  - Preview on a copy of the user's data (light, dark, 390 px): the demo run's backfill made 2 reports (Preferred bidder / Not recommended); View shows the 2-page PDF.

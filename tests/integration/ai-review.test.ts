@@ -70,7 +70,7 @@ describe("run quality metrics", () => {
     expect(q.files.skipped).toBe(0);
     expect(q.files.list.find((f) => f.name.endsWith(".xlsx"))?.sentAs).toBe("text");
     expect(q.files.list.find((f) => f.name.endsWith(".png"))?.sentAs).toBe("image");
-    expect(q.steps).toMatchObject({ total: 14, done: 14, failed: 0, attempts: 14, retries: 0 });
+    expect(q.steps).toMatchObject({ total: 18, done: 18, failed: 0, attempts: 18, retries: 0 });
     expect(q.status).toBe("completed");
     expect(q.findings.total).toBeGreaterThan(100);
     expect(Object.values(q.findings.byStatus).reduce((a, b) => a + b, 0)).toBe(q.findings.total);

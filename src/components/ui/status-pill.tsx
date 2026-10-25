@@ -15,8 +15,19 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "cn";
-import type { FindingStatus, Priority, ProjectStatus, RiskSeverity } from "@/lib/domain";
-import { FINDING_STATUS_LABEL, PROJECT_STATUS_LABEL, RISK_SEVERITY_LABEL } from "@/lib/labels";
+import type {
+  FindingStatus,
+  Priority,
+  ProjectStatus,
+  ReportVerdict,
+  RiskSeverity,
+} from "@/lib/domain";
+import {
+  FINDING_STATUS_LABEL,
+  PROJECT_STATUS_LABEL,
+  REPORT_VERDICT_LABEL,
+  RISK_SEVERITY_LABEL,
+} from "@/lib/labels";
 
 type Tone =
   | "ok"
@@ -118,6 +129,22 @@ export function RiskPill({ severity, size }: { severity: RiskSeverity; size?: "s
   return (
     <Pill tone={s.tone} icon={s.icon} size={size}>
       {RISK_SEVERITY_LABEL[severity]}
+    </Pill>
+  );
+}
+
+const VERDICT: Record<ReportVerdict, { tone: Tone; icon: LucideIcon }> = {
+  preferred_bidder: { tone: "ok", icon: BadgeCheck },
+  acceptable_with_conditions: { tone: "partial", icon: Contrast },
+  not_recommended: { tone: "fail", icon: CircleX },
+};
+
+/** The consultant report's verdict on a vendor. */
+export function VerdictPill({ verdict, size }: { verdict: ReportVerdict; size?: "sm" | "md" }) {
+  const v = VERDICT[verdict];
+  return (
+    <Pill tone={v.tone} icon={v.icon} size={size}>
+      {REPORT_VERDICT_LABEL[verdict]}
     </Pill>
   );
 }

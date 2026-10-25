@@ -29,7 +29,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     // Proposals tab → AI analysis panel → the results page, where mission control shows the run
     await page.goto(`/projects/${xray.id}/proposals`);
     const panel = page.getByRole("region", { name: "AI analysis" });
-    await expect(panel).toContainText("14 (3 × 4 + 2)");
+    await expect(panel).toContainText("18 (4 × 4 + 2)");
     await panel.getByRole("button", { name: "Run AI analysis" }).click();
     // A fresh test server parses the sample PDFs as the run starts; the first route load can lag.
     await expect(page).toHaveURL(new RegExp(`/analysis/${xray.id}\\?run=`), { timeout: 30_000 });
@@ -37,7 +37,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await expect(page.locator("html")).toHaveAttribute("data-sidebar", "collapsed");
     const mission = page.getByRole("region", { name: "Evaluating 4 proposals" });
     await expect(mission).toBeVisible();
-    await expect(mission.getByText(/Step \d+ of 14/)).toBeVisible();
+    await expect(mission.getByText(/Step \d+ of 18/)).toBeVisible();
     await expect(mission.getByRole("progressbar", { name: "Analysis progress" })).toBeVisible();
     await expect(mission.getByRole("list", { name: "Phases" })).toContainText("Standards");
 
@@ -48,7 +48,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
       .click();
     await expect(page).toHaveURL(new RegExp(`/projects/${xray.id}$`));
     await expect(page.locator("html")).not.toHaveAttribute("data-sidebar", "collapsed");
-    const pill = page.getByRole("banner").getByRole("link", { name: /\d+\/14/ });
+    const pill = page.getByRole("banner").getByRole("link", { name: /\d+\/18/ });
     await expect(pill).toBeVisible();
     await expect(page.getByText(`Analysis complete · ${xray.code}`)).toBeVisible({
       timeout: 60_000,
@@ -62,7 +62,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
       timeout: 30_000,
     });
     // The run's summary line is not above the results (it is in AI quality)
-    await expect(page.getByText("14 of 14 steps")).toHaveCount(0);
+    await expect(page.getByText("18 of 18 steps")).toHaveCount(0);
     const hero = page.getByRole("region", { name: "Recommended vendor" });
     await expect(hero).toContainText("Rank 1 of 4");
     await expect(hero).toContainText("AI-generated");
@@ -249,6 +249,30 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await sectionRow.click();
     await expect(sectionRow).toHaveAttribute("aria-expanded", "true");
 
+    // Reports: one consultant report per vendor, with its verdict; only the recommended vendor
+    // is the preferred bidder. Download gives the PDF; View opens it in the reader.
+    await page.getByRole("tab", { name: "Reports" }).click();
+    await expect(page).toHaveURL(/tab=reports/);
+    const reportRows = page.getByRole("list", { name: "Vendor reports" }).locator(":scope > li");
+    await expect(reportRows).toHaveCount(4);
+    await expect(reportRows.first()).toContainText("Preferred bidder");
+    await expect(page.getByText("Preferred bidder")).toHaveCount(1);
+    const pdfLink = reportRows.first().getByRole("link", { name: "Download PDF" });
+    const href = (await pdfLink.getAttribute("href"))!;
+    expect(href).toMatch(/\/reports\/.+\?download=1$/);
+    const pdf = await page.request.get(href);
+    expect(pdf.ok()).toBe(true);
+    expect(pdf.headers()["content-type"]).toBe("application/pdf");
+    expect(pdf.headers()["content-disposition"]).toMatch(/^attachment; filename=.+\.pdf/);
+    expect((await pdf.body()).subarray(0, 5).toString()).toBe("%PDF-");
+    await reportRows.first().getByRole("button", { name: "View" }).click();
+    const reportReader = page.getByRole("dialog");
+    await expect(reportReader.getByRole("button", { name: /Reset zoom/ })).toBeVisible({
+      timeout: 30_000,
+    });
+    await page.keyboard.press("Escape");
+    await expect(reportReader).toHaveCount(0);
+
     // Run a new analysis, cancel it, then resume to completion
     await page.getByRole("button", { name: "Run a new analysis" }).click();
     await expect(page.getByRole("region", { name: "Evaluating 4 proposals" })).toBeVisible({
@@ -270,7 +294,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await page.getByRole("tab", { name: "AI quality" }).click();
     await expect(page.getByText("Confidence score")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText("Analysis complete", { exact: true })).toBeVisible();
-    await expect(page.getByText("14 of 14 steps")).toBeVisible();
+    await expect(page.getByText("18 of 18 steps")).toBeVisible();
     await expect(page.getByText("Files scanned")).toBeVisible();
     await expect(page.getByText("16 / 16")).toBeVisible(); // processed correctly
     await page

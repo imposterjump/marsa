@@ -448,20 +448,22 @@ describe("prompts (P6.4)", () => {
 describe("planner, ETA and cost (P6.5)", () => {
   const vendors = (n: number) =>
     Array.from({ length: n }, (_, i) => ({ proposalId: `p${i}`, name: `V${i + 1}` }));
-  // P8: checklist → per vendor standards, RFP and risk → recommendation.
-  it.each([1, 2, 3, 10])("plans 3N + 2 steps for N = %i with standards", (n) => {
+  // P8: checklist → per vendor standards, RFP and risk → recommendation → per vendor report.
+  it.each([1, 2, 3, 10])("plans 4N + 2 steps for N = %i with standards", (n) => {
     const steps = planSteps(vendors(n), { standards: 2, rules: 26 });
-    expect(steps).toHaveLength(3 * n + 2);
+    expect(steps).toHaveLength(4 * n + 2);
     expect(steps.map((s) => s.seq)).toEqual(steps.map((_, i) => i + 1));
     expect(steps.filter((s) => s.skipped)).toHaveLength(0);
     expect(steps.map((s) => s.phase)).not.toContain("compare");
     expect(steps[0].label).toContain("26 rules of 2 standards");
-    expect(steps.at(-1)!.phase).toBe("summary");
+    expect(steps[3 * n + 1].phase).toBe("summary");
+    expect(steps.slice(-n).every((s) => s.phase === "report")).toBe(true);
+    expect(steps.at(-1)!.label).toBe(`Writing the consultant report on V${n}`);
   });
 
-  it("without standards there is no standards phase (2N + 2)", () => {
+  it("without standards there is no standards phase (3N + 2)", () => {
     const steps = planSteps(vendors(3), { standards: 0, rules: 0 });
-    expect(steps).toHaveLength(8);
+    expect(steps).toHaveLength(11);
     expect(steps.map((s) => s.phase)).not.toContain("standards");
     expect(steps[0].label).toBe("Building the RFP checklist");
   });

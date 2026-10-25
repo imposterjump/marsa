@@ -22,6 +22,7 @@ import {
 } from "@/lib/domain";
 import { FINDING_STATUS_LABEL, PROPOSAL_SECTION_LABEL } from "@/lib/labels";
 import { computeScore, emptyCounts } from "@/lib/scoring";
+import { pointType, type PointType } from "@/lib/sections";
 
 /**
  * Shared pieces of the AI analysis results page (P8): per-section numbers computed from the run's
@@ -64,15 +65,8 @@ export function SectionTitle({
 
 export type Scope = "standard" | "rfp";
 
-/**
- * Commercial or technical point (user, 2026-10-25), by the proposal section it is answered in:
- * "Commercial offer & pricing" and "Terms & deviations" are commercial, the other five technical.
- * Points without a section (runs from before P8) have no type.
- */
-export type PointType = "technical" | "commercial";
-const COMMERCIAL_SECTIONS: ProposalSection[] = ["commercial", "terms"];
-export const pointType = (s: ProposalSection | null): PointType | null =>
-  s === null ? null : COMMERCIAL_SECTIONS.includes(s) ? "commercial" : "technical";
+// Commercial or technical point: by its proposal section (shared with the consultant report).
+export { pointType, type PointType };
 
 /** Opens the reader at a document page and quote; `vendorId` keeps that vendor's envelopes in it
  * when the document is the RFP (a clause opened from the vendor's finding). */

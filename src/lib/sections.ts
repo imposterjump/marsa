@@ -45,6 +45,16 @@ const HINTS: [ProposalSection, number, RegExp][] = [
   ],
 ];
 
+/**
+ * Commercial or technical point (user, 2026-10-25), by the proposal section it is answered in:
+ * "Commercial offer & pricing" and "Terms & deviations" are commercial, the other five technical.
+ * Points without a section (runs from before P8) have no type.
+ */
+export type PointType = "technical" | "commercial";
+export const COMMERCIAL_SECTIONS: readonly ProposalSection[] = ["commercial", "terms"];
+export const pointType = (s: ProposalSection | null): PointType | null =>
+  s === null ? null : COMMERCIAL_SECTIONS.includes(s) ? "commercial" : "technical";
+
 /** Best-effort section for a requirement, rule or risk text: the section with the best score. */
 export function guessSection(text: string): ProposalSection {
   let best: ProposalSection = "solution";

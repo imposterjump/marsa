@@ -19,32 +19,41 @@ const pack = (f: string) =>
 const enc = (s: string) => new TextEncoder().encode(s);
 
 describe("analysis plan (RDD §7.1)", () => {
-  // P8: checklist → per vendor standards, RFP and risk → recommendation (no comparison step).
-  it("T = 3N + 2 with standards, 2N + 2 without", () => {
+  // P8: checklist → per vendor standards, RFP and risk → recommendation → per vendor report
+  // (no comparison step).
+  it("T = 4N + 2 with standards, 3N + 2 without", () => {
     expect(planRun(0)).toMatchObject({ total: 0, skipped: 0 });
     expect(planRun(1)).toMatchObject({
-      total: 5,
+      total: 6,
       skipped: 0,
-      phases: { standards: 1, compare: 0 },
+      phases: { standards: 1, compare: 0, report: 1 },
     });
     expect(planRun(4)).toMatchObject({
-      total: 14,
+      total: 18,
       skipped: 0,
-      phases: { checklist: 1, standards: 4, analyze: 4, compare: 0, risk: 4, summary: 1 },
+      phases: {
+        checklist: 1,
+        standards: 4,
+        analyze: 4,
+        compare: 0,
+        risk: 4,
+        summary: 1,
+        report: 4,
+      },
     });
-    expect(planRun(4, false)).toMatchObject({ total: 10, phases: { standards: 0 } });
+    expect(planRun(4, false)).toMatchObject({ total: 14, phases: { standards: 0 } });
   });
 
   it("estimates time by phase waves and concurrency", () => {
     expect(estimateSeconds(0, { concurrency: 3, mode: "live" })).toBe(0);
-    // 4 vendors, 3 at a time → 2 waves each for standards, RFP and risk
+    // 4 vendors, 3 at a time → 2 waves each for standards, RFP, risk and reports
     expect(estimateSeconds(4, { concurrency: 3, mode: "live" })).toBe(
-      75 + 2 * 80 + 2 * 110 + 2 * 50 + 30,
+      75 + 2 * 80 + 2 * 110 + 2 * 50 + 30 + 2 * 70,
     );
     expect(estimateSeconds(1, { concurrency: 3, mode: "live", withStandards: false })).toBe(
-      75 + 110 + 50 + 30,
+      75 + 110 + 50 + 30 + 70,
     );
-    expect(estimateSeconds(4, { concurrency: 3, mode: "mock" })).toBe(Math.round(3.5 * 8));
+    expect(estimateSeconds(4, { concurrency: 3, mode: "mock" })).toBe(Math.round(3.5 * 10));
     expect(estimateSeconds(4, { concurrency: 6, mode: "live" })).toBeLessThan(
       estimateSeconds(4, { concurrency: 1, mode: "live" }),
     );
@@ -68,13 +77,26 @@ describe("analysis plan (RDD §7.1)", () => {
   // (per-step usage in data/live-test). P8 splits each analysis into a standards and an RFP check
   // (the second reads the first's cache) and replaces compare + summary by a small
   // recommendation without documents, so a run should cost about the same as those $0.89.
+  // The consultant reports (2026-10-25) come on top and are counted apart.
   it("matches the measured Sonnet run's steps (PCS, 3 vendors: ≈ $0.89 + split checks)", () => {
     const e = estimateRun(pcs, { model: "claude-sonnet-5-5", concurrency: 3 });
-    expect(e.usd).toBeGreaterThan(0.85);
-    expect(e.usd).toBeLessThan(1.1);
+    expect(e.usd - e.reportsUsd).toBeGreaterThan(0.85);
+    expect(e.usd - e.reportsUsd).toBeLessThan(1.1);
     expect(e.low).toBeLessThan(e.usd);
     expect(e.high).toBeGreaterThan(e.usd);
-    expect(e).toMatchObject({ steps: 11, requirements: 31, requirementsEstimated: false });
+    expect(e).toMatchObject({ steps: 14, requirements: 31, requirementsEstimated: false });
+  });
+
+  // Each report re-reads the tender and its vendor's proposal (own output format: no cache
+  // shared with the evaluation) and writes about two pages.
+  it("prices the consultant reports: about a cent per vendor on Haiku", () => {
+    const haiku = estimateRun(pcs, { model: "claude-haiku-5-5", concurrency: 3 });
+    expect(haiku.reportsUsd).toBeGreaterThan(0.005);
+    expect(haiku.reportsUsd).toBeLessThan(0.06);
+    const opus = estimateRun(pcs, { model: "claude-opus-5-5", concurrency: 3 });
+    expect(opus.reportsUsd).toBeGreaterThan(0.3);
+    expect(opus.reportsUsd).toBeLessThan(2);
+    expect(opus.reportsUsd).toBeLessThan(opus.usd / 2);
   });
 
   it("prices models and vendors sensibly", () => {
@@ -88,7 +110,7 @@ describe("analysis plan (RDD §7.1)", () => {
       { model: "claude-sonnet-5-5", concurrency: 3 },
     );
     expect(five.usd).toBeGreaterThan(sonnet);
-    expect(five.steps).toBe(17);
+    expect(five.steps).toBe(22);
     expect(
       estimateRun({ ...pcs, vendors: [] }, { model: "claude-opus-5-5", concurrency: 3 }).usd,
     ).toBe(0);
@@ -116,8 +138,8 @@ describe("analysis plan (RDD §7.1)", () => {
       previousRequirements: 91,
     };
     const e = estimateRun(xray, { model: "claude-sonnet-5-5", concurrency: 3 });
-    expect(e.usd).toBeGreaterThan(3.2);
-    expect(e.usd).toBeLessThan(4.6);
+    expect(e.usd - e.reportsUsd).toBeGreaterThan(3.2);
+    expect(e.usd - e.reportsUsd).toBeLessThan(4.6);
   });
 
   it("Haiku costs 5× more per token above 100K prompt tokens", () => {

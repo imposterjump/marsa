@@ -6,8 +6,8 @@ import type { AiModel, RunPhase, TokenUsage } from "./domain";
 
 /**
  * P8 plan: checklist (RFP requirements, rules filed by section) → per vendor: standards check,
- * RFP check, risk register → recommendation. T = 3N + 2 with standards, 2N + 2 without.
- * `compare` only exists in runs from before P8.
+ * RFP check, risk register → recommendation → per vendor: consultant report (2026-10-25).
+ * T = 4N + 2 with standards, 3N + 2 without. `compare` only exists in runs from before P8.
  */
 export interface RunPlan {
   total: number;
@@ -20,6 +20,7 @@ export interface RunPlan {
     compare: number;
     risk: number;
     summary: number;
+    report: number;
   };
 }
 
@@ -29,14 +30,22 @@ export function planRun(proposals: number, withStandards = true): RunPlan {
     return {
       total: 0,
       skipped: 0,
-      phases: { checklist: 0, standards: 0, analyze: 0, compare: 0, risk: 0, summary: 0 },
+      phases: {
+        checklist: 0,
+        standards: 0,
+        analyze: 0,
+        compare: 0,
+        risk: 0,
+        summary: 0,
+        report: 0,
+      },
     };
   }
   const std = withStandards ? n : 0;
   return {
-    total: 1 + std + 2 * n + 1,
+    total: 1 + std + 2 * n + 1 + n,
     skipped: 0,
-    phases: { checklist: 1, standards: std, analyze: n, compare: 0, risk: n, summary: 1 },
+    phases: { checklist: 1, standards: std, analyze: n, compare: 0, risk: n, summary: 1, report: n },
   };
 }
 
@@ -48,6 +57,7 @@ export const LIVE_SECONDS = {
   compare: 60,
   risk: 50,
   summary: 30,
+  report: 70,
 } as const;
 /** Mock mode sleeps 2–5 s per step (RDD §7.8). */
 export const MOCK_SECONDS = 3.5;
@@ -74,7 +84,8 @@ export function estimateSeconds(
       waves(plan.phases.standards) * per("standards") +
       waves(plan.phases.analyze) * per("analyze") +
       waves(plan.phases.risk) * per("risk") +
-      per("summary"),
+      per("summary") +
+      waves(plan.phases.report) * per("report"),
   );
 }
 
@@ -163,6 +174,8 @@ export interface RunEstimate {
   requirements: number;
   requirementsEstimated: boolean;
   steps: number;
+  /** The consultant reports' share of usd (they come on top of the evaluation itself). */
+  reportsUsd: number;
 }
 
 function stepUsd(
@@ -195,6 +208,7 @@ export function estimateRun(
       requirements: 0,
       requirementsEstimated: false,
       steps: 0,
+      reportsUsd: 0,
     };
   }
   const { shared } = input;
@@ -228,6 +242,8 @@ export function estimateRun(
     analyze: TOKENS.outAnalyzePerReq * Rrfp * f,
     risk: (4_800 + 30 * R) * f,
     summary: (900 + 350 * n) * f,
+    // A two-page report (~1,100 words of JSON) plus the thinking behind it.
+    report: 6_500 * f,
   };
   const c = Math.max(1, Math.floor(concurrency));
   const waves = Math.ceil(n / c);
@@ -271,16 +287,32 @@ export function estimateRun(
   const riskTime = waves * secs(out.risk);
   // Recommendation: scores + analyses only, no documents (one small uncached request).
   usd += stepUsd(model, { uncached: C + D * n + 1_500, read: 0, write: 0, out: out.summary });
+  // Reports have their own output format, so they share no earlier cache entry: the first writes
+  // the tender and the checklist (① ②), every report writes its vendor's documents (③).
+  let reportsUsd = 0;
+  V.forEach((v, i) => {
+    reportsUsd += stepUsd(
+      model,
+      i === 0
+        ? { uncached: D + 3_000, read: 0, write: S + C + v, out: out.report }
+        : { uncached: D + 3_000, read: S + C, write: v, out: out.report },
+    );
+  });
+  usd += reportsUsd;
+  const reportTime = waves * secs(out.report);
 
   const round2 = (x: number) => Math.round(x * 100) / 100;
   return {
     usd: round2(usd),
     low: round2(usd * 0.8),
     high: round2(usd * 1.25),
-    seconds: Math.round(secs(out.checklist) + stdTime + analyzeTime + riskTime + secs(out.summary)),
+    seconds: Math.round(
+      secs(out.checklist) + stdTime + analyzeTime + riskTime + secs(out.summary) + reportTime,
+    ),
     requirements: R,
     requirementsEstimated: estimated,
     steps: planRun(n, withStd).total,
+    reportsUsd: round2(reportsUsd),
   };
 }
 
@@ -361,11 +393,23 @@ export function planSteps(
     proposalId: null,
     label: "Scoring the vendors and writing the recommendation",
   });
+  for (const v of vendors)
+    add({ phase: "report", proposalId: v.proposalId, label: reportLabel(v.name) });
   return steps;
 }
 
+export const reportLabel = (vendor: string) => `Writing the consultant report on ${vendor}`;
+
 // ─── Live ETA (RDD §7.7) ─────────────────────────────────────────────────────
-const PHASE_ORDER: RunPhase[] = ["checklist", "standards", "analyze", "compare", "risk", "summary"];
+const PHASE_ORDER: RunPhase[] = [
+  "checklist",
+  "standards",
+  "analyze",
+  "compare",
+  "risk",
+  "summary",
+  "report",
+];
 
 /**
  * Seconds left: for each phase, waves of `concurrency` steps × average step time. Averages come

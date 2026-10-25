@@ -2,6 +2,19 @@
  * Per-page plain text of a PDF via pdf.js (legacy build, Node). Used by the mock engine to quote
  * real sentences with real page numbers, and to check evidence pages. Never fatal: [] on failure.
  */
+/** Number of pages of a PDF (0 when it can't be read). */
+export async function pdfPageCount(bytes: Uint8Array): Promise<number> {
+  try {
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const task = pdfjs.getDocument({ data: new Uint8Array(bytes), verbosity: 0 });
+    const n = (await task.promise).numPages;
+    await task.destroy();
+    return n;
+  } catch {
+    return 0;
+  }
+}
+
 export async function readPdfPages(bytes: Uint8Array): Promise<string[]> {
   try {
     const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");

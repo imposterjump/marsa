@@ -8,20 +8,30 @@
  * - a proposal that relies on an external cloud service for licensing, telemetry or updates is
  *   non-compliant with hosting / data-residency requirements (the on-prem conflict);
  * - P8: standard rules are checked in their own step; sections come from a keyword guess; the
- *   recommendation explains Marsa's computed pick.
+ *   recommendation explains Marsa's computed pick;
+ * - consultant reports (2026-10-25) are assembled from the vendor's findings, commercial terms
+ *   and risk register.
  * This is a keyword heuristic for demos and tests, not an evaluation.
  */
-import type { FindingStatus, Priority, RequirementCategory, RiskSeverity } from "../../lib/domain";
+import type {
+  AspectRating,
+  FindingStatus,
+  Priority,
+  ProposalSection,
+  RequirementCategory,
+  RiskSeverity,
+} from "../../lib/domain";
 import { riskSeverity } from "../../lib/scoring";
 import type {
   AnalysisOutput,
   ChecklistOutput,
   ComparisonOutput,
+  ReportOutput,
   RiskOutput,
   SummaryOutput,
 } from "./schemas";
-import { normalizeChecklist, requirementsFor, withStandardRules } from "./schemas";
-import { guessSection } from "../../lib/sections";
+import { normalizeChecklist, normalizeReport, requirementsFor, withStandardRules } from "./schemas";
+import { guessSection, pointType, type PointType } from "../../lib/sections";
 import { EMPTY_USAGE } from "../../lib/domain";
 import { readPdfPages } from "../documents/pdf-text";
 import type { LocalStorage } from "../storage/local";
@@ -515,6 +525,110 @@ function summary(input: Extract<StepInput, { phase: "summary" }>): SummaryOutput
   };
 }
 
+function report(input: Extract<StepInput, { phase: "report" }>): ReportOutput {
+  const reqs = new Map(input.checklist.requirements.map((r) => [r.code, r]));
+  const name = input.vendor.name;
+  const findings = input.analysis.analysis.findings;
+  const order: Record<Priority, number> = { mandatory: 0, important: 1, desirable: 2 };
+  const typeOf = (code: string) =>
+    pointType((reqs.get(code)?.section ?? null) as ProposalSection | null);
+  const byPriority = (a: (typeof findings)[number], b: (typeof findings)[number]) =>
+    order[reqs.get(a.code)?.priority ?? "desirable"] -
+    order[reqs.get(b.code)?.priority ?? "desirable"];
+  const ref = (f: (typeof findings)[number]) =>
+    [
+      f.code,
+      f.evidenceDocument && `${f.evidenceDocument}${f.evidencePage ? ` p. ${f.evidencePage}` : ""}`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  const of = (type: PointType, statuses: FindingStatus[]) =>
+    findings.filter((f) => typeOf(f.code) === type && statuses.includes(f.status)).sort(byPriority);
+  const aspect = (type: PointType, what: string): ReportOutput["technical"] => {
+    const all = findings.filter((f) => typeOf(f.code) === type);
+    const met = of(type, ["compliant"]);
+    const short = of(type, ["non_compliant", "not_addressed", "partial"]);
+    const share = all.length ? met.length / all.length : 0;
+    const rating: AspectRating = share >= 0.75 ? "strong" : share >= 0.45 ? "adequate" : "weak";
+    return {
+      rating,
+      assessment: all.length
+        ? `${name} fully meets ${met.length} of the ${all.length} ${what} points checked. ${short.length ? `${short.length} fall short, the most important being ${reqs.get(short[0].code)?.title ?? short[0].code}.` : "None falls short."} (Demo AI.)`
+        : `The tender sets no ${what} points for this bid. (Demo AI.)`,
+      strengths: met.slice(0, 4).map((f) => ({
+        point: f.headline || reqs.get(f.code)?.title || f.code,
+        reference: ref(f),
+      })),
+      weaknesses: short.slice(0, 4).map((f) => ({
+        point: `${f.headline || reqs.get(f.code)?.title || f.code}${f.gap ? `: ${f.gap}` : ""}`,
+        reference: ref(f),
+      })),
+    };
+  };
+  const technical = aspect("technical", "technical");
+  const commercial = aspect("commercial", "commercial");
+  const c = input.analysis.analysis.commercial;
+  const price = !c.totalPrice
+    ? "an unstated total"
+    : c.currency && !c.totalPrice.includes(c.currency)
+      ? `${c.currency} ${c.totalPrice}`
+      : c.totalPrice;
+  commercial.assessment = `${name} prices the bid at ${price}. Payment terms: ${c.paymentTerms ?? "not stated"}; warranty: ${c.warranty ?? "not stated"}; validity: ${c.validity ?? "not stated"}. ${commercial.assessment}`;
+  const isPick = input.recommended === name;
+  const mandatoryShort = findings.filter(
+    (f) =>
+      reqs.get(f.code)?.priority === "mandatory" &&
+      (f.status === "non_compliant" || f.status === "not_addressed"),
+  );
+  const verdict: ReportOutput["verdict"] = isPick
+    ? "preferred_bidder"
+    : mandatoryShort.length > 2 || technical.rating === "weak"
+      ? "not_recommended"
+      : "acceptable_with_conditions";
+  const partial = findings.filter((f) => f.status === "partial").sort(byPriority);
+  return normalizeReport(
+    {
+      verdict,
+      headline:
+        verdict === "preferred_bidder"
+          ? `${name} offers the best overall bid and should be taken forward, subject to the conditions below.`
+          : verdict === "not_recommended"
+            ? `${name}'s bid falls short on points the client cannot waive; an award is not advised.`
+            : `${name} could be awarded only if the open points below are closed first.`,
+      executiveSummary: `${name} ranks ${input.scores.rank} of ${input.ranked}. The technical proposal is ${technical.rating} and the commercial proposal ${commercial.rating}. ${mandatoryShort.length ? `${mandatoryShort.length} mandatory point${mandatoryShort.length === 1 ? "" : "s"} still fail${mandatoryShort.length === 1 ? "s" : ""}.` : "Every mandatory point is met."} This report was written by the demo engine from the analysis data. (Demo AI.)`,
+      technical,
+      commercial,
+      balance: {
+        assessment: `The technical proposal is ${technical.rating} and the commercial proposal ${commercial.rating}; ${technical.rating === commercial.rating ? "both carry similar weight in the decision" : `the ${technical.rating === "strong" || commercial.rating === "weak" ? "commercial" : "technical"} side needs the most attention before award`}. (Demo AI.)`,
+        valueForMoney: `At ${price}, the client gets a ${technical.rating} solution. (Demo AI.)`,
+      },
+      concerns: (input.risks?.risks ?? []).slice(0, 3).map((r) => ({
+        title: r.title,
+        detail: r.consequence,
+      })),
+      recommendation: {
+        opinion: `${verdict === "not_recommended" ? "Do not award to" : "Take forward"} ${name}${verdict === "not_recommended" ? " unless the failing mandatory points are corrected" : ", with the conditions below written into the contract"}. (Demo AI.)`,
+        conditions: mandatoryShort
+          .slice(0, 4)
+          .map(
+            (f) => `Written commitment to meet ${f.code} (${reqs.get(f.code)?.title ?? f.code}).`,
+          ),
+        negotiationPoints: [
+          ...c.exclusions.slice(0, 2).map((x) => `Price the excluded item as an option: ${x}`),
+          "Delay penalties tied to the delivery milestones.",
+        ],
+        clarifications: partial
+          .slice(0, 4)
+          .map(
+            (f) =>
+              `Confirm how ${f.code} (${reqs.get(f.code)?.title ?? f.code}) will be met in full.`,
+          ),
+      },
+    },
+    { recommended: isPick },
+  );
+}
+
 /** Page text for the mock engine: real PDF pages, or the extracted text as one page. */
 export function createPageLoader(storage: LocalStorage) {
   const cache = new Map<string, Promise<PageText[]>>();
@@ -556,7 +670,9 @@ export function createMockEngine(deps: MockDeps): AiEngine {
               ? compare(i)
               : i.phase === "risk"
                 ? risk(i)
-                : summary(i);
+                : i.phase === "report"
+                  ? report(i)
+                  : summary(i);
       return result(data as StepOutputs[P]);
     },
   };

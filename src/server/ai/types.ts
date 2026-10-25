@@ -15,6 +15,7 @@ import type {
   AnalysisOutput,
   ChecklistOutput,
   ComparisonOutput,
+  ReportOutput,
   RiskOutput,
   SummaryOutput,
 } from "./schemas";
@@ -121,6 +122,23 @@ export type StepInput =
       recommended: string | null;
       /** Vendors whose analysis failed (the summary must say so). */
       missing: string[];
+    }
+  | {
+      /** The consultant report on one vendor (2026-10-25): its documents, the tender, and the
+       * analysis as a reference to check against. */
+      phase: "report";
+      ctx: RunContext;
+      checklist: ChecklistOutput;
+      vendor: VendorContext;
+      analysis: AnalysisDigest;
+      risks: RiskOutput | null;
+      /** Marsa's numbers for this vendor and how many vendors were ranked. */
+      scores: VendorScores;
+      ranked: number;
+      /** Marsa's pick (null when no vendor can be recommended). */
+      recommended: string | null;
+      /** The other bids' stated prices, so the price can be judged; no other comparison. */
+      otherPrices: { vendor: string; totalPrice: string | null; currency: string | null }[];
     };
 
 export interface StepOutputs {
@@ -130,6 +148,7 @@ export interface StepOutputs {
   compare: ComparisonOutput;
   risk: RiskOutput;
   summary: SummaryOutput;
+  report: ReportOutput;
 }
 
 export interface StepHooks {

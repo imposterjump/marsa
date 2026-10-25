@@ -13,17 +13,19 @@ import type { LocalStorage } from "../storage/local";
 import { AiError, callStructured, uploadFile } from "./client";
 import { buildContent, nativeDocsFor } from "./content";
 import { createMockEngine, createPageLoader } from "./mock";
-import { systemPrompt } from "./prompts";
+import { reportSystemPrompt, systemPrompt } from "./prompts";
 import {
   OUTPUT_FIELD,
   OUTPUT_SCHEMA,
   fromWire,
   normalizeAnalysis,
   normalizeChecklist,
+  normalizeReport,
   normalizeRisks,
   withStandardRules,
   type AnalysisOutput,
   type ChecklistOutput,
+  type ReportOutput,
   type StepOutput,
   type RiskOutput,
 } from "./schemas";
@@ -62,7 +64,10 @@ export function createLiveEngine(db: Db, storage: LocalStorage, model: string): 
       await ensureUploaded(db, storage, nativeDocsFor(i));
       const res = await callStructured({
         model,
-        system: systemPrompt(i.ctx.reportLanguage),
+        system:
+          i.phase === "report"
+            ? reportSystemPrompt(i.ctx.reportLanguage)
+            : systemPrompt(i.ctx.reportLanguage),
         content: buildContent(i),
         // Shared output formats keep the cached prefix identical across phases (schemas.ts).
         schema: OUTPUT_SCHEMA[i.phase],
@@ -87,6 +92,10 @@ export function createLiveEngine(db: Db, storage: LocalStorage, model: string): 
         data = normalizeAnalysis(data as AnalysisOutput);
       } else if (i.phase === "risk") {
         data = normalizeRisks(data as RiskOutput);
+      } else if (i.phase === "report") {
+        data = normalizeReport(data as ReportOutput, {
+          recommended: i.recommended === i.vendor.name,
+        });
       }
       return { ...res, data } as never;
     },

@@ -6,6 +6,8 @@ import type {
   Priority,
   ProjectStatus,
   ProposalSource,
+  AspectRating,
+  ReportVerdict,
   RiskSeverity,
   RunPhase,
   StepStatus,
@@ -55,6 +57,19 @@ export const RUN_PHASE_LABEL: Record<RunPhase, string> = {
   compare: "Comparison",
   risk: "Risk",
   summary: "Recommendation",
+  report: "Reports",
+};
+
+export const REPORT_VERDICT_LABEL: Record<ReportVerdict, string> = {
+  preferred_bidder: "Preferred bidder",
+  acceptable_with_conditions: "Acceptable with conditions",
+  not_recommended: "Not recommended",
+};
+
+export const ASPECT_RATING_LABEL: Record<AspectRating, string> = {
+  strong: "Strong",
+  adequate: "Adequate",
+  weak: "Weak",
 };
 
 export const PROJECT_CATEGORY_LABEL: Record<ProjectCategory, string> = {

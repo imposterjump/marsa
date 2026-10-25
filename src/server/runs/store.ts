@@ -33,7 +33,14 @@ import type {
   TokenUsage,
 } from "../../lib/domain";
 import { newId } from "../../lib/ids";
-import { addUsage, analyzeLabel, costFromUsage, planSteps, standardsLabel } from "../../lib/plan";
+import {
+  addUsage,
+  analyzeLabel,
+  costFromUsage,
+  planSteps,
+  reportLabel,
+  standardsLabel,
+} from "../../lib/plan";
 import { toSection } from "../../lib/sections";
 import { computeCategoryScores, computeScore, riskSeverity } from "../../lib/scoring";
 import {
@@ -41,6 +48,7 @@ import {
   type AnalysisOutput,
   type ChecklistOutput,
   type ComparisonOutput,
+  type ReportOutput,
   type RiskOutput,
   type SummaryOutput,
 } from "../ai/schemas";
@@ -288,6 +296,44 @@ export const readComparison = (db: Db, runId: string, proposalId: string) =>
 
 export const readRiskOutput = (db: Db, runId: string, proposalId: string) =>
   stepOutput<RiskOutput>(db, runId, "risk", proposalId);
+
+export const readReport = (db: Db, runId: string, proposalId: string) =>
+  stepOutput<ReportOutput>(db, runId, "report", proposalId);
+
+/**
+ * Report steps for a run that finished without them (the one-time backfill of runs from before
+ * reports, 2026-10-25): appended after the last step, in the given (rank) order.
+ */
+export function addReportSteps(
+  db: Db,
+  run: RunRow,
+  vendors: { proposalId: string; name: string }[],
+): string[] {
+  if (!vendors.length) return [];
+  const steps = listSteps(db, run.id);
+  const last = steps.at(-1)?.seq ?? 0;
+  const ids = vendors.map(() => newId("step"));
+  db.transaction((tx) => {
+    tx.insert(analysisSteps)
+      .values(
+        vendors.map((v, i) => ({
+          id: ids[i],
+          runId: run.id,
+          seq: last + i + 1,
+          phase: "report" as const,
+          proposalId: v.proposalId,
+          label: reportLabel(v.name),
+          status: "queued" as StepStatus,
+        })),
+      )
+      .run();
+    tx.update(analysisRuns)
+      .set({ totalSteps: steps.length + vendors.length })
+      .where(eq(analysisRuns.id, run.id))
+      .run();
+  });
+  return ids;
+}
 
 // ─── Step bookkeeping ────────────────────────────────────────────────────────
 export function markRunRunning(db: Db, runId: string) {
@@ -678,6 +724,11 @@ export function saveAnalysis(
       .run();
   });
   finishStep(db, step, "done", { output: analysis, usage });
+}
+
+/** The consultant report lives on its step; the PDF is laid out from it on request. */
+export function saveReport(db: Db, step: StepRow, data: ReportOutput, usage: TokenUsage) {
+  finishStep(db, step, "done", { output: data, usage });
 }
 
 export function saveComparison(db: Db, step: StepRow, data: ComparisonOutput, usage: TokenUsage) {

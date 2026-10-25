@@ -15,6 +15,7 @@ import {
   TextRun,
   WidthType,
 } from "docx";
+import { htmlToPdf } from "../pdf/print";
 import { bidTotals, type GeneratedBid } from "./schema";
 
 export interface BidMeta {
@@ -156,27 +157,6 @@ ${c.terms.map((x) => `<h2>${esc(x.title)}</h2><p>${esc(x.text)}</p>`).join("")}
 <div class="sig">${esc(v.signatoryName)}<br>${esc(v.signatoryTitle)}, ${esc(v.legalName)} · ${esc(meta.date)}</div>
 <div class="foot">SAMPLE — fictional bid generated for software testing</div>
 </body></html>`;
-}
-
-/** Print HTML to PDF with the Chromium that Playwright installed (`npx playwright install chromium`). */
-export async function htmlToPdf(html: string): Promise<Uint8Array> {
-  const { chromium } = await import("playwright-core");
-  let browser;
-  try {
-    browser = await chromium.launch();
-  } catch {
-    throw new Error(
-      "PDF rendering needs Chromium. Install it once with: npx playwright install chromium",
-    );
-  }
-  try {
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "load" });
-    await page.emulateMedia({ media: "print" });
-    return new Uint8Array(await page.pdf({ format: "A4", printBackground: true }));
-  } finally {
-    await browser.close();
-  }
 }
 
 export async function commercialPdf(bid: GeneratedBid, meta: BidMeta): Promise<Uint8Array> {

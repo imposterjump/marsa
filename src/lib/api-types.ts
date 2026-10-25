@@ -23,6 +23,7 @@ import type {
   ProposalSource,
   ProposalStatus,
   ReportLanguage,
+  ReportVerdict,
   StandardCategory,
   Theme,
   Weights,
@@ -514,6 +515,19 @@ export interface VendorResultDto {
   technicalDocuments: DocumentDto[];
 }
 
+/** One vendor's consultant report (2026-10-25): its step, its verdict and the PDF. */
+export interface ReportSummaryDto {
+  proposalId: string;
+  /** The report step's status; "none" when the run has no report for this vendor. */
+  status: StepStatus | "none";
+  verdict: ReportVerdict | null;
+  headline: string | null;
+  generatedAt: string | null;
+  error: string | null;
+  /** The PDF, inline; add `?download=1` to download it. */
+  url: string;
+}
+
 export interface AnalysisResultsDto {
   run: RunDto;
   project: { id: string; code: string; name: string };
@@ -533,4 +547,6 @@ export interface AnalysisResultsDto {
     negotiationPoints: string[];
   } | null;
   keyConstraints: { label: string; value: string }[];
+  /** One per vendor of `vendors`, in the same order. */
+  reports: ReportSummaryDto[];
 }

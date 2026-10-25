@@ -100,8 +100,9 @@ export type StepStatus = (typeof STEP_STATUSES)[number];
 /**
  * Run phases in execution order. Since P8: checklist (RFP requirements + rule sections) →
  * standards (each vendor against every standard rule) → analyze (each vendor against the RFP) →
- * risk → summary (Marsa's scores and recommendation, with a short AI reason). `compare` only
- * exists in runs from before P8. Stored as text: no DB constraint to change.
+ * risk → summary (Marsa's scores and recommendation, with a short AI reason) → report (one
+ * consultant report per vendor, 2026-10-25). `compare` only exists in runs from before P8. Stored
+ * as text: no DB constraint to change.
  */
 export const RUN_PHASES = [
   "checklist",
@@ -110,6 +111,7 @@ export const RUN_PHASES = [
   "compare",
   "risk",
   "summary",
+  "report",
 ] as const;
 export type RunPhase = (typeof RUN_PHASES)[number];
 
@@ -123,6 +125,18 @@ export const THEMES = ["light", "dark", "system"] as const;
 export type Theme = (typeof THEMES)[number];
 
 export const REPORT_LANGUAGES = ["en", "ar"] as const;
+
+/** The consultant report's verdict on a vendor; only Marsa's pick can be the preferred bidder. */
+export const REPORT_VERDICTS = [
+  "preferred_bidder",
+  "acceptable_with_conditions",
+  "not_recommended",
+] as const;
+export type ReportVerdict = (typeof REPORT_VERDICTS)[number];
+
+/** The consultant's rating of the technical and of the commercial proposal. */
+export const ASPECT_RATINGS = ["strong", "adequate", "weak"] as const;
+export type AspectRating = (typeof ASPECT_RATINGS)[number];
 export type ReportLanguage = (typeof REPORT_LANGUAGES)[number];
 
 export const AI_MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"] as const;

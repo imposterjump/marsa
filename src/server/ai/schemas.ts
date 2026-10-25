@@ -9,9 +9,11 @@
 import { z } from "zod";
 import { toSection } from "../../lib/sections";
 import {
+  ASPECT_RATINGS,
   CONFIDENCE_LEVELS,
   FINDING_STATUSES,
   PRIORITIES,
+  REPORT_VERDICTS,
   REQUIREMENT_CATEGORIES,
   REQUIREMENT_SOURCES,
   RISK_CATEGORIES,
@@ -122,6 +124,51 @@ export const SummarySchema = z.object({
 });
 export type SummaryOutput = z.infer<typeof SummarySchema>;
 
+/**
+ * The consultant report on one vendor (2026-10-25): the client's 2-page PDF. The model writes the
+ * judgement only; Marsa adds the scores, the vendor and the tender when it lays the PDF out.
+ */
+const ReportPoint = z.object({
+  point: z.string().describe("One specific strength or weakness, in one or two sentences"),
+  reference: z
+    .string()
+    .describe(
+      'Where it shows, e.g. "REQ-014 · Technical proposal p. 6" or "Commercial proposal p. 2"; "" when general',
+    ),
+});
+const ReportAspect = z.object({
+  rating: z.enum(ASPECT_RATINGS),
+  assessment: z.string().describe("The consultant's assessment in 3–5 sentences"),
+  strengths: z.array(ReportPoint),
+  weaknesses: z.array(ReportPoint),
+});
+export const ReportSchema = z.object({
+  verdict: z.enum(REPORT_VERDICTS),
+  headline: z.string().describe("The verdict in one sentence"),
+  executiveSummary: z.string().describe("4–6 sentences for a busy decision maker"),
+  technical: ReportAspect,
+  commercial: ReportAspect,
+  balance: z.object({
+    assessment: z
+      .string()
+      .describe("How the technical and the commercial proposal weigh against each other"),
+    valueForMoney: z.string().describe("What the client gets for the money, in 1–2 sentences"),
+  }),
+  concerns: z.array(
+    z.object({
+      title: z.string().describe("The concern in a few words"),
+      detail: z.string().describe("Why it matters to the client after award"),
+    }),
+  ),
+  recommendation: z.object({
+    opinion: z.string().describe("The consultant's advice to the client, 3–5 sentences"),
+    conditions: z.array(z.string()),
+    negotiationPoints: z.array(z.string()),
+    clarifications: z.array(z.string()),
+  }),
+});
+export type ReportOutput = z.infer<typeof ReportSchema>;
+
 export const STEP_SCHEMAS = {
   checklist: ChecklistSchema,
   standards: AnalysisSchema,
@@ -129,6 +176,7 @@ export const STEP_SCHEMAS = {
   compare: ComparisonSchema,
   risk: RiskSchema,
   summary: SummarySchema,
+  report: ReportSchema,
 } as const;
 
 // ─── Wire format (what live steps return) ────────────────────────────────────
@@ -206,8 +254,12 @@ export const RankOutputSchema = z.object({
   comparison: ComparisonSchema.nullable(),
   summary: SummaryWire.nullable(),
 });
+/** Reports have their own format: they come last, after every cache entry they could share. */
+export const ReportOutputSchema = z.object({ report: ReportSchema.nullable() });
 
-export type StepOutput = z.infer<typeof EvaluateOutputSchema> & z.infer<typeof RankOutputSchema>;
+export type StepOutput = z.infer<typeof EvaluateOutputSchema> &
+  z.infer<typeof RankOutputSchema> &
+  z.infer<typeof ReportOutputSchema>;
 
 /** The output format each phase sends. */
 export const OUTPUT_SCHEMA = {
@@ -217,6 +269,7 @@ export const OUTPUT_SCHEMA = {
   risk: EvaluateOutputSchema,
   compare: RankOutputSchema,
   summary: RankOutputSchema,
+  report: ReportOutputSchema,
 } as const;
 
 const orNull = (s: string) => (s.trim() ? s : null);
@@ -269,6 +322,7 @@ export const OUTPUT_FIELD = {
   compare: "comparison",
   risk: "riskRegister",
   summary: "summary",
+  report: "report",
 } as const satisfies Record<keyof typeof STEP_SCHEMAS, keyof StepOutput>;
 
 // ─── Post-parse normalisation ────────────────────────────────────────────────
@@ -284,6 +338,52 @@ export function normalizeRisks(out: RiskOutput): RiskOutput {
       section: toSection(r.section, `${r.title} ${r.description}`),
     })),
   };
+}
+
+const REPORT_LIMITS = { points: 5, concerns: 4, actions: 5 } as const;
+const tidy = (s: string) => s.replace(/\s+/g, " ").trim();
+
+/**
+ * A report as the client sees it: the verdict agrees with Marsa's pick (only the recommended
+ * vendor is the preferred bidder, and it always is), lists are capped so the PDF keeps to two
+ * pages, and blank entries are dropped.
+ */
+export function normalizeReport(out: ReportOutput, { recommended }: { recommended: boolean }) {
+  const points = (list: ReportOutput["technical"]["strengths"]) =>
+    list
+      .map((p) => ({ point: tidy(p.point), reference: tidy(p.reference) }))
+      .filter((p) => p.point)
+      .slice(0, REPORT_LIMITS.points);
+  const aspect = (a: ReportOutput["technical"]) => ({
+    ...a,
+    assessment: a.assessment.trim(),
+    strengths: points(a.strengths),
+    weaknesses: points(a.weaknesses),
+  });
+  const items = (list: string[]) =>
+    list.map(tidy).filter(Boolean).slice(0, REPORT_LIMITS.actions);
+  return {
+    ...out,
+    verdict: recommended
+      ? "preferred_bidder"
+      : out.verdict === "preferred_bidder"
+        ? "acceptable_with_conditions"
+        : out.verdict,
+    headline: tidy(out.headline),
+    executiveSummary: out.executiveSummary.trim(),
+    technical: aspect(out.technical),
+    commercial: aspect(out.commercial),
+    concerns: out.concerns
+      .map((c) => ({ title: tidy(c.title), detail: tidy(c.detail) }))
+      .filter((c) => c.title || c.detail)
+      .slice(0, REPORT_LIMITS.concerns),
+    recommendation: {
+      opinion: out.recommendation.opinion.trim(),
+      conditions: items(out.recommendation.conditions),
+      negotiationPoints: items(out.recommendation.negotiationPoints),
+      clarifications: items(out.recommendation.clarifications),
+    },
+  } satisfies ReportOutput;
 }
 
 /** Findings: a short, single-line summary phrase. */

@@ -67,6 +67,7 @@ export function AnalysePanel({
     ["RFP", plan.phases.analyze],
     ["Risk", plan.phases.risk],
     ["Recommendation", plan.phases.summary],
+    ["Report", plan.phases.report],
   ];
 
   return (
@@ -87,12 +88,12 @@ export function AnalysePanel({
             </h3>
             <p className="max-w-2xl text-[13px] leading-relaxed text-ink-muted">
               {n === 0
-                ? `Once vendors are added, ${APP_NAME} checks every proposal against the standards and, separately, the RFP, assesses its risks and recommends a vendor.`
+                ? `Once vendors are added, ${APP_NAME} checks every proposal against the standards and, separately, the RFP, assesses its risks, recommends a vendor and writes a consultant report on each bid.`
                 : `${APP_NAME} will check ${n === 1 ? "the proposal" : `each of the ${n} proposals`} against ${
                     project.standards.length
                       ? `${project.standards.length} standard${project.standards.length === 1 ? "" : "s"} (${rules} rules) and, separately, the RFP`
                       : "the RFP"
-                  }, assess its risks and recommend a vendor.`}
+                  }, assess its risks, recommend a vendor and write a consultant report on each bid.`}
             </p>
           </div>
 
@@ -124,12 +125,12 @@ export function AnalysePanel({
                         tabIndex={0}
                         className="cursor-help underline decoration-dotted underline-offset-4"
                       >
-                        {plan.total} ({plan.phases.standards ? 3 : 2} × {n} + 2)
+                        {plan.total} ({plan.phases.standards ? 4 : 3} × {n} + 2)
                       </span>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
                       1 checklist, then per vendor: {plan.phases.standards ? "standards, " : ""}RFP and
-                      risk, then 1 recommendation.
+                      risk, then 1 recommendation, then a consultant report per vendor.
                     </TooltipContent>
                   </Tooltip>
                 }
