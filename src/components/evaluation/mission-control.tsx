@@ -4,19 +4,18 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { Square } from "lucide-react";
-import { cn } from "cn";
 import { DepthBackdrop } from "@/components/motion/depth-backdrop";
 import { MaskedText } from "@/components/motion/masked-text";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
-import { ScrambleText } from "@/components/motion/scramble-text";
 import { useProjectContext } from "@/components/projects/project-shell";
 import { Button } from "@/components/ui/button";
 import { useRunAction } from "@/hooks/use-runs";
 import type { RunStatusDto } from "@/lib/api-types";
-import { RUN_PHASES, type RunPhase } from "@/lib/domain";
-import { RUN_PHASE_LABEL } from "@/lib/labels";
 import { formatDuration } from "@/lib/plan";
+import { AgentOrchestra } from "./agent-orchestra";
 import { StepTimeline, VendorChips } from "./run-parts";
+
+export { phaseStates } from "./agent-orchestra";
 
 /** "2:41" (or "1:02:41"). */
 export function formatClock(ms: number): string {
@@ -25,29 +24,6 @@ export function formatClock(ms: number): string {
   const m = Math.floor((s % 3600) / 60);
   const ss = String(s % 60).padStart(2, "0");
   return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
-}
-
-type PhaseState = "done" | "active" | "pending" | "skipped";
-
-export function phaseStates(steps: RunStatusDto["steps"]): Record<RunPhase, PhaseState> {
-  const out = {} as Record<RunPhase, PhaseState>;
-  for (const phase of RUN_PHASES) {
-    const s = steps.filter((x) => x.phase === phase);
-    const finished = (x: (typeof s)[number]) =>
-      x.status === "done" ||
-      x.status === "skipped" ||
-      x.status === "failed" ||
-      x.status === "cancelled";
-    out[phase] =
-      s.length && s.every((x) => x.status === "skipped")
-        ? "skipped"
-        : s.length && s.every(finished)
-          ? "done"
-          : s.some((x) => x.status === "running" || finished(x))
-            ? "active"
-            : "pending";
-  }
-  return out;
 }
 
 /**
@@ -64,9 +40,6 @@ export function MissionControl({ data }: { data: RunStatusDto }) {
   const current = running[0] ?? null;
   const pct = run.totalSteps ? Math.round((run.doneSteps / run.totalSteps) * 100) : 0;
   const k = Math.min(run.totalSteps, run.doneSteps + (running.length ? 1 : 0)) || 1;
-  const phases = phaseStates(steps);
-  // Only the phases this run has (no Standards without applied standards; old runs had Compare).
-  const railPhases = RUN_PHASES.filter((ph) => steps.some((s) => s.phase === ph));
 
   // Elapsed clock ticks locally between polls.
   const [now, setNow] = useState(() => Date.now());
@@ -174,59 +147,8 @@ export function MissionControl({ data }: { data: RunStatusDto }) {
           </div>
         </div>
 
-        <ol
-          aria-label="Phases"
-          className="grid gap-2"
-          style={{ gridTemplateColumns: `repeat(${railPhases.length}, minmax(0, 1fr))` }}
-        >
-          {railPhases.map((phase) => {
-            const state = phases[phase];
-            return (
-              <li key={phase} className="flex flex-col gap-2">
-                <span
-                  aria-hidden
-                  className={cn(
-                    "relative h-1.5 overflow-hidden rounded-full",
-                    state === "done"
-                      ? "bg-brand"
-                      : state === "skipped"
-                        ? "bg-missing/40"
-                        : "bg-surface-muted",
-                  )}
-                >
-                  {state === "active" && (
-                    <span className="absolute inset-y-0 start-0 w-1/2 rounded-full bg-brand/70 motion-safe:animate-[marsa-rail_1.6s_ease-in-out_infinite]" />
-                  )}
-                </span>
-                <span
-                  className={cn(
-                    "truncate text-xs",
-                    state === "active"
-                      ? "font-semibold text-ink"
-                      : state === "done"
-                        ? "text-ink-2"
-                        : "text-ink-faint",
-                  )}
-                >
-                  {state === "active" ? (
-                    <ScrambleText text={RUN_PHASE_LABEL[phase]} />
-                  ) : (
-                    RUN_PHASE_LABEL[phase]
-                  )}
-                  <span className="sr-only">
-                    {state === "done"
-                      ? ", done"
-                      : state === "active"
-                        ? ", in progress"
-                        : state === "skipped"
-                          ? ", skipped"
-                          : ", pending"}
-                  </span>
-                </span>
-              </li>
-            );
-          })}
-        </ol>
+        {/* The phases as an agent team handing work to each other (user, 2026-10-25). */}
+        <AgentOrchestra steps={steps} />
 
         <div className="flex flex-col gap-3">
           <h3 className="text-2xs font-semibold tracking-[0.06em] text-ink-muted uppercase">

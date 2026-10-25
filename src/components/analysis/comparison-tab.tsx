@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Columns3,
   FileText,
+  LoaderCircle,
   Pencil,
   Receipt,
   ShieldAlert,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "cn";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
+import { useProjectContext } from "@/components/projects/project-shell";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { InitialsAvatar } from "@/components/ui/initials-avatar";
@@ -40,6 +42,7 @@ import {
   scopeStats,
   sectionLabel,
 } from "./shared";
+import { CompareRun } from "./compare-run";
 
 const card = "rounded-xl border border-border bg-surface shadow-sm";
 const RANK: Record<FindingStatus, number> = {
@@ -66,34 +69,53 @@ export function ComparisonTab({
   colors: Map<string, string>;
   onEvidence: OpenEvidence;
 }) {
+  const p = useProjectContext();
   const analysed = d.vendors.filter((v) => v.scores);
   const [picked, setPicked] = useState<string[]>([]);
-  const [comparing, setComparing] = useState(false);
+  // pick → the agents' run under the vendors (user, 2026-10-25) → it folds away → the table.
+  const [stage, setStage] = useState<"pick" | "running" | "closing" | "done">("pick");
   const chosen = analysed.filter((v) => picked.includes(v.proposalId));
+  const busy = stage === "running" || stage === "closing";
 
-  if (comparing && chosen.length >= 2) {
+  if (stage === "done" && chosen.length >= 2) {
     return (
-      <div className="flex flex-col gap-5">
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: EASE_OUT_QUINT }}
+        className="flex flex-col gap-5"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="max-w-3xl text-[13px] text-ink-muted">
-            Side by side from the AI analysis of each proposal. The best value in each row is marked; open a section to
-            see the points where the vendors differ.
+            Side by side from the AI analysis of each proposal. The best value in each row is
+            marked; open a section to see the points where the vendors differ.
           </p>
-          <Button variant="secondary" onClick={() => setComparing(false)}>
+          <Button variant="secondary" onClick={() => setStage("pick")}>
             <Pencil /> Change selection
           </Button>
         </div>
         <PricingTable d={d} vendors={chosen} colors={colors} onEvidence={onEvidence} />
-      </div>
+      </motion.div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[13px] text-ink-muted">Pick the vendors to compare, then press Compare.</p>
-        <Button onClick={() => setComparing(true)} disabled={picked.length < 2}>
-          <Columns3 /> {picked.length < 2 ? "Pick at least 2 vendors" : `Compare ${picked.length} vendors`}
+        <p className="text-[13px] text-ink-muted">
+          Pick the vendors to compare, then press Compare.
+        </p>
+        <Button onClick={() => setStage("running")} disabled={picked.length < 2 || busy}>
+          {busy ? (
+            <>
+              <LoaderCircle className="animate-spin" /> Comparing…
+            </>
+          ) : (
+            <>
+              <Columns3 />{" "}
+              {picked.length < 2 ? "Pick at least 2 vendors" : `Compare ${picked.length} vendors`}
+            </>
+          )}
         </Button>
       </div>
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Vendors">
@@ -104,15 +126,20 @@ export function ComparisonTab({
               <label
                 className={cn(
                   card,
-                  "flex cursor-pointer flex-col gap-3 p-4 transition-colors",
+                  "flex cursor-pointer flex-col gap-3 p-4 transition-[color,border-color,opacity] duration-300",
                   on && "border-brand/50 ring-2 ring-brand/15",
+                  busy && "cursor-default",
+                  busy && !on && "opacity-45",
                 )}
               >
                 <span className="flex items-center gap-3">
                   <Checkbox
                     checked={on}
+                    disabled={busy}
                     onCheckedChange={(c) =>
-                      setPicked((p) => (c === true ? [...p, v.proposalId] : p.filter((x) => x !== v.proposalId)))
+                      setPicked((p) =>
+                        c === true ? [...p, v.proposalId] : p.filter((x) => x !== v.proposalId),
+                      )
                     }
                     aria-label={`Compare ${v.vendor.name}`}
                   />
@@ -128,6 +155,25 @@ export function ComparisonTab({
           );
         })}
       </ul>
+      <AnimatePresence onExitComplete={() => setStage((s) => (s === "closing" ? "done" : s))}>
+        {stage === "running" && (
+          <motion.div
+            key="run"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.45, ease: EASE_OUT_QUINT }}
+            className="overflow-hidden"
+          >
+            <CompareRun
+              d={d}
+              vendors={chosen}
+              rfpDocs={p.rfpDocuments}
+              onDone={() => setStage("closing")}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -171,8 +217,12 @@ function PricingTable({
   const sectionsFor = (scope: Scope) =>
     SECTION_ORDER.filter((s) => d.requirements.some((r) => r.section === s && r.scope === scope));
   const missingFor = (scope: Scope) =>
-    SECTION_ORDER.filter((s): s is ProposalSection => s !== null && !sectionsFor(scope).includes(s));
-  const riskSections = SECTION_ORDER.filter((s) => vendors.some((v) => v.risks.some((r) => r.section === s)));
+    SECTION_ORDER.filter(
+      (s): s is ProposalSection => s !== null && !sectionsFor(scope).includes(s),
+    );
+  const riskSections = SECTION_ORDER.filter((s) =>
+    vendors.some((v) => v.risks.some((r) => r.section === s)),
+  );
   const n = vendors.length;
   const colCls: ColCls = (i, extra) =>
     cn(
@@ -187,7 +237,7 @@ function PricingTable({
     <div className="overflow-x-auto pb-2 lg:overflow-visible">
       <table
         aria-label="Vendor comparison"
-        className="w-full min-w-[760px] table-fixed border-separate text-sm [border-spacing:0.75rem_0]"
+        className="w-full min-w-[760px] table-fixed border-separate [border-spacing:0.75rem_0] text-sm"
       >
         <colgroup>
           <col className="w-60" />
@@ -197,7 +247,10 @@ function PricingTable({
         </colgroup>
         <thead>
           <tr>
-            <th scope="col" className="sticky top-16 z-10 bg-background pt-2 pb-4 text-start align-bottom font-normal">
+            <th
+              scope="col"
+              className="sticky top-16 z-10 bg-background pt-2 pb-4 text-start align-bottom font-normal"
+            >
               <span className="caption-caps text-ink-muted">{n} vendors compared</span>
               <span className="mt-1 flex items-center gap-1.5 text-xs text-ink-muted">
                 <span className="inline-flex size-4 items-center justify-center rounded-full bg-ok-fill text-white">
@@ -268,7 +321,11 @@ function PricingTable({
                   <Big value={String(v.scores!.riskScore)} suffix="/100" />
                   <RiskPill severity={v.scores!.riskLevel} size="sm" />
                 </span>
-                <MeterBar value={v.scores!.riskScore} fill={RISK_FILL[v.scores!.riskLevel]} label="Risk score" />
+                <MeterBar
+                  value={v.scores!.riskScore}
+                  fill={RISK_FILL[v.scores!.riskLevel]}
+                  label="Risk score"
+                />
               </span>
             )}
           />
@@ -279,7 +336,12 @@ function PricingTable({
             values={vendors.map((v) => v.scores!.mandatoryNotMet)}
             best="low"
             render={(v) => (
-              <span className={cn("text-base font-semibold tabular-nums", v.scores!.mandatoryNotMet ? "text-fail" : "text-ink")}>
+              <span
+                className={cn(
+                  "text-base font-semibold tabular-nums",
+                  v.scores!.mandatoryNotMet ? "text-fail" : "text-ink",
+                )}
+              >
                 {v.scores!.mandatoryNotMet || "None"}
               </span>
             )}
@@ -314,7 +376,9 @@ function PricingTable({
           {riskSections.length === 0 ? (
             <NoteRow text="No risks raised for these vendors." vendors={vendors} colCls={colCls} />
           ) : (
-            riskSections.map((s) => <RiskRow key={s ?? "none"} section={s} vendors={vendors} colCls={colCls} />)
+            riskSections.map((s) => (
+              <RiskRow key={s ?? "none"} section={s} vendors={vendors} colCls={colCls} />
+            ))
           )}
 
           <GroupRow
@@ -399,7 +463,7 @@ function VendorHead({
         </span>
       </span>
       <span className="flex flex-col">
-        <span className="kpi truncate text-2xl text-ink">{price || "—"}</span>
+        <span className="truncate text-2xl kpi text-ink">{price || "—"}</span>
         <span className="text-xs text-ink-muted">total bid price</span>
       </span>
     </span>
@@ -436,10 +500,21 @@ function GroupRow({
   );
 }
 
-function NoteRow({ text, vendors, colCls }: { text: string; vendors: VendorResultDto[]; colCls: ColCls }) {
+function NoteRow({
+  text,
+  vendors,
+  colCls,
+}: {
+  text: string;
+  vendors: VendorResultDto[];
+  colCls: ColCls;
+}) {
   return (
     <tr>
-      <th scope="row" className="border-t border-border/70 py-3 text-start text-xs font-normal text-ink-muted">
+      <th
+        scope="row"
+        className="border-t border-border/70 py-3 text-start text-xs font-normal text-ink-muted"
+      >
         {text}
       </th>
       {vendors.map((v, i) => (
@@ -469,7 +544,10 @@ function ValueRow({
   const winners = bestOf(values, best);
   return (
     <tr>
-      <th scope="row" className="border-t border-border/70 py-3.5 pe-2 text-start align-top font-normal">
+      <th
+        scope="row"
+        className="border-t border-border/70 py-3.5 pe-2 text-start align-top font-normal"
+      >
         <span className="block text-[13px] font-medium text-ink-2">{label}</span>
         {hint && <span className="block text-xs text-ink-muted">{hint}</span>}
       </th>
@@ -502,7 +580,7 @@ function Cell({ best, children }: { best: boolean; children: React.ReactNode }) 
 function Big({ value, suffix }: { value: string; suffix?: string }) {
   return (
     <span className="inline-flex items-baseline gap-1">
-      <span className="kpi text-2xl text-ink">{value}</span>
+      <span className="text-2xl kpi text-ink">{value}</span>
       {suffix && <span className="text-xs text-ink-muted">{suffix}</span>}
     </span>
   );
@@ -604,7 +682,10 @@ function SectionRow({
   return (
     <>
       <tr>
-        <th scope="row" className="border-t border-border/70 py-3 pe-2 text-start align-top font-normal">
+        <th
+          scope="row"
+          className="border-t border-border/70 py-3 pe-2 text-start align-top font-normal"
+        >
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
@@ -620,7 +701,10 @@ function SectionRow({
               </span>
             </span>
             <ChevronDown
-              className={cn("mt-0.5 size-4 shrink-0 text-ink-muted transition-transform", open && "rotate-180")}
+              className={cn(
+                "mt-0.5 size-4 shrink-0 text-ink-muted transition-transform",
+                open && "rotate-180",
+              )}
               aria-hidden
             />
           </button>
@@ -634,7 +718,9 @@ function SectionRow({
                 <PctCell
                   pct={st.pct}
                   sub={
-                    <span className={cn("text-xs", st.mandatoryNotMet ? "text-fail" : "text-ink-muted")}>
+                    <span
+                      className={cn("text-xs", st.mandatoryNotMet ? "text-fail" : "text-ink-muted")}
+                    >
                       {st.mandatoryNotMet
                         ? `${st.mandatoryNotMet} mandatory short`
                         : short
@@ -704,7 +790,9 @@ function PointRow({
         scope="row"
         className="border-t border-dashed border-border/70 py-2.5 ps-3 pe-2 text-start align-top font-normal"
       >
-        <span className="block font-mono text-2xs text-ink-muted">{isRule ? r.sourceRef : r.code}</span>
+        <span className="block font-mono text-2xs text-ink-muted">
+          {isRule ? r.sourceRef : r.code}
+        </span>
         <span className="line-clamp-3 text-xs text-ink-2" dir="auto">
           {r.title}
         </span>
@@ -712,7 +800,10 @@ function PointRow({
       {findings.map((f, i) => (
         <td
           key={vendors[i].proposalId}
-          className={colCls(i, "border-t border-dashed border-t-border/70 bg-surface-muted/40 py-2.5")}
+          className={colCls(
+            i,
+            "border-t border-dashed border-t-border/70 bg-surface-muted/40 py-2.5",
+          )}
         >
           {f ? (
             <span className="flex flex-col items-start gap-1">
@@ -724,7 +815,12 @@ function PointRow({
                 <button
                   type="button"
                   onClick={() =>
-                    onEvidence(f.evidenceDocId!, f.evidencePage, f.evidenceQuote ?? "", vendors[i].proposalId)
+                    onEvidence(
+                      f.evidenceDocId!,
+                      f.evidencePage,
+                      f.evidenceQuote ?? "",
+                      vendors[i].proposalId,
+                    )
                   }
                   className="inline-flex items-center gap-1 rounded-sm text-xs font-medium text-brand-ink outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/50"
                 >
@@ -755,12 +851,17 @@ function RiskRow({
 }) {
   const [open, setOpen] = useState(false);
   const lists = vendors.map((v) => v.risks.filter((r) => r.section === section));
-  const weights = lists.map((l) => l.reduce((s, r) => s + SEVERITY_WEIGHT[r.severity as RiskSeverity], 0));
+  const weights = lists.map((l) =>
+    l.reduce((s, r) => s + SEVERITY_WEIGHT[r.severity as RiskSeverity], 0),
+  );
   const winners = bestOf(weights, "low");
   return (
     <>
       <tr>
-        <th scope="row" className="border-t border-border/70 py-3 pe-2 text-start align-top font-normal">
+        <th
+          scope="row"
+          className="border-t border-border/70 py-3 pe-2 text-start align-top font-normal"
+        >
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
@@ -769,7 +870,10 @@ function RiskRow({
           >
             <span className="text-[13px] font-medium text-ink-2">{sectionLabel(section)}</span>
             <ChevronDown
-              className={cn("mt-0.5 size-4 shrink-0 text-ink-muted transition-transform", open && "rotate-180")}
+              className={cn(
+                "mt-0.5 size-4 shrink-0 text-ink-muted transition-transform",
+                open && "rotate-180",
+              )}
               aria-hidden
             />
           </button>
@@ -777,7 +881,10 @@ function RiskRow({
         {lists.map((l, i) => {
           const top = l.length ? maxSeverity(l.map((r) => r.severity)) : null;
           return (
-            <td key={vendors[i].proposalId} className={colCls(i, "border-t border-t-border/70 py-3")}>
+            <td
+              key={vendors[i].proposalId}
+              className={colCls(i, "border-t border-t-border/70 py-3")}
+            >
               <Cell best={winners.has(i)}>
                 <span className="flex items-center justify-between gap-2">
                   <span className="text-[13px] text-ink-2">
@@ -801,7 +908,10 @@ function RiskRow({
           {lists.map((l, i) => (
             <td
               key={vendors[i].proposalId}
-              className={colCls(i, "border-t border-dashed border-t-border/70 bg-surface-muted/40 py-2.5")}
+              className={colCls(
+                i,
+                "border-t border-dashed border-t-border/70 bg-surface-muted/40 py-2.5",
+              )}
             >
               {l.length ? (
                 <ul className="flex flex-col gap-2">

@@ -515,6 +515,46 @@ mark.marsa-hit {
   background-color: var(--brand-soft) !important;
 }
 
+/* Agent orchestra (2026-10-25): work flowing from the orchestrator to the working agent, and the
+   red-orange ring turning around it (a conic gradient whose angle is animated). */
+@keyframes marsa-flow {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+@property --marsa-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes marsa-orbit {
+  to {
+    --marsa-angle: 360deg;
+  }
+}
+.marsa-orbit {
+  padding: 2.5px;
+  background: conic-gradient(
+    from var(--marsa-angle),
+    transparent 0 50%,
+    #ff8a5c 72%,
+    #ff5a47 86%,
+    #ec1c24 96%,
+    transparent
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: marsa-orbit 1.6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marsa-orbit {
+    animation: none;
+  }
+}
+
 /* Mission control (P7.1): sweep on the active phase, gentle breathing on running steps. */
 @keyframes marsa-rail {
   from {

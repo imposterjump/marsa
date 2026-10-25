@@ -264,7 +264,14 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await page.getByRole("checkbox", { name: "Compare Meridian Scan Technologies" }).click();
     await page.getByRole("checkbox", { name: "Compare Harborline Systems" }).click();
     await page.getByRole("button", { name: "Compare 2 vendors" }).click();
+    // The agents' run plays under the vendors first, each step ticking off, then the table
+    const run = page.getByRole("region", { name: "AI comparison in progress" });
+    await expect(run).toBeVisible();
+    await expect(run.getByRole("list", { name: "Comparison steps" }).locator("li")).toHaveCount(6);
+    await expect(page.getByRole("checkbox", { name: "Compare Meridian Scan Technologies" })).toBeDisabled();
     const table = page.getByRole("table", { name: "Vendor comparison" });
+    await expect(table).toBeVisible({ timeout: 20_000 });
+    await expect(run).toHaveCount(0);
     await expect(table.getByRole("columnheader")).toHaveCount(3);
     await expect(table.getByRole("columnheader", { name: /Meridian Scan Technologies/ })).toBeVisible();
     await expect(table.getByRole("columnheader", { name: /Harborline Systems/ })).toBeVisible();

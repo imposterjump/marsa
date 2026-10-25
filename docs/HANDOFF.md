@@ -520,3 +520,21 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
   - The **POC guides were updated** to the current app: 10 / 14 steps with reports, the tabs Overview · RFP · Standards · Risks · Comparison · Reports · AI quality, the list views, the rule side panel, a Reports bullet per set, and new estimates from `estimateRun` on each set's real PDFs. Haiku: $0.08 / $0.07 / $0.11 / $0.11; the real set-3 run cost $0.12 with its reports.
   - The `phase-N` READMEs were left as they were (historical click paths); the guide says so.
   - **Checked on a real clone:** a `git clone` of the repo has all 99 test-input files, and `npm run seed` with `SEED_DIR` pointed at the clone loads 2 projects, 3 standards, 4 vendors and 17 documents. On Windows a clone inside a deep folder fails on the long-named edge-case xlsx ("Filename too long"); the guide now says `git config --global core.longpaths true`.
+- **Pushed** on the user's word: up to `64996d6` (fresh-clone guide, Risks list).
+- **The agents made visible** (user, with two reference images `orch 1.png` / `orch2.png` left in the repo root, untracked: an "AI Orchestrator" in the middle, agents around it, a ball passed from agent to orchestrator to the next agent; "you can also improve better than the reference … i dont want smth worse").
+  - **Mission control** keeps its ring, step texts, results-so-far and timeline. The thin phase rail is replaced by **`AgentOrchestra`** (`components/evaluation/agent-orchestra.tsx`; `phaseStates` moved there, re-exported by mission-control).
+    - **Layout:** the dark "AI Orchestrator" hub (RTA gradient border, a breathing halo), with one agent per phase on a dotted orbit, clockwise in run order from the top left: Extraction (checklist) · Standards · RFP Compliance · (Comparison, old runs) · Risk · Recommendation · Consultant (reports). Each agent has an order badge 1…n, a name and its job.
+    - **States:** done = green with a check (a warning when a step failed); working = dark with a red-orange ring turning around it (`.marsa-orbit`, an animated conic gradient via `@property --marsa-angle`), "x of N vendors done", and the line to it flowing outward (`marsa-flow`); waiting = pale; skipped = dashed.
+    - **The ball** rests inside the working agent. When the phase changes it travels agent → orchestrator → next agent (motion keyframes, 1.6 s). The trip is started by adjusting state while rendering, not in an effect (the React compiler lint flagged `Date.now()`/setState in effects).
+    - **Labels:** top-half agents carry their label above, so lines never cross text. Phone width: smaller nodes, the job line hidden, the orchestrator without its second line.
+    - The list is still `aria-label="Phases"` (E2E).
+  - **Comparison:** pressing **Compare** now plays the agents' work before the table (user: "even if the analysis was done before … i want the client to feel and see the steps of the agentic env"). `compare-run.tsx`, a featured card under the vendor cards (which lock, unpicked ones dimmed), with a header (orchestrator tile, "AI agents are comparing N vendors", %), a gradient progress bar and 6 steps that spin then tick:
+    1. collecting the bids (the real RFP and vendor file names pop in as chips);
+    2. handing the documents to the agents;
+    3. comparing section by section (real section, requirement, rule and risk counts);
+    4. assessing where they differ (the real count of points with different statuses);
+    5. weighing the commercial terms (each vendor's price);
+    6. preparing the results.
+
+    Then "Results ready", the card folds (`AnimatePresence` exit) and the table fades in. About 6 s, ×0.3 under reduced motion. The timer depends only on the step (`onDone` held in a ref) so re-renders don't restart it. Nothing is recomputed: it is a presentation of work the analysis already did.
+  - E2E: the comparison run region with 6 steps and locked checkboxes, then the table (20 s timeout). `npm run check` ✔ (185), full E2E ✔ (20). Screens from a demo run on a copy of the user's data: light and dark at 1440 (including a mid-trip ball frame), 390 px, and the comparison run at 0.4 s / 3.2 s / 6.2 s and the result.
