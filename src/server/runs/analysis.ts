@@ -21,7 +21,7 @@ import type {
   RiskResultDto,
   VendorResultDto,
 } from "../../lib/api-types";
-import type { ProposalSection, RiskSeverity } from "../../lib/domain";
+import type { ProposalSection, ReportLanguage, RiskSeverity } from "../../lib/domain";
 import { emptyCounts } from "../../lib/scoring";
 import { toDocumentDto } from "../documents/dto";
 import type { LocalStorage } from "../storage/local";
@@ -29,19 +29,23 @@ import { evaluationDtos, proposalVendors, requirementDtos, toRunDto } from "./re
 import { computeVendorScores } from "./scores";
 import { resolveSources } from "./sources";
 import { getRun, listSteps, readChecklist } from "./store";
+import { localizer, textKey, type Localizer } from "./texts";
 import type { ReportOutput } from "../ai/schemas";
 
+/** `lang`: the reader's language; the AI's texts come from the run's translation when it has one. */
 export async function getAnalysisResults(
   db: Db,
   storage: LocalStorage,
   runId: string,
+  lang?: ReportLanguage,
 ): Promise<AnalysisResultsDto> {
   const run = getRun(db, runId);
+  const L = localizer(db, run, lang);
   const project = db.select().from(projects).where(eq(projects.id, run.projectId)).get()!;
   const meta = db.select().from(analysisMeta).where(eq(analysisMeta.runId, run.id)).all();
   const metaOf = new Map(meta.map((m) => [m.itemId, m]));
 
-  const reqs = requirementDtos(db, run.id).map((r) => ({
+  const reqs = requirementDtos(db, run.id, L).map((r) => ({
     ...r,
     section: (metaOf.get(r.id)?.section ?? null) as ProposalSection | null,
     scope: r.sourceType === "standard" ? ("standard" as const) : ("rfp" as const),
@@ -50,7 +54,7 @@ export async function getAnalysisResults(
   const vendorsById = proposalVendors(db, run.config.proposalIds);
   const names = new Map([...vendorsById].map(([id, v]) => [id, v.name]));
   const scores = computeVendorScores(db, run, names);
-  const evs = evaluationDtos(db, run);
+  const evs = evaluationDtos(db, run, undefined, L);
 
   const docs = run.config.proposalIds.length
     ? db
@@ -82,15 +86,17 @@ export async function getAnalysisResults(
           code: reqById.get(f.requirementId)!.code,
           status: f.overrideStatus ?? f.status,
           aiStatus: f.status,
-          vendorResponse: f.vendorResponse,
+          vendorResponse: L.text(textKey("finding", f.id, "vendorResponse"), f.vendorResponse),
           evidenceQuote: f.evidenceQuote,
           evidenceDocId: f.evidenceDocId,
           evidencePage: f.evidencePage,
           evidenceSection: f.evidenceSection,
-          assessment: f.assessment,
-          gap: f.gap,
+          assessment: L.text(textKey("finding", f.id, "assessment"), f.assessment),
+          gap: L.maybe(textKey("finding", f.id, "gap"), f.gap),
           confidence: f.confidence,
-          headline: metaOf.get(f.id)?.headline || reqById.get(f.requirementId)!.title,
+          headline:
+            L.text(textKey("meta", f.id, "headline"), metaOf.get(f.id)?.headline ?? "") ||
+            reqById.get(f.requirementId)!.title,
         }));
       const standardsCounts = emptyCounts();
       const rfpCounts = emptyCounts();
@@ -106,20 +112,25 @@ export async function getAnalysisResults(
         .all()
         .map((r) => ({
           id: r.id,
-          title: r.title,
+          title: L.text(textKey("risk", r.id, "title"), r.title),
           category: r.category,
           likelihood: r.likelihood,
           impact: r.impact,
           severity: r.severity,
-          description: r.description,
-          consequence: r.consequence,
-          mitigation: r.mitigation,
+          description: L.text(textKey("risk", r.id, "description"), r.description),
+          consequence: L.text(textKey("risk", r.id, "consequence"), r.consequence),
+          mitigation: L.text(textKey("risk", r.id, "mitigation"), r.mitigation),
           evidence: r.evidence,
           requirementCodes: r.requirementCodes,
           section: (metaOf.get(r.id)?.section ?? null) as ProposalSection | null,
         }))
         .sort((a, b) => b.likelihood * b.impact - a.likelihood * a.impact);
-      const riskCounts: Record<RiskSeverity, number> = { low: 0, moderate: 0, high: 0, critical: 0 };
+      const riskCounts: Record<RiskSeverity, number> = {
+        low: 0,
+        moderate: 0,
+        high: 0,
+        critical: 0,
+      };
       for (const r of riskRows) riskCounts[r.severity]++;
       const own = docs.filter((d) => d.proposalId === proposalId);
       return {
@@ -180,17 +191,26 @@ export async function getAnalysisResults(
       ? {
           // Runs since P8 store Marsa's pick; older ones the model's.
           proposalId: summary.recommendedProposalId ?? scores[0]?.proposalId ?? null,
-          summary: summary.executiveSummary,
-          conditions: summary.conditions,
-          negotiationPoints: summary.negotiationPoints,
+          summary: L.text(textKey("summary", run.id, "executiveSummary"), summary.executiveSummary),
+          conditions: L.list("summary", run.id, "conditions", summary.conditions),
+          negotiationPoints: L.list(
+            "summary",
+            run.id,
+            "negotiationPoints",
+            summary.negotiationPoints,
+          ),
         }
       : null,
-    keyConstraints: readChecklist(db, run.id)?.keyConstraints ?? [],
-    reports: reportSummaries(db, run.id, vendors),
+    keyConstraints: (readChecklist(db, run.id)?.keyConstraints ?? []).map((c, i) => ({
+      label: L.text(textKey("constraint", run.id, "label", i), c.label),
+      value: L.text(textKey("constraint", run.id, "value", i), c.value),
+    })),
+    reports: reportSummaries(db, run.id, vendors, L),
+    textLanguage: L.language,
   };
 }
 
-function reportSummaries(db: Db, runId: string, vendors: VendorResultDto[]) {
+function reportSummaries(db: Db, runId: string, vendors: VendorResultDto[], L: Localizer) {
   const steps = listSteps(db, runId).filter((s) => s.phase === "report");
   return vendors.map((v) => {
     const step = steps.find((s) => s.proposalId === v.proposalId);
@@ -199,7 +219,7 @@ function reportSummaries(db: Db, runId: string, vendors: VendorResultDto[]) {
       proposalId: v.proposalId,
       status: step?.status ?? ("none" as const),
       verdict: out?.verdict ?? null,
-      headline: out?.headline ?? null,
+      headline: out ? L.text(textKey("report", v.proposalId, "headline"), out.headline) : null,
       generatedAt: out ? step!.finishedAt : null,
       error: step?.status === "failed" || step?.status === "skipped" ? step.error : null,
       url: `/api/runs/${runId}/reports/${v.proposalId}`,

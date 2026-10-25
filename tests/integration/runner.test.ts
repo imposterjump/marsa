@@ -102,8 +102,9 @@ describe("analysis runner (mock engine)", () => {
     const r = runner(db, e);
     const project = xray(db);
     const run = r.start(project.id);
-    // P8: checklist + 4 × (standards, RFP, risk) + recommendation + 4 consultant reports
-    expect(run.totalSteps).toBe(18);
+    // P8: checklist + 4 × (standards, RFP, risk) + recommendation + 4 consultant reports +
+    // the Translator
+    expect(run.totalSteps).toBe(19);
     expect(db.select().from(projects).where(eq(projects.id, project.id)).get()!.status).toBe(
       "evaluating",
     );
@@ -111,13 +112,14 @@ describe("analysis runner (mock engine)", () => {
 
     const done = getRun(db, run.id);
     expect(done.status).toBe("completed");
-    expect(done.doneSteps).toBe(18);
-    expect(calls).toHaveLength(18);
+    expect(done.doneSteps).toBe(19);
+    expect(calls).toHaveLength(19);
     expect(calls[0]).toBe("checklist");
     expect(calls.slice(1, 5).every((c) => c.startsWith("standards:"))).toBe(true);
     expect(calls.slice(5, 9).every((c) => c.startsWith("analyze:"))).toBe(true);
     expect(calls[13]).toBe("summary");
-    expect(calls.slice(14).every((c) => c.startsWith("report:"))).toBe(true);
+    expect(calls.slice(14, 18).every((c) => c.startsWith("report:"))).toBe(true);
+    expect(calls[18]).toBe("translate");
     expect(listSteps(db, run.id).every((s) => s.status === "done")).toBe(true);
     expect(db.select().from(projects).where(eq(projects.id, project.id)).get()!.status).toBe(
       "evaluated",
@@ -231,7 +233,7 @@ describe("analysis runner (mock engine)", () => {
     await r2.wait(run.id);
     expect(getRun(db, run.id).status).toBe("completed");
     expect(second.calls).not.toContain("checklist"); // finished work is never re-billed
-    expect(second.calls.length).toBe(18 - doneBefore);
+    expect(second.calls.length).toBe(19 - doneBefore);
     expect(xray(db).status).toBe("evaluated");
   }, 120_000);
 
@@ -276,7 +278,7 @@ describe("analysis runner (mock engine)", () => {
     expect(calls.length).toBe(before); // the old engine was not called again
     expect(getRunResults(db, run.id).summary?.ranking).toHaveLength(4);
 
-    // A failed report retries alone.
+    // A failed report retries alone (and the Translator after it, so both languages agree).
     const report = listSteps(db, run.id).find((s) => s.phase === "report")!;
     db.update(analysisSteps)
       .set({ status: "failed", error: "Overloaded" })
@@ -286,8 +288,9 @@ describe("analysis runner (mock engine)", () => {
     const again = runner(db, counted.engine);
     again.retryStep(run.id, report.id);
     await again.wait(run.id);
-    expect(counted.calls).toHaveLength(1);
+    expect(counted.calls).toHaveLength(2);
     expect(counted.calls[0]).toMatch(/^report:/);
+    expect(counted.calls[1]).toBe("translate");
   }, 120_000);
 
   it("adds the reports to a run that finished without them, once", async () => {
@@ -299,20 +302,22 @@ describe("analysis runner (mock engine)", () => {
     db.delete(analysisSteps)
       .where(and(eq(analysisSteps.runId, run.id), eq(analysisSteps.phase, "report")))
       .run();
-    db.update(analysisRuns).set({ totalSteps: 14 }).where(eq(analysisRuns.id, run.id)).run();
+    db.update(analysisRuns).set({ totalSteps: 15 }).where(eq(analysisRuns.id, run.id)).run();
 
     const counted = engine();
     const backfill = runner(db, counted.engine);
     backfill.addReports(run.id);
     await backfill.wait(run.id);
-    expect(counted.calls).toHaveLength(4);
-    expect(counted.calls.every((c) => c.startsWith("report:"))).toBe(true);
+    // The new reports, then the Translator again for them.
+    expect(counted.calls).toHaveLength(5);
+    expect(counted.calls.slice(0, 4).every((c) => c.startsWith("report:"))).toBe(true);
+    expect(counted.calls[4]).toBe("translate");
     const after = getRun(db, run.id);
-    expect(after).toMatchObject({ status: "completed", totalSteps: 18, doneSteps: 18 });
+    expect(after).toMatchObject({ status: "completed", totalSteps: 19, doneSteps: 19 });
     // Nothing left to add: a second call runs nothing.
     backfill.addReports(run.id);
     await backfill.wait(run.id);
-    expect(counted.calls).toHaveLength(4);
+    expect(counted.calls).toHaveLength(5);
   }, 120_000);
 
   it("cancels a running analysis and can resume it", async () => {
@@ -349,7 +354,7 @@ describe("analysis runner (mock engine)", () => {
       db.update(proposals).set({ status: "withdrawn" }).where(eq(proposals.id, x.id)).run();
     const r = runner(db, engine().engine);
     const run = r.start(p.id);
-    expect(run.totalSteps).toBe(6);
+    expect(run.totalSteps).toBe(7);
     await r.wait(run.id);
     const steps = listSteps(db, run.id);
     expect(steps.map((s) => s.phase)).toEqual([
@@ -359,6 +364,7 @@ describe("analysis runner (mock engine)", () => {
       "risk",
       "summary",
       "report",
+      "translate",
     ]);
     expect(getRun(db, run.id).status).toBe("completed");
   }, 60_000);

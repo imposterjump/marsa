@@ -356,7 +356,6 @@ export interface ProposalResultDto {
   risks: RiskDto[];
 }
 
-
 // ─── AI review (run quality + human reviews) ─────────────────────────────────
 export interface RunQualityDto {
   runId: string;
@@ -527,4 +526,9 @@ export interface AnalysisResultsDto {
   keyConstraints: { label: string; value: string }[];
   /** One per vendor of `vendors`, in the same order. */
   reports: ReportSummaryDto[];
+  /**
+   * The language the AI's texts come out in: the requested one when the run has a translation
+   * (2026-10-25), else the language the run was written in.
+   */
+  textLanguage: ReportLanguage;
 }

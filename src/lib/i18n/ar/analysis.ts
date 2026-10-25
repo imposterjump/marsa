@@ -230,4 +230,10 @@ export const analysis: Dictionary = {
   "The report was cancelled with the analysis.": "أُلغي التقرير مع إلغاء التحليل.",
   "This analysis has no report for this vendor.": "لا يتضمن هذا التحليل تقريرًا لهذا المورّد.",
   "Download PDF": "تنزيل PDF",
+
+  // ── analysis-page: the language of the AI's texts (2026-10-25) ──
+  "The AI's text in this analysis is in English: it has no Arabic version yet.":
+    "نصوص الذكاء الاصطناعي في هذا التحليل بالإنجليزية: لا توجد له نسخة عربية بعد.",
+  "The AI's text in this analysis is in Arabic: it has no English version yet.":
+    "نصوص الذكاء الاصطناعي في هذا التحليل بالعربية: لا توجد له نسخة إنجليزية بعد.",
 };

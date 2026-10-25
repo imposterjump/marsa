@@ -6,8 +6,9 @@ import type { AiModel, RunPhase, TokenUsage } from "./domain";
 
 /**
  * P8 plan: checklist (RFP requirements, rules filed by section) → per vendor: standards check,
- * RFP check, risk register → recommendation → per vendor: consultant report (2026-10-25).
- * T = 4N + 2 with standards, 3N + 2 without. `compare` only exists in runs from before P8.
+ * RFP check, risk register → recommendation → per vendor: consultant report (2026-10-25) → the
+ * Translator (every AI text into the other language, 2026-10-25).
+ * T = 4N + 3 with standards, 3N + 3 without. `compare` only exists in runs from before P8.
  */
 export interface RunPlan {
   total: number;
@@ -21,8 +22,12 @@ export interface RunPlan {
     risk: number;
     summary: number;
     report: number;
+    translate: number;
   };
 }
+
+/** The Translator always runs on Haiku, whatever model ran the analysis (src/server/ai/translate.ts). */
+export const TRANSLATOR_MODEL: AiModel = "claude-haiku-5-5";
 
 export function planRun(proposals: number, withStandards = true): RunPlan {
   const n = Math.max(0, Math.floor(proposals));
@@ -38,12 +43,13 @@ export function planRun(proposals: number, withStandards = true): RunPlan {
         risk: 0,
         summary: 0,
         report: 0,
+        translate: 0,
       },
     };
   }
   const std = withStandards ? n : 0;
   return {
-    total: 1 + std + 2 * n + 1 + n,
+    total: 1 + std + 2 * n + 1 + n + 1,
     skipped: 0,
     phases: {
       checklist: 1,
@@ -53,6 +59,7 @@ export function planRun(proposals: number, withStandards = true): RunPlan {
       risk: n,
       summary: 1,
       report: n,
+      translate: 1,
     },
   };
 }
@@ -66,6 +73,7 @@ export const LIVE_SECONDS = {
   risk: 50,
   summary: 30,
   report: 70,
+  translate: 60,
 } as const;
 /** Mock mode sleeps 2–5 s per step (RDD §7.8). */
 export const MOCK_SECONDS = 3.5;
@@ -93,7 +101,8 @@ export function estimateSeconds(
       waves(plan.phases.analyze) * per("analyze") +
       waves(plan.phases.risk) * per("risk") +
       per("summary") +
-      waves(plan.phases.report) * per("report"),
+      waves(plan.phases.report) * per("report") +
+      per("translate"),
   );
 }
 
@@ -184,6 +193,8 @@ export interface RunEstimate {
   steps: number;
   /** The consultant reports' share of usd (they come on top of the evaluation itself). */
   reportsUsd: number;
+  /** The Translator's share of usd (always Haiku). */
+  translationUsd: number;
 }
 
 function stepUsd(
@@ -217,6 +228,7 @@ export function estimateRun(
       requirementsEstimated: false,
       steps: 0,
       reportsUsd: 0,
+      translationUsd: 0,
     };
   }
   const { shared } = input;
@@ -308,6 +320,17 @@ export function estimateRun(
   });
   usd += reportsUsd;
   const reportTime = waves * secs(out.report);
+  // The Translator: the run's prose (≈ 60 tokens per RFP requirement, 160 per finding, a report
+  // and a risk register per vendor) in, Arabic out (≈ 1.8× the tokens), Haiku, ~4 batches at once.
+  const proseIn = 60 * Rrfp + n * (160 * R + 1_500 + 1_200) + 1_000;
+  const translationUsd = stepUsd(TRANSLATOR_MODEL, {
+    uncached: proseIn * 1.15,
+    read: 0,
+    write: 0,
+    out: proseIn * 1.8,
+  });
+  usd += translationUsd;
+  const translateTime = (proseIn * 1.8) / 4 / SPEED[TRANSLATOR_MODEL] + 10;
 
   const round2 = (x: number) => Math.round(x * 100) / 100;
   return {
@@ -315,12 +338,19 @@ export function estimateRun(
     low: round2(usd * 0.8),
     high: round2(usd * 1.25),
     seconds: Math.round(
-      secs(out.checklist) + stdTime + analyzeTime + riskTime + secs(out.summary) + reportTime,
+      secs(out.checklist) +
+        stdTime +
+        analyzeTime +
+        riskTime +
+        secs(out.summary) +
+        reportTime +
+        translateTime,
     ),
     requirements: R,
     requirementsEstimated: estimated,
     steps: planRun(n, withStd).total,
     reportsUsd: round2(reportsUsd),
+    translationUsd: round2(translationUsd),
   };
 }
 
@@ -388,10 +418,13 @@ export function planSteps(
   });
   for (const v of vendors)
     add({ phase: "report", proposalId: v.proposalId, label: reportLabel(v.name) });
+  add({ phase: "translate", proposalId: null, label: translateLabel("ar") });
   return steps;
 }
 
 export const reportLabel = (vendor: string) => `Writing the consultant report on ${vendor}`;
+export const translateLabel = (target: "en" | "ar") =>
+  target === "ar" ? "Translating the results into Arabic" : "Translating the results into English";
 
 // ─── Live ETA (RDD §7.7) ─────────────────────────────────────────────────────
 const PHASE_ORDER: RunPhase[] = [
@@ -402,6 +435,7 @@ const PHASE_ORDER: RunPhase[] = [
   "risk",
   "summary",
   "report",
+  "translate",
 ];
 
 /**
@@ -430,11 +464,17 @@ export function etaSeconds(
   return Math.max(0, Math.round(total));
 }
 
-/** Real cost of recorded usage (USD, 4 decimals). Unknown models (mock) cost 0. */
-export function costFromUsage(model: string, u: TokenUsage): number {
+/**
+ * Real cost of recorded usage (USD, 4 decimals). Unknown models (mock) cost 0. `promptTokens`
+ * picks the price tier when the usage adds up several small requests (the Translator's batches).
+ */
+export function costFromUsage(model: string, u: TokenUsage, promptTokens?: number): number {
   if (!MODEL_PRICES[model as AiModel]) return 0;
   // One step's usage is one request (plus a retry at most), so its prompt size picks the tier.
-  const price = pricesFor(model as AiModel, u.inputTokens + u.cacheReadTokens + u.cacheWriteTokens);
+  const price = pricesFor(
+    model as AiModel,
+    promptTokens ?? u.inputTokens + u.cacheReadTokens + u.cacheWriteTokens,
+  );
   const usd =
     (u.inputTokens * price.input +
       u.outputTokens * price.output +

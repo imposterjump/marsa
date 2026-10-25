@@ -26,10 +26,13 @@ import type {
   SummaryOutput,
 } from "../ai/schemas";
 import type { AiEngine, RunContext, SourceDoc, StepInput } from "../ai/types";
+import type { TranslationOutput } from "../ai/translate";
 import { loadRunContext } from "./context";
 import { computeVendorScores } from "./scores";
+import { collectRunTexts, originalLanguage, otherLanguage } from "./texts";
 import {
   addReportSteps,
+  addTranslateStep,
   addStepUsage,
   createRun,
   findActiveRun,
@@ -52,6 +55,7 @@ import {
   saveReport,
   saveRisks,
   saveSummary,
+  saveTranslation,
   type RunRow,
   type StepRow,
 } from "./store";
@@ -86,6 +90,9 @@ export function createRunner(deps: RunnerDeps) {
   /** Why a step can't run (its inputs failed or were skipped), or null when it is ready. */
   function blockedReason(step: StepRow, run: RunRow, ctx: RunContext): string | null {
     if (step.phase === "checklist") return null;
+    // The Translator takes whatever the run produced, even if some steps failed.
+    if (step.phase === "translate")
+      return readChecklist(db, run.id) ? null : "Nothing to translate.";
     if (!readChecklist(db, run.id)) return "Needs the checklist (step 1).";
     if (
       step.phase === "standards" ||
@@ -118,6 +125,16 @@ export function createRunner(deps: RunnerDeps) {
 
   function buildInput(step: StepRow, run: RunRow, ctx: RunContext): StepInput {
     if (step.phase === "checklist") return { phase: "checklist", ctx };
+    if (step.phase === "translate") {
+      const source = originalLanguage(run);
+      return {
+        phase: "translate",
+        ctx,
+        texts: collectRunTexts(db, run.id),
+        source,
+        target: otherLanguage(source),
+      };
+    }
     const checklist = readChecklist(db, run.id)!;
     const vendor = ctx.vendors.find((v) => v.proposalId === step.proposalId);
     const analyses = readDigests(db, run.id, ctx);
@@ -208,6 +225,8 @@ export function createRunner(deps: RunnerDeps) {
         );
       case "report":
         return saveReport(db, step, data as ReportOutput, usage);
+      case "translate":
+        return saveTranslation(db, step, data as TranslationOutput, usage);
     }
   }
 
@@ -454,7 +473,30 @@ export function createRunner(deps: RunnerDeps) {
         .filter((s) => s.phase === "report" && s.status !== "done")
         .map((s) => s.id);
       if (!added.length && !again.length) return run;
-      requeue(run, [...added, ...again]);
+      // New reports need translating too.
+      const translate = steps.filter((s) => s.phase === "translate").map((s) => s.id);
+      requeue(run, [...added, ...again, ...translate]);
+      launch(runId);
+      return getRun(db, runId);
+    },
+
+    /**
+     * The other language for a run that finished before the Translator existed (one-time
+     * backfill, 2026-10-25, no button): adds the Translator step, or runs it again.
+     */
+    addTranslation(runId: string): RunRow {
+      const run = getRun(db, runId);
+      if (run.status !== "completed" && run.status !== "completed_with_errors") {
+        throw new ApiError(
+          409,
+          "invalid_transition",
+          "Only a finished analysis can be translated.",
+        );
+      }
+      assertIdle(run);
+      const existing = listSteps(db, runId).find((s) => s.phase === "translate");
+      const id = existing?.id ?? addTranslateStep(db, run, otherLanguage(originalLanguage(run)));
+      requeue(run, [id]);
       launch(runId);
       return getRun(db, runId);
     },
@@ -462,7 +504,7 @@ export function createRunner(deps: RunnerDeps) {
     /**
      * Re-run one failed (or cancelled) step, plus whatever it unblocks. A retried check changes
      * the scores, so the recommendation and every report are written again; a retried report
-     * only re-runs itself.
+     * only re-runs itself. The Translator always runs again, so both languages stay the same.
      */
     retryStep(runId: string, stepId: string): RunRow {
       const run = getRun(db, runId);
@@ -485,7 +527,8 @@ export function createRunner(deps: RunnerDeps) {
             (order(s.phase) > order(step.phase) &&
               (s.status === "skipped" || s.status === "cancelled")) ||
             (order(step.phase) < order("summary") &&
-              (s.phase === "summary" || s.phase === "report")),
+              (s.phase === "summary" || s.phase === "report")) ||
+            s.phase === "translate",
         )
         .map((s) => s.id);
       requeue(run, ids);

@@ -10,7 +10,8 @@ import type { Db } from "../db/connect";
 import { pdfPageCount } from "../documents/pdf-text";
 import { withBrowser } from "../pdf/print";
 import type { LocalStorage } from "../storage/local";
-import { APP_NAME } from "../../lib/brand";
+import { APP_NAME, APP_NAME_AR } from "../../lib/brand";
+import type { ReportLanguage } from "../../lib/domain";
 import { reportFooter, reportHtml, type ReportAssets, type ReportView } from "./html";
 import { buildReportView } from "./view";
 
@@ -75,14 +76,18 @@ export async function getReportPdf(
   storage: LocalStorage,
   runId: string,
   proposalId: string,
+  lang?: ReportLanguage,
 ): Promise<{ bytes: Uint8Array; filename: string }> {
-  const { view, stamp } = buildReportView(db, runId, proposalId);
+  const { view, stamp } = buildReportView(db, runId, proposalId, lang);
   const key = storage.buildPath(
     ["reports", runId],
     `${proposalId}-${LAYOUT_VERSION}-${stamp.replace(/[^0-9A-Za-z]/g, "")}`,
     "pdf",
   );
-  const filename = `${APP_NAME} report - ${view.project.code} - ${view.vendor.name}.pdf`;
+  const filename =
+    view.language === "ar"
+      ? `تقرير ${APP_NAME_AR} - ${view.project.code} - ${view.vendor.name}.pdf`
+      : `${APP_NAME} report - ${view.project.code} - ${view.vendor.name}.pdf`;
   if (await storage.exists(key)) return { bytes: await storage.read(key), filename };
   // View and Download at once (or pdf.js retrying) render the PDF only once.
   let job = inFlight.get(key);

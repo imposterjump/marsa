@@ -32,10 +32,12 @@ import type {
   RunStepDto,
   RunSummaryDto,
 } from "../../lib/api-types";
+import type { ReportLanguage } from "../../lib/domain";
 import { etaSeconds } from "../../lib/plan";
 import type { ChecklistOutput } from "../ai/schemas";
 import type { LocalStorage } from "../storage/local";
 import { resolveSources } from "./sources";
+import { localizer, textKey, type Localizer } from "./texts";
 import {
   ACTIVE_RUN_STATUSES,
   getRun,
@@ -180,7 +182,10 @@ export function getActiveRuns(db: Db): ActiveRunDto[] {
   });
 }
 
-export function requirementDtos(db: Db, runId: string): RequirementDto[] {
+/** `L` swaps in the run's translation when the results are read in its other language. */
+export function requirementDtos(db: Db, runId: string, L?: Localizer): RequirementDto[] {
+  const tr = (id: string, field: string, value: string) =>
+    L ? L.text(textKey("req", id, field), value) : value;
   return db
     .select()
     .from(requirements)
@@ -190,18 +195,23 @@ export function requirementDtos(db: Db, runId: string): RequirementDto[] {
     .map((r) => ({
       id: r.id,
       code: r.code,
-      title: r.title,
-      description: r.description,
+      title: tr(r.id, "title", r.title),
+      description: tr(r.id, "description", r.description),
       category: r.category,
       priority: r.priority,
       sourceType: r.sourceType,
       sourceRef: r.sourceRef,
       standardId: r.standardId,
-      acceptance: r.acceptance,
+      acceptance: tr(r.id, "acceptance", r.acceptance),
     }));
 }
 
-export function evaluationDtos(db: Db, run: RunRow, proposalIds?: string[]): EvaluationDto[] {
+export function evaluationDtos(
+  db: Db,
+  run: RunRow,
+  proposalIds?: string[],
+  L?: Localizer,
+): EvaluationDto[] {
   const rows = db
     .select()
     .from(evaluations)
@@ -228,10 +238,10 @@ export function evaluationDtos(db: Db, run: RunRow, proposalIds?: string[]): Eva
       counts: r.counts,
       mandatoryFailures: r.mandatoryFailures,
       categoryScores: r.categoryScores,
-      summary: r.summary,
-      strengths: r.strengths,
-      weaknesses: r.weaknesses,
-      commercial: r.commercial,
+      summary: L ? L.text(textKey("eval", r.id, "summary"), r.summary) : r.summary,
+      strengths: L ? L.list("eval", r.id, "strengths", r.strengths) : r.strengths,
+      weaknesses: L ? L.list("eval", r.id, "weaknesses", r.weaknesses) : r.weaknesses,
+      commercial: L ? L.commercial(r.id, r.commercial) : r.commercial,
       overallRisk: risk.get(r.proposalId) ?? null,
     }));
 }
@@ -269,17 +279,24 @@ export async function getProposalResultWithSources(
   storage: LocalStorage,
   runId: string,
   proposalId: string,
+  lang?: ReportLanguage,
 ): Promise<ProposalResultDto> {
-  const result = getProposalResult(db, runId, proposalId);
+  const result = getProposalResult(db, runId, proposalId, lang);
   const sources = await resolveSources(db, storage, getRun(db, runId), result.requirements);
   return { ...result, sources: Object.fromEntries(sources) };
 }
 
-export function getProposalResult(db: Db, runId: string, proposalId: string): ProposalResultDto {
+export function getProposalResult(
+  db: Db,
+  runId: string,
+  proposalId: string,
+  lang?: ReportLanguage,
+): ProposalResultDto {
   const run = getRun(db, runId);
   if (!run.config.proposalIds.includes(proposalId)) throw notFound("Proposal in this analysis");
-  const [evaluation] = evaluationDtos(db, run, [proposalId]);
-  const reqs = requirementDtos(db, runId);
+  const L = localizer(db, run, lang);
+  const [evaluation] = evaluationDtos(db, run, [proposalId], L);
+  const reqs = requirementDtos(db, runId, L);
   const codeOf = new Map(reqs.map((r) => [r.id, r.code]));
   const findingRows = evaluation
     ? db.select().from(findings).where(eq(findings.evaluationId, evaluation.id)).all()
@@ -293,13 +310,13 @@ export function getProposalResult(db: Db, runId: string, proposalId: string): Pr
       code: codeOf.get(f.requirementId) ?? "",
       status: f.overrideStatus ?? f.status,
       aiStatus: f.status,
-      vendorResponse: f.vendorResponse,
+      vendorResponse: L.text(textKey("finding", f.id, "vendorResponse"), f.vendorResponse),
       evidenceQuote: f.evidenceQuote,
       evidenceDocId: f.evidenceDocId,
       evidencePage: f.evidencePage,
       evidenceSection: f.evidenceSection,
-      assessment: f.assessment,
-      gap: f.gap,
+      assessment: L.text(textKey("finding", f.id, "assessment"), f.assessment),
+      gap: L.maybe(textKey("finding", f.id, "gap"), f.gap),
       confidence: f.confidence,
     }));
   const comparison = db
@@ -314,14 +331,14 @@ export function getProposalResult(db: Db, runId: string, proposalId: string): Pr
     .all()
     .map((r) => ({
       id: r.id,
-      title: r.title,
+      title: L.text(textKey("risk", r.id, "title"), r.title),
       category: r.category,
       likelihood: r.likelihood,
       impact: r.impact,
       severity: r.severity,
-      description: r.description,
-      consequence: r.consequence,
-      mitigation: r.mitigation,
+      description: L.text(textKey("risk", r.id, "description"), r.description),
+      consequence: L.text(textKey("risk", r.id, "consequence"), r.consequence),
+      mitigation: L.text(textKey("risk", r.id, "mitigation"), r.mitigation),
       evidence: r.evidence,
       requirementCodes: r.requirementCodes,
     }))

@@ -661,6 +661,8 @@ export function createMockEngine(deps: MockDeps): AiEngine {
       const key = "vendor" in input ? `${input.phase}|${input.vendor.name}` : input.phase;
       await sleep(deps.stepMs ?? Math.round(2000 + seeded(key) * 3000), hooks.signal);
       const i = input as StepInput;
+      // The demo AI can't translate: its texts stay in their language (nothing is stored).
+      if (i.phase === "translate") return result({ target: i.target, texts: {} } as StepOutputs[P]);
       const data =
         i.phase === "checklist"
           ? await checklist(i, deps)

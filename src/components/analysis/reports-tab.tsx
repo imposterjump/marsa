@@ -32,7 +32,7 @@ export function ReportsTab({ d, colors }: { d: AnalysisResultsDto; colors: Map<s
     r: d.reports.find((x) => x.proposalId === v.proposalId),
   }));
   const open = rows.find((x) => x.v.proposalId === viewing);
-  const doc = open?.r ? reportDocument(open.v, open.r, d) : null;
+  const doc = open?.r ? reportDocument(open.v, open.r, d, t.locale) : null;
 
   return (
     <section aria-label={t("Reports")} className="flex flex-col gap-4">
@@ -146,7 +146,7 @@ function ReportRow({
             <Eye aria-hidden /> {t("View")}
           </Button>
           <Button size="sm" asChild>
-            <a href={`${r.url}?download=1`} download>
+            <a href={`${r.url}?lang=${t.locale}&download=1`} download>
               <Download aria-hidden /> {t("Download PDF")}
             </a>
           </Button>
@@ -157,13 +157,15 @@ function ReportRow({
 }
 
 /** The report PDF as the reader expects a document. */
+/** The PDF in the screen's language (the run's translation when it has one). */
 function reportDocument(
   v: VendorResultDto,
   r: ReportSummaryDto,
   d: AnalysisResultsDto,
+  lang: "en" | "ar",
 ): DocumentDto {
   return {
-    id: `report-${v.proposalId}`,
+    id: `report-${v.proposalId}-${lang}`,
     kind: "commercial",
     // A file name, as the download saves it: stays English.
     originalName: `${APP_NAME} report - ${d.project.code} - ${v.vendor.name}.pdf`, // i18n-ignore
@@ -173,6 +175,6 @@ function reportDocument(
     pageCount: 2,
     aiReadable: false,
     createdAt: r.generatedAt ?? d.run.createdAt,
-    url: r.url,
+    url: `${r.url}?lang=${lang}`,
   };
 }

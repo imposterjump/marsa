@@ -147,11 +147,6 @@ test.describe("dropzone (P1.5)", () => {
 });
 
 test.describe("Arabic UI (2026-10-25)", () => {
-  // The switch also sets the AI's report language: put it back for the other tests.
-  test.afterEach(async ({ page }) => {
-    await page.request.put("/api/settings", { data: { reportLanguage: "en" } });
-  });
-
   test("switches the app to Arabic, right to left, and back", async ({ page }) => {
     await onboard(page);
     await page.goto("/projects");
@@ -169,9 +164,9 @@ test.describe("Arabic UI (2026-10-25)", () => {
     await expect(html).not.toHaveAttribute("data-locale-pending", /.*/);
     await expect(nav.getByRole("link", { name: "المعايير" })).toBeVisible();
 
-    // New analyses are written in Arabic too.
-    const settings = await (await page.request.get("/api/settings")).json();
-    expect(settings.reportLanguage).toBe("ar");
+    // The AI settings no longer ask for a language: every analysis comes in both.
+    await page.goto("/settings#ai");
+    await expect(page.getByText("لغات النتائج")).toBeVisible();
 
     for (const url of ["/projects", "/standards", "/settings", "/projects/new"]) {
       await page.goto(url);

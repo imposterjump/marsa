@@ -13,6 +13,7 @@ import {
   FileText,
   Columns3,
   History,
+  Languages,
   LayoutDashboard,
   Lock,
   Play,
@@ -363,7 +364,10 @@ function RunArea({ runId }: { runId: string }) {
           <RunBar data={data} />
           {finished ? (
             results.data ? (
-              <Results d={results.data} />
+              <>
+                <TextLanguageNote d={results.data} />
+                <Results d={results.data} />
+              </>
             ) : results.isError ? (
               <p role="alert" className="text-sm text-fail">
                 {t("Couldn't load the results. Reload the page to try again.")}
@@ -377,6 +381,26 @@ function RunArea({ runId }: { runId: string }) {
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/**
+ * When the AI's texts are not in the screen's language: a run from the demo AI (which can't
+ * translate) or one from before the Translator (2026-10-25) that was not translated afterwards.
+ */
+function TextLanguageNote({ d }: { d: AnalysisResultsDto }) {
+  const t = useT();
+  if (d.textLanguage === t.locale) return null;
+  return (
+    <p
+      role="note"
+      className="flex items-center gap-2 rounded-lg border border-border bg-surface-muted/60 px-3 py-2 text-[13px] text-ink-muted"
+    >
+      <Languages className="size-4 shrink-0" aria-hidden />
+      {d.textLanguage === "en"
+        ? t("The AI's text in this analysis is in English: it has no Arabic version yet.")
+        : t("The AI's text in this analysis is in Arabic: it has no English version yet.")}
+    </p>
   );
 }
 

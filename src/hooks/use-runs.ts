@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocale } from "@/components/i18n-provider";
 import { api } from "@/lib/api-client";
 import type {
   AnalysisResultsDto,
@@ -58,23 +59,29 @@ export function useRunResults(runId: string | null, enabled = true) {
   );
 }
 
-/** Everything the AI analysis results page shows (P8). */
+/** Everything the AI analysis results page shows (P8), with the AI's texts in the screen's language. */
 export function useAnalysisResults(runId: string | null, enabled = true) {
+  const { locale } = useLocale();
   return useHydrationSafe(
     useQuery({
-      queryKey: ["runs", runId ?? "none", "analysis"],
-      queryFn: () => api<AnalysisResultsDto>(`/api/runs/${runId}/analysis`),
+      queryKey: ["runs", runId ?? "none", "analysis", locale],
+      queryFn: () => api<AnalysisResultsDto>(`/api/runs/${runId}/analysis?lang=${locale}`),
       enabled: !!runId && enabled,
+      // Switching language keeps the page on screen while the other version loads.
+      placeholderData: (prev) => prev,
     }),
   );
 }
 
 export function useProposalResult(runId: string | null, proposalId: string) {
+  const { locale } = useLocale();
   return useHydrationSafe(
     useQuery({
-      queryKey: ["runs", runId ?? "none", "proposals", proposalId],
-      queryFn: () => api<ProposalResultDto>(`/api/runs/${runId}/proposals/${proposalId}`),
+      queryKey: ["runs", runId ?? "none", "proposals", proposalId, locale],
+      queryFn: () =>
+        api<ProposalResultDto>(`/api/runs/${runId}/proposals/${proposalId}?lang=${locale}`),
       enabled: !!runId,
+      placeholderData: (prev) => prev,
     }),
   );
 }

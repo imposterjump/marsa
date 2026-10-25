@@ -125,4 +125,18 @@ export const server: Dictionary = {
   "Sample files are missing. Run `npx tsx scripts/test-inputs/build-phase-4.ts` (needs test-inputs/).":
     "الملفات النموذجية مفقودة. شغّل ‎`npx tsx scripts/test-inputs/build-phase-4.ts`‎ (يتطلب المجلد test-inputs/).",
   "Request failed ({status}).": "فشل الطلب ({status}).",
+
+  // ── The Translator (2026-10-25) ──
+  "Translating the results into Arabic": "ترجمة النتائج إلى العربية",
+  "Translating the results into English": "ترجمة النتائج إلى الإنجليزية",
+  "Only a finished analysis can be translated.": "لا يمكن ترجمة إلا تحليل مكتمل.",
+  "Nothing to translate.": "لا يوجد ما يُترجم.",
+  "{n} steps failed.": {
+    one: "فشلت خطوة واحدة.",
+    two: "فشلت خطوتان.",
+    few: "فشلت {n} خطوات.",
+    many: "فشلت {n} خطوة.",
+    other: "فشلت {n} خطوة.",
+  },
+  "{n} step failed.": "فشلت خطوة واحدة.",
 };

@@ -123,6 +123,7 @@ export const common: Dictionary = {
   Reports: "التقارير",
   Comparison: "المقارنة",
   Recommendation: "التوصية",
+  Translation: "الترجمة",
   Checklist: "قائمة التحقق",
   RFP: "طلب العروض",
   Commercial: "تجاري",

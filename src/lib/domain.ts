@@ -101,8 +101,9 @@ export type StepStatus = (typeof STEP_STATUSES)[number];
  * Run phases in execution order. Since P8: checklist (RFP requirements + rule sections) →
  * standards (each vendor against every standard rule) → analyze (each vendor against the RFP) →
  * risk → summary (Marsa's scores and recommendation, with a short AI reason) → report (one
- * consultant report per vendor, 2026-10-25). `compare` only exists in runs from before P8. Stored
- * as text: no DB constraint to change.
+ * consultant report per vendor, 2026-10-25) → translate (every AI-written text into the other
+ * language, 2026-10-25). `compare` only exists in runs from before P8. Stored as text: no DB
+ * constraint to change.
  */
 export const RUN_PHASES = [
   "checklist",
@@ -112,6 +113,7 @@ export const RUN_PHASES = [
   "risk",
   "summary",
   "report",
+  "translate",
 ] as const;
 export type RunPhase = (typeof RUN_PHASES)[number];
 
@@ -124,6 +126,7 @@ export type ProposalSource = (typeof PROPOSAL_SOURCES)[number];
 export const THEMES = ["light", "dark", "system"] as const;
 export type Theme = (typeof THEMES)[number];
 
+/** The languages of the AI's results: a run is written in one and translated into the other. */
 export const REPORT_LANGUAGES = ["en", "ar"] as const;
 
 /** The consultant report's verdict on a vendor; only Marsa's pick can be the preferred bidder. */

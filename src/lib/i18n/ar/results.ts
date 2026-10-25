@@ -239,4 +239,8 @@ export const results: Dictionary = {
 
   // ── gap-bar ──
   "All met": "جميعها مستوفاة",
+
+  // ── agent-orchestra: the Translator (2026-10-25) ──
+  "Translator Agent": "وكيل الترجمة",
+  "Writes every result in Arabic and English": "يكتب كل النتائج بالعربية والإنجليزية",
 };

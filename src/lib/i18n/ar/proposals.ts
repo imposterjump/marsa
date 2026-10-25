@@ -80,10 +80,6 @@ export const proposals: Dictionary = {
     "سيفحص {app} العرض مقابل طلب العروض، ويقيّم مخاطره، ويوصي بمورّد، ويكتب تقريرًا استشاريًا عن كل عطاء.",
   "{app} will check each of the {count} proposals against the RFP, assess its risks, recommend a vendor and write a consultant report on each bid.":
     "سيفحص {app} كل عرض من العروض البالغ عددها {count} مقابل طلب العروض، ويقيّم مخاطره، ويوصي بمورّد، ويكتب تقريرًا استشاريًا عن كل عطاء.",
-  "1 checklist, then per vendor: standards, RFP and risk, then 1 recommendation, then a consultant report per vendor.":
-    "قائمة تحقق واحدة، ثم لكل مورّد: المعايير وطلب العروض والمخاطر، ثم توصية واحدة، ثم تقرير استشاري لكل مورّد.",
-  "1 checklist, then per vendor: RFP and risk, then 1 recommendation, then a consultant report per vendor.":
-    "قائمة تحقق واحدة، ثم لكل مورّد: طلب العروض والمخاطر، ثم توصية واحدة، ثم تقرير استشاري لكل مورّد.",
   Time: "المدة",
   Pipeline: "مسار التحليل",
   "View progress": "عرض التقدّم",
@@ -298,4 +294,10 @@ export const proposals: Dictionary = {
   "Delete document?": "حذف المستند؟",
   "“{file}” will be removed from disk.": "سيُحذف «{file}» من القرص.",
   "Delete document": "حذف المستند",
+
+  // ── analyse-panel: the Translator (2026-10-25) ──
+  "1 checklist, then per vendor: standards, RFP and risk, then 1 recommendation, then a consultant report per vendor, then the translation into Arabic.":
+    "قائمة تحقق واحدة، ثم لكل مورّد: المعايير وطلب العروض والمخاطر، ثم توصية واحدة، ثم تقرير استشاري لكل مورّد، ثم الترجمة إلى العربية.",
+  "1 checklist, then per vendor: RFP and risk, then 1 recommendation, then a consultant report per vendor, then the translation into Arabic.":
+    "قائمة تحقق واحدة، ثم لكل مورّد: طلب العروض والمخاطر، ثم توصية واحدة، ثم تقرير استشاري لكل مورّد، ثم الترجمة إلى العربية.",
 };

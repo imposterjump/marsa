@@ -50,3 +50,6 @@ yarn-error.log*
 
 # Screenshot sets for sharing (large; sent to the user, not versioned)
 /screenshots/
+
+# Real tender files from the company (bank guarantees, licences, IBANs): local only, never pushed
+/new company req files/

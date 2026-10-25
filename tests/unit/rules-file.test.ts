@@ -31,7 +31,9 @@ describe("rules from a dropped file (P8 New standard)", () => {
   });
 
   it("turns pipe tables and tab rows of extracted text into rows", () => {
-    expect(textToRows("# comment\n| A-1 | Rule one | mandatory |\nB-2\tRule two\nno table here")).toEqual([
+    expect(
+      textToRows("# comment\n| A-1 | Rule one | mandatory |\nB-2\tRule two\nno table here"),
+    ).toEqual([
       [" A-1 ", " Rule one ", " mandatory "],
       ["B-2", "Rule two"],
     ]);
@@ -51,7 +53,10 @@ describe("rules from a dropped file (P8 New standard)", () => {
   });
 
   it.each(["csv", "xlsx", "txt"])("reads the POC rules file (.%s) exactly", async (ext) => {
-    const res = await rulesFromFile(`Standard-CTS-2026-rules.${ext}`, read(`Standard-CTS-2026-rules.${ext}`));
+    const res = await rulesFromFile(
+      `Standard-CTS-2026-rules.${ext}`,
+      read(`Standard-CTS-2026-rules.${ext}`),
+    );
     expect(res.errors).toEqual([]);
     expect(res.needsAi).toBe(false);
     expect(res.rules).toHaveLength(12);

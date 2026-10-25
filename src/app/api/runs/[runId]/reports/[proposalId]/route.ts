@@ -1,16 +1,25 @@
 import { connection } from "next/server";
-import { withErrors } from "@/server/api";
+import { requestLanguage, withErrors } from "@/server/api";
 import { getDb } from "@/server/db/client";
 import { getReportPdf } from "@/server/reports/pdf";
 import { getStorage } from "@/server/storage";
 
 type Ctx = RouteContext<"/api/runs/[runId]/reports/[proposalId]">;
 
-/** A vendor's consultant report as PDF. Inline by default (reader, new tab); `?download=1` saves. */
+/**
+ * A vendor's consultant report as PDF. Inline by default (reader, new tab); `?download=1` saves;
+ * `?lang=ar|en` picks the language (the run's translation when it has one).
+ */
 export const GET = withErrors(async (req: Request, ctx: Ctx) => {
   await connection();
   const { runId, proposalId } = await ctx.params;
-  const { bytes, filename } = await getReportPdf(getDb(), getStorage(), runId, proposalId);
+  const { bytes, filename } = await getReportPdf(
+    getDb(),
+    getStorage(),
+    runId,
+    proposalId,
+    requestLanguage(req),
+  );
   const download = new URL(req.url).searchParams.get("download") === "1";
   const ascii = filename.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "'");
   return new Response(new Uint8Array(bytes), {

@@ -18,17 +18,17 @@ const pack = (f: string) =>
 const enc = (s: string) => new TextEncoder().encode(s);
 
 describe("analysis plan (RDD §7.1)", () => {
-  // P8: checklist → per vendor standards, RFP and risk → recommendation → per vendor report
-  // (no comparison step).
-  it("T = 4N + 2 with standards, 3N + 2 without", () => {
+  // P8: checklist → per vendor standards, RFP and risk → recommendation → per vendor report →
+  // the Translator (no comparison step).
+  it("T = 4N + 3 with standards, 3N + 3 without", () => {
     expect(planRun(0)).toMatchObject({ total: 0, skipped: 0 });
     expect(planRun(1)).toMatchObject({
-      total: 6,
+      total: 7,
       skipped: 0,
-      phases: { standards: 1, compare: 0, report: 1 },
+      phases: { standards: 1, compare: 0, report: 1, translate: 1 },
     });
     expect(planRun(4)).toMatchObject({
-      total: 18,
+      total: 19,
       skipped: 0,
       phases: {
         checklist: 1,
@@ -38,21 +38,22 @@ describe("analysis plan (RDD §7.1)", () => {
         risk: 4,
         summary: 1,
         report: 4,
+        translate: 1,
       },
     });
-    expect(planRun(4, false)).toMatchObject({ total: 14, phases: { standards: 0 } });
+    expect(planRun(4, false)).toMatchObject({ total: 15, phases: { standards: 0 } });
   });
 
   it("estimates time by phase waves and concurrency", () => {
     expect(estimateSeconds(0, { concurrency: 3, mode: "live" })).toBe(0);
-    // 4 vendors, 3 at a time → 2 waves each for standards, RFP, risk and reports
+    // 4 vendors, 3 at a time → 2 waves each for standards, RFP, risk and reports; one translation
     expect(estimateSeconds(4, { concurrency: 3, mode: "live" })).toBe(
-      75 + 2 * 80 + 2 * 110 + 2 * 50 + 30 + 2 * 70,
+      75 + 2 * 80 + 2 * 110 + 2 * 50 + 30 + 2 * 70 + 60,
     );
     expect(estimateSeconds(1, { concurrency: 3, mode: "live", withStandards: false })).toBe(
-      75 + 110 + 50 + 30 + 70,
+      75 + 110 + 50 + 30 + 70 + 60,
     );
-    expect(estimateSeconds(4, { concurrency: 3, mode: "mock" })).toBe(Math.round(3.5 * 10));
+    expect(estimateSeconds(4, { concurrency: 3, mode: "mock" })).toBe(Math.round(3.5 * 11));
     expect(estimateSeconds(4, { concurrency: 6, mode: "live" })).toBeLessThan(
       estimateSeconds(4, { concurrency: 1, mode: "live" }),
     );
@@ -79,11 +80,20 @@ describe("analysis plan (RDD §7.1)", () => {
   // The consultant reports (2026-10-25) come on top and are counted apart.
   it("matches the measured Sonnet run's steps (PCS, 3 vendors: ≈ $0.89 + split checks)", () => {
     const e = estimateRun(pcs, { model: "claude-sonnet-5-5", concurrency: 3 });
-    expect(e.usd - e.reportsUsd).toBeGreaterThan(0.85);
-    expect(e.usd - e.reportsUsd).toBeLessThan(1.1);
+    expect(e.usd - e.reportsUsd - e.translationUsd).toBeGreaterThan(0.85);
+    expect(e.usd - e.reportsUsd - e.translationUsd).toBeLessThan(1.1);
     expect(e.low).toBeLessThan(e.usd);
     expect(e.high).toBeGreaterThan(e.usd);
-    expect(e).toMatchObject({ steps: 14, requirements: 31, requirementsEstimated: false });
+    expect(e).toMatchObject({ steps: 15, requirements: 31, requirementsEstimated: false });
+  });
+
+  // The Translator always runs on Haiku: a few cents whatever model ran the analysis.
+  it("prices the translation into Arabic at a few cents, on any model", () => {
+    const haiku = estimateRun(pcs, { model: "claude-haiku-5-5", concurrency: 3 });
+    const opus = estimateRun(pcs, { model: "claude-opus-5-5", concurrency: 3 });
+    expect(haiku.translationUsd).toBeGreaterThan(0.005);
+    expect(haiku.translationUsd).toBeLessThan(0.08);
+    expect(opus.translationUsd).toBe(haiku.translationUsd);
   });
 
   // Each report re-reads the tender and its vendor's proposal (own output format: no cache
@@ -99,9 +109,14 @@ describe("analysis plan (RDD §7.1)", () => {
   });
 
   it("prices models and vendors sensibly", () => {
-    const sonnet = estimateRun(pcs, { model: "claude-sonnet-5-5", concurrency: 3 }).usd;
-    const opus = estimateRun(pcs, { model: "claude-opus-5-5", concurrency: 3 }).usd;
-    const haiku = estimateRun(pcs, { model: "claude-haiku-5-5", concurrency: 3 }).usd;
+    // The analysis itself (the translation costs the same on every model).
+    const own = (model: Parameters<typeof estimateRun>[1]["model"]) => {
+      const e = estimateRun(pcs, { model, concurrency: 3 });
+      return e.usd - e.translationUsd;
+    };
+    const sonnet = own("claude-sonnet-5-5");
+    const opus = own("claude-opus-5-5");
+    const haiku = own("claude-haiku-5-5");
     expect(opus).toBeGreaterThan(sonnet * 2);
     expect(haiku).toBeLessThan(sonnet / 10);
     const five = estimateRun(
@@ -109,7 +124,7 @@ describe("analysis plan (RDD §7.1)", () => {
       { model: "claude-sonnet-5-5", concurrency: 3 },
     );
     expect(five.usd).toBeGreaterThan(sonnet);
-    expect(five.steps).toBe(22);
+    expect(five.steps).toBe(23);
     expect(
       estimateRun({ ...pcs, vendors: [] }, { model: "claude-opus-5-5", concurrency: 3 }).usd,
     ).toBe(0);

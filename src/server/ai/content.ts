@@ -14,7 +14,14 @@
  */
 import type Anthropic from "@anthropic-ai/sdk";
 import { OUTPUT_FIELD, requirementsFor, type ChecklistOutput } from "./schemas";
-import type { AnalysisDigest, RunContext, SourceDoc, StepInput, VendorContext } from "./types";
+import type {
+  AnalysisDigest,
+  AnalysisStepInput,
+  RunContext,
+  SourceDoc,
+  StepInput,
+  VendorContext,
+} from "./types";
 import {
   analyzeTask,
   answerIn,
@@ -149,7 +156,7 @@ function analysesSection(title: string, payload: unknown): Block[] {
   return [text(`# Section E: ${title}\n${JSON.stringify(payload)}`)];
 }
 
-export function buildContent(input: StepInput): Block[] {
+export function buildContent(input: AnalysisStepInput): Block[] {
   const blocks = stepBlocks(input);
   const task = blocks.at(-1) as { type: "text"; text: string };
   return [...blocks.slice(0, -1), text(`${task.text}\n\n${answerIn(OUTPUT_FIELD[input.phase])}`)];
@@ -160,7 +167,7 @@ export function tenderBlocks(ctx: RunContext): Block[] {
   return cached([...rfpSection(ctx), ...standardsSection(ctx)]);
 }
 
-function stepBlocks(input: StepInput): Block[] {
+function stepBlocks(input: AnalysisStepInput): Block[] {
   const shared = input.phase === "summary" ? [] : tenderBlocks(input.ctx);
   switch (input.phase) {
     case "checklist": {
@@ -278,7 +285,7 @@ function stepBlocks(input: StepInput): Block[] {
 
 /** Documents a step sends natively (they need Files API ids before the call). */
 export function nativeDocsFor(input: StepInput): SourceDoc[] {
-  if (input.phase === "summary") return [];
+  if (input.phase === "summary" || input.phase === "translate") return [];
   const docs = [...input.ctx.rfpDocs, ...input.ctx.standards.flatMap((s) => s.docs)];
   if (
     input.phase === "standards" ||

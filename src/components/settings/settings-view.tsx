@@ -232,7 +232,7 @@ function AppearanceSection() {
           <div className="flex flex-col gap-0.5">
             <span className="font-medium text-ink">{t("Language")}</span>
             <span className="text-[13px] text-ink-muted">
-              {t("Screens in English or Arabic. New analyses are written in the same language.")}
+              {t("Screens in English or Arabic. Every analysis is available in both.")}
             </span>
           </div>
           <LanguageSegmented />

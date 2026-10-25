@@ -10,6 +10,15 @@ export { ApiError, notFound } from "./api-errors";
 import { ApiError } from "./api-errors";
 import { isLocale, LOCALE_COOKIE, translateText, type Locale } from "../lib/i18n/core";
 
+/**
+ * The reader's language for a request: `?lang=en|ar` when the page asks for one (results are
+ * cached per language in the browser), else the cookie the language switch sets.
+ */
+export function requestLanguage(req: Request): Locale {
+  const asked = new URL(req.url).searchParams.get("lang");
+  return isLocale(asked) ? asked : localeOf(req);
+}
+
 /** The reader's language (Arabic UI, 2026-10-25): the cookie the language switch sets. */
 function localeOf(req: unknown): Locale {
   if (!(req instanceof Request)) return "en";

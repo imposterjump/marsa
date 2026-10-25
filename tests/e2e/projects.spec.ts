@@ -166,7 +166,10 @@ test.describe("projects (P3.3–P3.6, P8 guided form)", () => {
     // Only Overview and Proposals: the AI analysis has its own page
     await expect(page.getByRole("link", { name: "Evaluation" })).toHaveCount(0);
 
-    await page.getByRole("link", { name: /Proposals/ }).first().click();
+    await page
+      .getByRole("link", { name: /Proposals/ })
+      .first()
+      .click();
     await expect(page).toHaveURL(/\/proposals$/);
     await expect(page.getByRole("table", { name: /Proposals received/ })).toContainText(
       "Harborline Systems",

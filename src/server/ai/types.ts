@@ -20,6 +20,8 @@ import type {
   SummaryOutput,
 } from "./schemas";
 import type { CallResult } from "./result";
+import type { TranslationOutput } from "./translate";
+import type { RunText } from "../runs/texts";
 
 export interface SourceDoc {
   id: string;
@@ -139,7 +141,18 @@ export type StepInput =
       recommended: string | null;
       /** The other bids' stated prices, so the price can be judged; no other comparison. */
       otherPrices: { vendor: string; totalPrice: string | null; currency: string | null }[];
+    }
+  | {
+      /** The Translator (2026-10-25): every AI-written text of the run into its other language. */
+      phase: "translate";
+      ctx: RunContext;
+      texts: RunText[];
+      source: ReportLanguage;
+      target: ReportLanguage;
     };
+
+/** The steps that read the tender (every phase but the Translator, which only has text). */
+export type AnalysisStepInput = Exclude<StepInput, { phase: "translate" }>;
 
 export interface StepOutputs {
   checklist: ChecklistOutput;
@@ -149,6 +162,7 @@ export interface StepOutputs {
   risk: RiskOutput;
   summary: SummaryOutput;
   report: ReportOutput;
+  translate: TranslationOutput;
 }
 
 export interface StepHooks {

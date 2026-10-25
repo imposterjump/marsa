@@ -60,6 +60,7 @@ export const RUN_PHASE_LABEL: Record<RunPhase, string> = {
   risk: msg("Risk"),
   summary: msg("Recommendation"),
   report: msg("Reports"),
+  translate: msg("Translation"),
 };
 
 export const REPORT_VERDICT_LABEL: Record<ReportVerdict, string> = {

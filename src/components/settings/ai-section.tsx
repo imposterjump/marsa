@@ -9,7 +9,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Pill } from "@/components/ui/status-pill";
 import { useSettings, useUpdateSettings } from "@/hooks/use-settings";
-import type { AiModel, ReportLanguage } from "@/lib/domain";
+import type { AiModel } from "@/lib/domain";
 import { msg } from "@/lib/i18n/core";
 import { SaveStatus, Section } from "./settings-section";
 
@@ -108,25 +108,21 @@ export function AiSection() {
           </RadioGroupPrimitive.Root>
         </div>
 
+        {/* 2026-10-25: no language to pick; every analysis comes in both (the Translator). */}
         <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-0.5">
-            <span className="font-medium text-ink">{t("Report language")}</span>
+            <span className="font-medium text-ink">{t("Languages of the results")}</span>
             <span className="text-[13px] text-ink-muted">
               {t(
-                "Language of the AI's findings, summaries and reports. Switching the screens' language sets it too. Documents can be in any language.",
+                "Every analysis is written in English, then the Translator agent writes it in Arabic (always on Claude Haiku 5.5). Results and report PDFs follow the screen's language. Documents can be in any language.",
               )}
             </span>
           </div>
-          <SegmentedControl<ReportLanguage>
-            aria-label={t("Report language")}
-            value={data.reportLanguage}
-            onValueChange={(v) => save.mutate({ reportLanguage: v })}
-            options={[
-              // Each language is named in itself, as in Settings → Appearance.
-              { value: "en", label: <span lang="en">English</span> }, // i18n-ignore
-              { value: "ar", label: <span lang="ar">العربية</span> },
-            ]}
-          />
+          <span className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-surface-muted px-3 text-[13px] font-medium text-ink-2">
+            <span lang="en">English</span> {/* i18n-ignore */}
+            <span aria-hidden>+</span>
+            <span lang="ar">العربية</span>
+          </span>
         </div>
 
         <div className="flex flex-col gap-3 border-t border-border/70 pt-6 sm:flex-row sm:items-center sm:justify-between">

@@ -409,6 +409,25 @@ export const runReviews = sqliteTable(
   (t) => [index("run_reviews_run_idx").on(t.runId, t.createdAt)],
 );
 
+// ─── Translations (2026-10-25): the AI's text in the run's other language ─────
+/**
+ * Every AI-written text of a run (findings, risks, recommendation, reports…) in the language the
+ * run was not written in, keyed by item and field (src/server/runs/texts.ts). Written by the
+ * run's last step, the Translator; the read model swaps the texts in for that language.
+ */
+export const runTranslations = sqliteTable(
+  "run_translations",
+  {
+    runId: text("run_id")
+      .notNull()
+      .references(() => analysisRuns.id, { onDelete: "cascade" }),
+    locale: text("locale", { enum: REPORT_LANGUAGES }).notNull(),
+    texts: text("texts", { mode: "json" }).$type<Record<string, string>>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.runId, t.locale] })],
+);
+
 // ─── Analysis meta (P8): proposal section and summary phrase per item ─────────
 /**
  * Extra fields of the P8 pipeline for rows of existing tables, which are never altered (G-52):

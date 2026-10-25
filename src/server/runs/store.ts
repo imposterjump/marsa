@@ -26,6 +26,7 @@ import { ApiError, notFound } from "../api-errors";
 import type {
   FindingStatus,
   ProjectStatus,
+  ReportLanguage,
   RiskSeverity,
   RunConfig,
   RunStatus,
@@ -40,6 +41,8 @@ import {
   planSteps,
   reportLabel,
   standardsLabel,
+  TRANSLATOR_MODEL,
+  translateLabel,
 } from "../../lib/plan";
 import { toSection } from "../../lib/sections";
 import { computeCategoryScores, computeScore, riskSeverity } from "../../lib/scoring";
@@ -52,7 +55,9 @@ import {
   type RiskOutput,
   type SummaryOutput,
 } from "../ai/schemas";
+import type { TranslationOutput } from "../ai/translate";
 import type { AnalysisDigest, RunContext, SourceDoc, VendorScores } from "../ai/types";
+import { saveTranslations } from "./texts";
 import { getSettings } from "../services/settings";
 
 export type RunRow = typeof analysisRuns.$inferSelect;
@@ -153,7 +158,8 @@ export function createRun(
     partialCredit: settings.partialCredit,
     standardIds,
     proposalIds: props.map((p) => p.id),
-    reportLanguage: settings.reportLanguage,
+    // The AI writes in English; the Translator adds Arabic at the end (2026-10-25).
+    reportLanguage: "en",
     concurrency: settings.concurrency,
     mode,
   };
@@ -379,7 +385,11 @@ export function refreshRunTotals(db: Db, runId: string) {
   for (const s of steps) {
     if (!s.usage) continue;
     usage = addUsage(usage, s.usage);
-    cost += costFromUsage(run.model, s.usage);
+    // The Translator runs on Haiku in small batches, whatever the run's model.
+    cost +=
+      s.phase === "translate"
+        ? costFromUsage(TRANSLATOR_MODEL, s.usage, 0)
+        : costFromUsage(run.model, s.usage);
   }
   db.update(analysisRuns)
     .set({
@@ -729,6 +739,41 @@ export function saveAnalysis(
 /** The consultant report lives on its step; the PDF is laid out from it on request. */
 export function saveReport(db: Db, step: StepRow, data: ReportOutput, usage: TokenUsage) {
   finishStep(db, step, "done", { output: data, usage });
+}
+
+/** The Translator's texts go to run_translations; the step keeps a small summary. */
+export function saveTranslation(db: Db, step: StepRow, data: TranslationOutput, usage: TokenUsage) {
+  // The demo AI translates nothing: keep any earlier translation rather than blanking it.
+  const count = Object.keys(data.texts).length;
+  if (count) saveTranslations(db, step.runId, data.target, data.texts);
+  finishStep(db, step, "done", { output: { target: data.target, texts: count }, usage });
+}
+
+/**
+ * The Translator step for a run that finished before it existed (the one-time backfill of
+ * 2026-10-25), appended after the last step.
+ */
+export function addTranslateStep(db: Db, run: RunRow, target: ReportLanguage): string {
+  const steps = listSteps(db, run.id);
+  const id = newId("step");
+  db.transaction((tx) => {
+    tx.insert(analysisSteps)
+      .values({
+        id,
+        runId: run.id,
+        seq: (steps.at(-1)?.seq ?? 0) + 1,
+        phase: "translate",
+        proposalId: null,
+        label: translateLabel(target),
+        status: "queued",
+      })
+      .run();
+    tx.update(analysisRuns)
+      .set({ totalSteps: steps.length + 1 })
+      .where(eq(analysisRuns.id, run.id))
+      .run();
+  });
+  return id;
 }
 
 export function saveComparison(db: Db, step: StepRow, data: ComparisonOutput, usage: TokenUsage) {

@@ -15,8 +15,6 @@ export const settings: Dictionary = {
   "Profile saved.": "تم حفظ الملف الشخصي.",
   "Save profile": "حفظ الملف الشخصي",
   "Theme and layout preferences for this browser.": "تفضيلات السمة والتخطيط لهذا المتصفح.",
-  "Screens in English or Arabic. New analyses are written in the same language.":
-    "عرض الشاشات بالإنجليزية أو بالعربية. تُكتب التحليلات الجديدة باللغة نفسها.",
   Theme: "السمة",
   "System follows your OS light/dark setting.":
     "خيار «حسب النظام» يتبع إعداد الوضع الفاتح أو الداكن في نظام التشغيل لديك.",
@@ -38,9 +36,6 @@ export const settings: Dictionary = {
     "نموذج Claude الذي يقيّم العروض وطريقة عمله. تُطبَّق التغييرات على التحليل التالي.",
   Model: "النموذج",
   Recommended: "موصى به",
-  "Report language": "لغة التقرير",
-  "Language of the AI's findings, summaries and reports. Switching the screens' language sets it too. Documents can be in any language.":
-    "لغة نتائج الذكاء الاصطناعي وملخصاته وتقاريره. تغيير لغة الشاشات يغيّرها أيضًا. يمكن أن تكون المستندات بأي لغة.",
   "Parallel AI steps": "خطوات الذكاء الاصطناعي المتوازية",
   "Steps of the same phase run at once. Higher is faster but can hit API rate limits.":
     "تعمل خطوات المرحلة الواحدة في الوقت نفسه. القيمة الأعلى أسرع، لكنها قد تتجاوز حدود معدّل الطلبات في API.",
@@ -138,4 +133,11 @@ export const settings: Dictionary = {
   "All data deleted": "تم حذف جميع البيانات",
   "{projects} projects and {standards} standards removed.":
     "المشاريع المحذوفة: {projects}، والمعايير المحذوفة: {standards}.",
+
+  // ── languages of the results (2026-10-25) ──
+  "Screens in English or Arabic. Every analysis is available in both.":
+    "الشاشات بالإنجليزية أو بالعربية. وكل تحليل متاح باللغتين.",
+  "Languages of the results": "لغات النتائج",
+  "Every analysis is written in English, then the Translator agent writes it in Arabic (always on Claude Haiku 5.5). Results and report PDFs follow the screen's language. Documents can be in any language.":
+    "يُكتب كل تحليل بالإنجليزية، ثم يكتبه وكيل الترجمة بالعربية (دائمًا على Claude Haiku 5.5). وتتبع النتائج وملفات التقارير PDF لغة الشاشة. ويمكن أن تكون المستندات بأي لغة.",
 };

@@ -14,6 +14,7 @@ import { AiError, callStructured, uploadFile } from "./client";
 import { buildContent, nativeDocsFor } from "./content";
 import { createMockEngine, createPageLoader } from "./mock";
 import { reportSystemPrompt, systemPrompt } from "./prompts";
+import { translateTexts } from "./translate";
 import {
   OUTPUT_FIELD,
   OUTPUT_SCHEMA,
@@ -61,6 +62,15 @@ export function createLiveEngine(db: Db, storage: LocalStorage, model: string): 
     mode: "live",
     async runStep(input, hooks) {
       const i = input as StepInput;
+      if (i.phase === "translate") {
+        // Text only, no documents; Haiku whatever the run's model (translate.ts).
+        return (await translateTexts(i.texts, {
+          source: i.source,
+          target: i.target,
+          signal: hooks.signal,
+          onStarted: hooks.onStarted,
+        })) as never;
+      }
       await ensureUploaded(db, storage, nativeDocsFor(i));
       const res = await callStructured({
         model,

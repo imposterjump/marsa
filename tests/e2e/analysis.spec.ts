@@ -29,7 +29,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     // Proposals tab → AI analysis panel → the results page, where mission control shows the run
     await page.goto(`/projects/${xray.id}/proposals`);
     const panel = page.getByRole("region", { name: "AI analysis" });
-    await expect(panel).toContainText("18 (4 × 4 + 2)");
+    await expect(panel).toContainText("19 (4 × 4 + 3)");
     await panel.getByRole("button", { name: "Run AI analysis" }).click();
     // A fresh test server parses the sample PDFs as the run starts; the first route load can lag.
     await expect(page).toHaveURL(new RegExp(`/analysis/${xray.id}\\?run=`), { timeout: 30_000 });
@@ -37,7 +37,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await expect(page.locator("html")).toHaveAttribute("data-sidebar", "collapsed");
     const mission = page.getByRole("region", { name: "Evaluating 4 proposals" });
     await expect(mission).toBeVisible();
-    await expect(mission.getByText(/Step \d+ of 18/)).toBeVisible();
+    await expect(mission.getByText(/Step \d+ of 19/)).toBeVisible();
     await expect(mission.getByRole("progressbar", { name: "Analysis progress" })).toBeVisible();
     await expect(mission.getByRole("list", { name: "Phases" })).toContainText("Standards");
 
@@ -48,7 +48,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
       .click();
     await expect(page).toHaveURL(new RegExp(`/projects/${xray.id}$`));
     await expect(page.locator("html")).not.toHaveAttribute("data-sidebar", "collapsed");
-    const pill = page.getByRole("banner").getByRole("link", { name: /\d+\/18/ });
+    const pill = page.getByRole("banner").getByRole("link", { name: /\d+\/19/ });
     await expect(pill).toBeVisible();
     await expect(page.getByText(`Analysis complete · ${xray.code}`)).toBeVisible({
       timeout: 60_000,
@@ -62,7 +62,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
       timeout: 30_000,
     });
     // The run's summary line is not above the results (it is in AI quality)
-    await expect(page.getByText("18 of 18 steps")).toHaveCount(0);
+    await expect(page.getByText("19 of 19 steps")).toHaveCount(0);
     const hero = page.getByRole("region", { name: "Recommended vendor" });
     await expect(hero).toContainText("Rank 1 of 4");
     await expect(hero).toContainText("AI-generated");
@@ -70,14 +70,16 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await expect(hero.getByText(/Conditions before an award/)).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Standards compliance" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "RFP compliance" })).toBeVisible();
-    await expect(page.getByRole("list", { name: "Meridian Scan Technologies: rules" })).toContainText(
-      "compliant",
-    );
+    await expect(
+      page.getByRole("list", { name: "Meridian Scan Technologies: rules" }),
+    ).toContainText("compliant");
     // Each vendor's number sits in a ring filled to its share of 100
     await expect(
       page.getByRole("meter", { name: "Meridian Scan Technologies: RFP compliance" }),
     ).toHaveAttribute("aria-valuetext", /%$/);
-    await expect(page.getByRole("meter", { name: "Meridian Scan Technologies: risk score" })).toBeVisible();
+    await expect(
+      page.getByRole("meter", { name: "Meridian Scan Technologies: risk score" }),
+    ).toBeVisible();
 
     // RFP and Standards tabs, each with its own section cards (sections without points listed
     // once at the end); one row per vendor, points behind the dropdown
@@ -96,7 +98,9 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await page.getByRole("button", { name: "Expand all" }).click();
     await expect(openLists).toHaveCount(4);
     const meridianCard = page.getByRole("region", { name: "Meridian Scan Technologies" });
-    await expect(meridianCard.getByRole("list", { name: "Meridian Scan Technologies by section" })).toBeVisible();
+    await expect(
+      meridianCard.getByRole("list", { name: "Meridian Scan Technologies by section" }),
+    ).toBeVisible();
     const meridian = meridianCard.locator("li > button[aria-expanded]");
     for (let i = 0; i < (await meridian.count()); i++) await meridian.nth(i).click();
     // Each dropdown groups the points by status: one pill per status, one group shown at a time
@@ -127,7 +131,9 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     // type and section dropdowns (opening on Non-compliant); a choice with nothing in it says so
     await page.getByRole("radio", { name: /Point list/ }).click();
     await expect(page).toHaveURL(/view=list/);
-    const filters = meridianCard.getByRole("group", { name: "Filters for Meridian Scan Technologies" });
+    const filters = meridianCard.getByRole("group", {
+      name: "Filters for Meridian Scan Technologies",
+    });
     const pick = async (box: string, option: RegExp) => {
       await filters.getByRole("combobox", { name: box }).click();
       await page.getByRole("option", { name: option }).click();
@@ -141,9 +147,13 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await pick("Type", /^Commercial/);
     await pick("Section", /^Security & data/);
     // Security & data is a technical section: nothing commercial in it
-    await expect(meridianCard.getByText("No data related to Commercial · Security & data")).toBeVisible();
+    await expect(
+      meridianCard.getByText("No data related to Commercial · Security & data"),
+    ).toBeVisible();
     // The other vendors keep their own filters
-    await expect(page.getByRole("combobox", { name: "Type" }).filter({ hasText: "All types" })).toHaveCount(3);
+    await expect(
+      page.getByRole("combobox", { name: "Type" }).filter({ hasText: "All types" }),
+    ).toHaveCount(3);
     await filters.getByRole("button", { name: "Reset" }).click();
     await expect(filters.getByRole("combobox", { name: "Section" })).toContainText("All sections");
     // Details put the requirement and the offer side by side
@@ -217,25 +227,34 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await expect(page).toHaveURL(/tab=risks/);
     await expect
       .poll(() =>
-        page.evaluate(() => (document.getElementById("app-scroll")?.scrollTop ?? 0) + window.scrollY),
+        page.evaluate(
+          () => (document.getElementById("app-scroll")?.scrollTop ?? 0) + window.scrollY,
+        ),
       )
       .toBe(0);
 
     // Risks: a 0–100 score per vendor, then the same numbered sections
-    await expect(page.getByRole("region", { name: "Meridian Scan Technologies" })).toContainText("/100");
+    await expect(page.getByRole("region", { name: "Meridian Scan Technologies" })).toContainText(
+      "/100",
+    );
     await expect(page.locator("section[id^=risks-]")).toHaveCount(4);
     // A risk links to what it is about, and to its section's points in Compliance
     const riskRow = page.locator("section[id^=risks-] li > button[aria-expanded]").first();
     await riskRow.click();
     await page.getByRole("button", { name: "View more" }).first().click();
-    await page.getByRole("button", { name: /see its points/ }).first().click();
+    await page
+      .getByRole("button", { name: /see its points/ })
+      .first()
+      .click();
     await expect(page).toHaveURL(/tab=(rfp|standards)/);
     await page.getByRole("tab", { name: "Risks" }).click();
 
     // Risk list (as in RFP): only the first vendor open, every risk worst first, with the
     // vendor's own severity, type and section dropdowns; an empty choice says so
     await expect(page.getByRole("navigation", { name: "Vendors" })).toHaveCount(0);
-    await expect(page.locator('section[id^=risks-] ul[aria-label$=" risks by section"]')).toHaveCount(1);
+    await expect(
+      page.locator('section[id^=risks-] ul[aria-label$=" risks by section"]'),
+    ).toHaveCount(1);
     await page.getByRole("radio", { name: /Risk list/ }).click();
     await expect(page).toHaveURL(/view=list/);
     const firstRisks = page.locator("section[id^=risks-]").first();
@@ -268,12 +287,16 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     const run = page.getByRole("region", { name: "AI comparison in progress" });
     await expect(run).toBeVisible();
     await expect(run.getByRole("list", { name: "Comparison steps" }).locator("li")).toHaveCount(6);
-    await expect(page.getByRole("checkbox", { name: "Compare Meridian Scan Technologies" })).toBeDisabled();
+    await expect(
+      page.getByRole("checkbox", { name: "Compare Meridian Scan Technologies" }),
+    ).toBeDisabled();
     const table = page.getByRole("table", { name: "Vendor comparison" });
     await expect(table).toBeVisible({ timeout: 20_000 });
     await expect(run).toHaveCount(0);
     await expect(table.getByRole("columnheader")).toHaveCount(3);
-    await expect(table.getByRole("columnheader", { name: /Meridian Scan Technologies/ })).toBeVisible();
+    await expect(
+      table.getByRole("columnheader", { name: /Meridian Scan Technologies/ }),
+    ).toBeVisible();
     await expect(table.getByRole("columnheader", { name: /Harborline Systems/ })).toBeVisible();
     await expect(table.getByRole("rowheader", { name: "Risk score" })).toBeVisible();
     await expect(table.getByText("Best in this row").first()).toBeAttached();
@@ -292,7 +315,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await expect(page.getByText("Preferred bidder")).toHaveCount(1);
     const pdfLink = reportRows.first().getByRole("link", { name: "Download PDF" });
     const href = (await pdfLink.getAttribute("href"))!;
-    expect(href).toMatch(/\/reports\/.+\?download=1$/);
+    expect(href).toMatch(/\/reports\/.+\?lang=en&download=1$/);
     const pdf = await page.request.get(href);
     expect(pdf.ok()).toBe(true);
     expect(pdf.headers()["content-type"]).toBe("application/pdf");
@@ -336,7 +359,7 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await page.getByRole("tab", { name: "AI quality" }).click();
     await expect(page.getByText("Confidence score")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText("Analysis complete", { exact: true })).toBeVisible();
-    await expect(page.getByText("18 of 18 steps")).toBeVisible();
+    await expect(page.getByText("19 of 19 steps")).toBeVisible();
     await expect(page.getByText("Files scanned")).toBeVisible();
     await expect(page.getByText("16 / 16")).toBeVisible(); // processed correctly
     await page

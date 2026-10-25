@@ -130,7 +130,7 @@ test.describe("vendor proposals (P4.4–P4.5, P5.1, P8 Add vendor)", () => {
     // AI analysis panel under the table (P8): steps = checklist + per vendor + recommendation
     await page.goto(`/projects/${project.id}/proposals`);
     const panel = page.getByRole("region", { name: "AI analysis" });
-    await expect(panel).toContainText(/\d+ \([23] × 1 \+ 2\)/);
+    await expect(panel).toContainText(/\d+ \([23] × 1 \+ 3\)/);
     await expect(panel).toContainText("Demo AI");
     await expect(panel).not.toContainText("$"); // no prices on screen
     await expect(panel.getByRole("button", { name: "Run AI analysis" })).toBeEnabled();

@@ -8,6 +8,7 @@ import {
   Columns3,
   FileSearch,
   Gauge,
+  Languages,
   ScrollText,
   ShieldCheck,
   Sparkles,
@@ -73,6 +74,11 @@ const AGENTS: Record<RunPhase, { name: string; job: string; icon: LucideIcon }> 
     name: msg("Consultant Agent"),
     job: msg("Writes a report per vendor"),
     icon: ScrollText,
+  },
+  translate: {
+    name: msg("Translator Agent"),
+    job: msg("Writes every result in Arabic and English"),
+    icon: Languages,
   },
 };
 

@@ -360,8 +360,7 @@ export function normalizeReport(out: ReportOutput, { recommended }: { recommende
     strengths: points(a.strengths),
     weaknesses: points(a.weaknesses),
   });
-  const items = (list: string[]) =>
-    list.map(tidy).filter(Boolean).slice(0, REPORT_LIMITS.actions);
+  const items = (list: string[]) => list.map(tidy).filter(Boolean).slice(0, REPORT_LIMITS.actions);
   return {
     ...out,
     verdict: recommended

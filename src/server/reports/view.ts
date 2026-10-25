@@ -6,20 +6,24 @@ import { eq } from "drizzle-orm";
 import type { Db } from "../db/connect";
 import { projects } from "../db/schema";
 import { notFound } from "../api-errors";
-import type { AiModel } from "../../lib/domain";
+import type { AiModel, ReportLanguage } from "../../lib/domain";
 import { AI_MODEL_LABEL } from "../../lib/labels";
 import type { ReportOutput } from "../ai/schemas";
 import { proposalVendors } from "../runs/read";
 import { computeVendorScores } from "../runs/scores";
 import { getRun, listSteps } from "../runs/store";
+import { localizer } from "../runs/texts";
 import type { ReportView } from "./html";
 
+/** `lang`: the reader's language; the run's translation is used when it has one. */
 export function buildReportView(
   db: Db,
   runId: string,
   proposalId: string,
+  lang?: ReportLanguage,
 ): { view: ReportView; stamp: string } {
   const run = getRun(db, runId);
+  const L = localizer(db, run, lang);
   const step = listSteps(db, runId).find(
     (s) => s.phase === "report" && s.proposalId === proposalId,
   );
@@ -33,10 +37,11 @@ export function buildReportView(
   const scores = computeVendorScores(db, run, new Map([...vendors].map(([id, v]) => [id, v.name])));
   const own = scores.find((s) => s.proposalId === proposalId);
   if (!project || !own) throw notFound("Report");
-  const language = run.config.reportLanguage;
+  const language = L.language;
   const vendor = vendors.get(proposalId);
   return {
-    stamp: step.finishedAt ?? step.id,
+    // A new translation lays the PDF out again.
+    stamp: `${language}-${step.finishedAt ?? step.id}-${L.version ?? ""}`,
     view: {
       language,
       project,
@@ -57,7 +62,7 @@ export function buildReportView(
         rank: own.rank,
         ranked: scores.length,
       },
-      report: step.output as ReportOutput,
+      report: L.report(proposalId, step.output as ReportOutput),
     },
   };
 }

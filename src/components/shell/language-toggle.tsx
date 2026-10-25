@@ -4,23 +4,18 @@ import { Languages } from "lucide-react";
 import { useLocale, useT } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { useUpdateSettings } from "@/hooks/use-settings";
 import type { Locale } from "@/lib/i18n/core";
 
 /**
- * Switching the screens' language also makes new analyses write in it (user, 2026-10-25: an Arabic
- * client reads Arabic results). Settings → AI → Report language can still differ. Finished
- * analyses keep the language they were written in.
+ * Switches the screens' language. The AI's results follow: every analysis is written in English
+ * and translated into Arabic by its last step (2026-10-25), so nothing else changes.
  */
 export function useSwitchLanguage() {
   const { locale, setLocale } = useLocale();
-  const save = useUpdateSettings();
   return {
     locale,
     switchTo: (next: Locale) => {
-      if (next === locale) return;
-      setLocale(next); // instant (localStorage + <html lang dir>)
-      save.mutate({ reportLanguage: next });
+      if (next !== locale) setLocale(next); // instant (localStorage + <html lang dir>)
     },
   };
 }

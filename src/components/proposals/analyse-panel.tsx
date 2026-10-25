@@ -18,7 +18,8 @@ import { estimateSeconds, planRun } from "@/lib/plan";
 /**
  * PRD FR-5.3: the analysis summary under the proposals table. Shows what the run will cover
  * (P8: each vendor against the standards, then the RFP, then its risks, then a recommendation;
- * T = 3N + 2 steps, 2N + 2 without standards) with a time and cost estimate calibrated on real
+ * T = 4N + 3 steps, 3N + 3 without standards, incl. the reports and the translation) with a
+ * time and cost estimate calibrated on real
  * runs (estimateRun). With live AI the button confirms the estimated cost first.
  */
 export function AnalysePanel({
@@ -76,6 +77,7 @@ export function AnalysePanel({
     [t("Risk"), plan.phases.risk],
     [t("Recommendation"), plan.phases.summary],
     [t("Report"), plan.phases.report],
+    [t("Translation"), plan.phases.translate],
   ];
   const standardsCount = project.standards.length;
 
@@ -155,16 +157,16 @@ export function AnalysePanel({
                         tabIndex={0}
                         className="cursor-help underline decoration-dotted underline-offset-4"
                       >
-                        {plan.total} ({plan.phases.standards ? 4 : 3} × {n} + 2)
+                        {plan.total} ({plan.phases.standards ? 4 : 3} × {n} + 3)
                       </span>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
                       {plan.phases.standards
                         ? t(
-                            "1 checklist, then per vendor: standards, RFP and risk, then 1 recommendation, then a consultant report per vendor.",
+                            "1 checklist, then per vendor: standards, RFP and risk, then 1 recommendation, then a consultant report per vendor, then the translation into Arabic.",
                           )
                         : t(
-                            "1 checklist, then per vendor: RFP and risk, then 1 recommendation, then a consultant report per vendor.",
+                            "1 checklist, then per vendor: RFP and risk, then 1 recommendation, then a consultant report per vendor, then the translation into Arabic.",
                           )}
                     </TooltipContent>
                   </Tooltip>
