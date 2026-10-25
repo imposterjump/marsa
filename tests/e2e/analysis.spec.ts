@@ -98,13 +98,25 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     });
     await page.keyboard.press("Escape");
     await expect(page).not.toHaveURL(/reader=/);
-    // The Standards tab: a standard rule links to the rule in its standard
+    // The Standards tab: a standard rule opens in a panel over the results; closing it leaves
+    // the page where it was. The full standard is one click away.
     await page.getByRole("tab", { name: "Standards" }).click();
     await expect(page).toHaveURL(/tab=standards/);
     for (let i = 0; i < (await meridian.count()); i++) await meridian.nth(i).click();
-    const rule = page.getByRole("link", { name: /CITS-2026 SEC-\d+/ }).first();
+    const rule = page.getByRole("button", { name: /CITS-2026 SEC-\d+/ }).first();
     const ruleCode = ((await rule.textContent()) ?? "").match(/SEC-\d+/)![0];
+    await rule.scrollIntoViewIfNeeded();
+    const scrollY = await page.evaluate(() => window.scrollY);
     await rule.click();
+    const rulePanel = page.getByRole("dialog");
+    await expect(rulePanel.getByRole("region", { name: `Rule ${ruleCode}` })).toBeVisible();
+    await expect(rulePanel.locator('li[aria-current="true"]')).toContainText(ruleCode);
+    await page.keyboard.press("Escape");
+    await expect(rulePanel).toHaveCount(0);
+    await expect(page).toHaveURL(/tab=standards/);
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrollY);
+    await rule.click();
+    await rulePanel.getByRole("link", { name: "Open full standard" }).click();
     await expect(page).toHaveURL(new RegExp(`/standards/.+\\?rule=${ruleCode}`));
     await expect(page.locator(`#rule-${ruleCode}`)).toBeVisible();
     await page.goBack();

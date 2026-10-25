@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   ArrowUpRight,
   BookOpen,
@@ -15,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FindingStatusPill, Pill, PriorityPill, RiskPill } from "@/components/ui/status-pill";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { StandardRuleChip } from "@/components/standards/rule-sheet";
 import { useProposalResult } from "@/hooks/use-runs";
 import type {
   FindingDto,
@@ -269,21 +268,11 @@ function SourceChips({
       {sources.map((s, i) => {
         if (s.kind === "standard") {
           return (
-            <Tooltip key={i}>
-              <TooltipTrigger asChild>
-                <Link
-                  href={`/standards/${s.standardId}?rule=${encodeURIComponent(s.ruleCode)}`}
-                  className={cn(chip, link)}
-                >
-                  <ShieldCheck className="size-3.5 text-brand" aria-hidden />
-                  <span className="font-mono">{s.label}</span>
-                  <ArrowUpRight className="size-3 text-ink-faint" aria-hidden />
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-sm">
-                {s.ruleCode}: {s.ruleText}
-              </TooltipContent>
-            </Tooltip>
+            <StandardRuleChip key={i} source={s} className={cn(chip, link)}>
+              <ShieldCheck className="size-3.5 text-brand" aria-hidden />
+              <span className="font-mono">{s.label}</span>
+              <ArrowUpRight className="size-3 text-ink-faint" aria-hidden />
+            </StandardRuleChip>
           );
         }
         if (s.kind === "notes") {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useId, useState } from "react";
-import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   ArrowUpRight,
@@ -15,7 +14,7 @@ import {
 import { cn } from "cn";
 import { EASE_OUT_QUINT } from "@/components/motion/reveal";
 import { FindingStatusPill, PriorityPill } from "@/components/ui/status-pill";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { StandardRuleChip } from "@/components/standards/rule-sheet";
 import type { FindingDto, RequirementDto, RequirementSourceDto } from "@/lib/api-types";
 import type { Priority } from "@/lib/domain";
 
@@ -236,21 +235,11 @@ export function SourceChips({
       {sources.map((s, i) => {
         if (s.kind === "standard") {
           return (
-            <Tooltip key={i}>
-              <TooltipTrigger asChild>
-                <Link
-                  href={`/standards/${s.standardId}?rule=${encodeURIComponent(s.ruleCode)}`}
-                  className={cn(chip, link)}
-                >
-                  <ShieldCheck className="size-3.5 text-info" aria-hidden />
-                  <span className="font-mono">{s.label}</span>
-                  <ArrowUpRight className="size-3 text-ink-faint" aria-hidden />
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-sm">
-                {s.ruleCode}: {s.ruleText}
-              </TooltipContent>
-            </Tooltip>
+            <StandardRuleChip key={i} source={s} className={cn(chip, link)}>
+              <ShieldCheck className="size-3.5 text-info" aria-hidden />
+              <span className="font-mono">{s.label}</span>
+              <ArrowUpRight className="size-3 text-ink-faint" aria-hidden />
+            </StandardRuleChip>
           );
         }
         if (s.kind === "notes") {
