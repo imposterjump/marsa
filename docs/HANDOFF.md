@@ -496,3 +496,6 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
     - E2E: Reports tab, PDF headers and `%PDF-`, View opens the reader.
   - `npm run check` ✔ (185), full E2E ✔ (20).
   - Preview on a copy of the user's data (light, dark, 390 px): the demo run's backfill made 2 reports (Preferred bidder / Not recommended); View shows the 2-page PDF.
+  - **Backfill on the user's data (:3000):**
+    - The demo run `run_m57w38favxju44` (PRJ-2026-002) is done: 2 reports, free.
+    - **The Haiku run `run_vi7mnkp6fawxc8` (PRJ-2026-003) is still pending.** The user approved the ~$0.03, but Claude Code's permission check blocked the paid call from the agent. The user runs it themselves: `curl -s -X POST localhost:3000/api/runs/run_vi7mnkp6fawxc8/reports`. Their results page shows mission control while the 3 report steps run (~1–2 min), then the Reports tab.
