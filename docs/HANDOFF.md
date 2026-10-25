@@ -501,3 +501,15 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
     - **The Haiku run `run_vi7mnkp6fawxc8` (PRJ-2026-003) is still pending.** The user approved the ~$0.03, but Claude Code's permission check blocked the paid call from the agent. The user runs it themselves: `curl -s -X POST localhost:3000/api/runs/run_vi7mnkp6fawxc8/reports`. Their results page shows mission control while the 3 report steps run (~1–2 min), then the Reports tab.
     - **Done on the user's word ("generate reports for other project that has analysis"):** 3 Haiku reports for **$0.034** (run total $0.0893 → $0.1232), each 2 pages. Verdicts: Sabkha preferred, Kaltenmoor and Nimbrel not recommended. The reports cite requirement codes and pages, and caught Annex A "Comply" claims the proposal text contradicts.
     - **Layout v2:** h2 `break-after: avoid`; balance, concerns and recommendation are `.keep` (no break inside), after a real report left "Technical vs commercial balance" alone at the foot of page 1.
+- **Pushed** on the user's word: up to `5665765` (reports + layout v2).
+- **Risks tab = the RFP list treatment** (user: "remember what we did in the rfp page to make a new list view? i want to do the exact same for the standards and the risks"). Standards already had it: it shares `ComplianceTab` with RFP. Asked first; the user chose: the risk list opens on **All severities, worst first** (3–10 risks per vendor, nothing to hide), and **type by proposal section** (same rule as RFP).
+  - `risks-tab.tsx`:
+    - vendor pills commented out (restorable);
+    - every vendor card in `VendorCardShell` (new `id` prop keeps `risks-<proposal>` anchors); first vendor open, Collapse all / Expand all;
+    - red view switch "By section | Risk list". `?view=list` is now shared by RFP, Standards and Risks.
+  - `risk-list.tsx` (new):
+    - **Per-vendor red dropdowns:** Severity (All, Critical, High, Moderate, Low), Type, Section, each with counts and a Reset. Header: severity counts of the slice, the overall risk score ring (level colour) and the `RiskPill`.
+    - **Rows:** severity edge; severity / type / section pills; likelihood × impact · category; title and description; a "If it happens" line tinted by severity; mitigation; the vendor's evidence (`EvidenceChip`) and the RFP clause / rule chips. Details add the evidence quote, what it is about and "see its points".
+    - **Empty cases:** "No data related to <slice>: no risk raised for <vendor> there" and "No critical risks for <vendor>…" with "Show every severity".
+  - `RiskLinks`, `byWeight` and `riskContext` live in `risk-list.tsx`; `FilterSelect`, `TYPE_TEXT` and `sectionKey` are exported from `point-list.tsx`.
+  - E2E: pills gone, one vendor open, Risk list with All severities, Commercial + Security & data → "No data related", Reset, Details, back to By section. `npm run check` ✔ (185), full E2E ✔ (20). Screens on the user's Haiku data (light, phone, sections).

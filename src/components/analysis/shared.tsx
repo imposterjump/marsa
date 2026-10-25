@@ -298,12 +298,15 @@ export function CountsLegend({
  */
 export function VendorCardShell({
   v,
+  id = `vendor-${v.proposalId}`,
   open,
   onToggle,
   header,
   children,
 }: {
   v: VendorResultDto;
+  /** The card's anchor (the Risks tab uses risks-<proposal>). */
+  id?: string;
   open: boolean;
   onToggle: () => void;
   header: React.ReactNode;
@@ -313,7 +316,7 @@ export function VendorCardShell({
   const bodyId = useId();
   return (
     <section
-      id={`vendor-${v.proposalId}`}
+      id={id}
       aria-label={v.vendor.name}
       className="scroll-mt-24 rounded-xl border border-border bg-surface shadow-sm"
     >

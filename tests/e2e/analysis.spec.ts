@@ -232,6 +232,32 @@ test.describe("AI analysis and its results page (P7, P8)", () => {
     await expect(page).toHaveURL(/tab=(rfp|standards)/);
     await page.getByRole("tab", { name: "Risks" }).click();
 
+    // Risk list (as in RFP): only the first vendor open, every risk worst first, with the
+    // vendor's own severity, type and section dropdowns; an empty choice says so
+    await expect(page.getByRole("navigation", { name: "Vendors" })).toHaveCount(0);
+    await expect(page.locator('section[id^=risks-] ul[aria-label$=" risks by section"]')).toHaveCount(1);
+    await page.getByRole("radio", { name: /Risk list/ }).click();
+    await expect(page).toHaveURL(/view=list/);
+    const firstRisks = page.locator("section[id^=risks-]").first();
+    const riskList = firstRisks.getByRole("list", { name: /: risk list$/ });
+    await expect(riskList.locator(":scope > li").first()).toBeVisible();
+    const riskFilters = firstRisks.getByRole("group", { name: /^Filters for / });
+    await expect(riskFilters.getByRole("combobox", { name: "Severity" })).toContainText(
+      "All severities",
+    );
+    await riskFilters.getByRole("combobox", { name: "Type" }).click();
+    await page.getByRole("option", { name: /^Commercial/ }).click();
+    await riskFilters.getByRole("combobox", { name: "Section" }).click();
+    await page.getByRole("option", { name: /^Security & data/ }).click();
+    await expect(
+      firstRisks.getByText(/No data related to Commercial · Security & data/),
+    ).toBeVisible();
+    await riskFilters.getByRole("button", { name: "Reset" }).click();
+    await riskList.getByRole("button", { name: "Details" }).first().click();
+    await expect(riskList.getByRole("button", { name: /see its points/ }).first()).toBeVisible();
+    await page.getByRole("radio", { name: /By section/ }).click();
+    await expect(page).not.toHaveURL(/view=list/);
+
     // Comparison (pricing-page table): one column per picked vendor, one row per aspect
     await page.getByRole("tab", { name: "Comparison" }).click();
     await expect(page.getByRole("button", { name: "Pick at least 2 vendors" })).toBeDisabled();

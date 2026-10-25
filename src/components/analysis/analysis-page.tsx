@@ -397,7 +397,7 @@ function Results({ d }: { d: AnalysisResultsDto }) {
     router.replace(s ? `${pathname}?${s}` : pathname, { scroll: false });
   };
 
-  // RFP / Standards: the view lives in the URL (?view=list), shared by both tabs.
+  // RFP / Standards / Risks: the view lives in the URL (?view=list), shared by the three tabs.
   const view: ComplianceView = params.get("view") === "list" ? "list" : "sections";
   const onView = (v: ComplianceView) => setQuery({ view: v === "list" ? v : null });
 
@@ -483,7 +483,14 @@ function Results({ d }: { d: AnalysisResultsDto }) {
           </TabsContent>
         )}
         <TabsContent value="risks">
-          <RisksTab d={d} colors={colors} onEvidence={onEvidence} onSection={onSection} />
+          <RisksTab
+            d={d}
+            colors={colors}
+            onEvidence={onEvidence}
+            onSection={onSection}
+            view={view}
+            onView={onView}
+          />
         </TabsContent>
         <TabsContent value="comparison">
           <ComparisonTab d={d} colors={colors} onEvidence={onEvidence} />

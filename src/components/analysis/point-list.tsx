@@ -83,7 +83,7 @@ const STATUS_RANK: Record<FindingStatus, number> = {
 const PRIORITY_RANK: Record<Priority, number> = { mandatory: 0, important: 1, desirable: 2 };
 const CONFIDENCE = { high: "High", medium: "Medium", low: "Low" } as const;
 
-const TYPE_TEXT: Record<PointType, { label: string; icon: typeof Cpu }> = {
+export const TYPE_TEXT: Record<PointType, { label: string; icon: typeof Cpu }> = {
   technical: { label: "Technical", icon: Cpu },
   commercial: { label: "Commercial", icon: Banknote },
 };
@@ -101,7 +101,7 @@ interface Point {
   r: RequirementResultDto;
 }
 
-const sectionKey = (s: ProposalSection | null) => s ?? "none";
+export const sectionKey = (s: ProposalSection | null) => s ?? "none";
 
 /** The type and section picked: which requirements of the tab are in view at all. */
 const inSlice = (r: RequirementResultDto, f: ListFilters) =>
@@ -407,7 +407,7 @@ function VendorFilters({
   );
 }
 
-function FilterSelect<T extends string>({
+export function FilterSelect<T extends string>({
   label,
   value,
   onChange,
