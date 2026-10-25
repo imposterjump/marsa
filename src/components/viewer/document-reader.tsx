@@ -27,6 +27,7 @@ import { cn } from "cn";
 import type { DocumentDto } from "@/lib/api-types";
 import { formatBytes, middleTruncate } from "@/lib/files";
 import { findQuotePage, highlightQuote } from "@/lib/quote";
+import { preloadPdfjs } from "@/lib/pdf/pdfjs";
 import { PdfCanvas } from "./pdf-canvas";
 import { PdfTextLayer } from "./pdf-text-layer";
 import { useReaderSource, type HtmlPage, type ReaderSource } from "./use-reader-source";
@@ -66,6 +67,8 @@ const EASE = [0.22, 1, 0.36, 1] as const;
  * and text files (see useReaderSource). Replaces the browser PDF viewer everywhere.
  */
 export function DocumentReader(props: DocumentReaderProps) {
+  // Pages with a reader warm the PDF engine while idle, so the first document opens fast.
+  useEffect(() => preloadPdfjs(), []);
   return (
     <DialogPrimitive.Root open={props.open} onOpenChange={props.onOpenChange}>
       <DialogPrimitive.Portal>
