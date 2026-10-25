@@ -57,7 +57,7 @@ npm run dev                        # → http://localhost:3000
 **To switch to live AI:**
 
 1. `cp .env.example .env.local`.
-2. In `.env.local`, set `ANTHROPIC_API_KEY=sk-ant-…` and `AI_MODE=live`.
+2. In `.env.local`, set `ANTHROPIC_API_KEY=<your key>` and `AI_MODE=live`.
 3. Restart the app.
 4. In **Settings → AI & runtime → Model**, pick the model. **Use Claude Haiku 5.5 for tests**: a 3-vendor tender costs about $0.11 with reports. Opus costs about 25× more.
 
