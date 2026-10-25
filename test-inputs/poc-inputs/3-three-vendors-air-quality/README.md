@@ -63,19 +63,20 @@ For each vendor: fill in the form, drop the two files, click **Save vendor**. Cl
 Click **Create project**.
 
 ## 4. Run the AI analysis
-1. Click **Run AI analysis**. It runs **11 steps**:
+1. Click **Run AI analysis**. It runs **14 steps**:
    - 1 checklist;
    - 3 standards checks;
    - 3 RFP checks;
    - 3 risk registers;
-   - 1 recommendation.
+   - 1 recommendation;
+   - 3 consultant reports.
 2. In live mode the confirmation shows the estimate:
 
    | Model | Cost | Time |
    |---|---|---|
-   | Haiku | ≈ $0.08 (a real Haiku run cost $0.094) | ≈ 4–5 min |
-   | Sonnet | ≈ $0.92 | — |
-   | Opus | ≈ $2.05 | — |
+   | Haiku | ≈ $0.11 (real Haiku run: $0.09, then $0.03 for the 3 reports) | ≈ 5 min |
+   | Sonnet | ≈ $1.33 | ≈ 4 min |
+   | Opus | ≈ $2.92 | ≈ 7 min |
 
 ## 5. What a good result looks like
 For judging the run. Nothing here is uploaded. Checked on one real Haiku run (2026-10-23).
@@ -104,7 +105,7 @@ For judging the run. Nothing here is uploaded. Checked on one real Haiku run (20
   - **Warranty:** 12 months (5.4, EM-12).
   - **Payment:** 50 % with the order (7.2).
   - **Guarantees:** bank guarantees from a London bank (7.3, 7.4).
-- **Compliance tab:** all 7 sections.
+- **RFP and Standards tabs:** all 7 sections (By section), or every point in one list (the red **Point list**, with Status / Type / Section dropdowns per vendor).
   - **Technical solution** holds most points.
   - **Company & references** holds the qualification clauses 6.1 and 6.2.
   - **Commercial offer & pricing** and **Terms & deviations** hold the payment, price and guarantee clauses.
@@ -112,4 +113,6 @@ For judging the run. Nothing here is uploaded. Checked on one real Haiku run (20
 - **Risks tab:** open a risk and click **View more**:
   - the RFP clause or the PEMS-2026 rule opens from **About**;
   - the vendor's page opens from **Evidence**;
-  - **…see its points in Compliance** jumps to the section.
+  - **…see its points** jumps to the section in the RFP or Standards tab.
+  - The red **Risk list** shows all of a vendor's risks, worst first, with Severity / Type / Section dropdowns.
+- **Reports tab** (real Haiku reports, 2026-10-25): Sabkha **Preferred bidder**, Kaltenmoor and Nimbrel **Not recommended**. Each report is 2 pages and cites requirement codes and proposal pages; Sabkha's flags the Annex A "Comply" claims its own text contradicts.

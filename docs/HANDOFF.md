@@ -513,3 +513,9 @@ Data dirs: `data/` (user) · `data/test` (vitest env) · `data/e2e` (Playwright)
     - **Empty cases:** "No data related to <slice>: no risk raised for <vendor> there" and "No critical risks for <vendor>…" with "Show every severity".
   - `RiskLinks`, `byWeight` and `riskContext` live in `risk-list.tsx`; `FilterSelect`, `TYPE_TEXT` and `sectionKey` are exported from `point-list.tsx`.
   - E2E: pills gone, one vendor open, Risk list with All severities, Commercial + Security & data → "No data related", Reset, Details, back to By section. `npm run check` ✔ (185), full E2E ✔ (20). Screens on the user's Haiku data (light, phone, sections).
+- **Fresh-clone guide** (user: "a new md file called freshely cloned.md … how to use it how to get seeded data, and also i want the test inputs folder to be pushed too").
+  - New **`docs/FRESHLY-CLONED.md`** (dashes, no space): what the project is; what git does and doesn't contain; setup (Node ≥ 24, `npx playwright install chromium`); demo vs live AI and the empty-key trap; the 3 ways to get data (sample data / POC tenders / AI-generated bids); a map of `test-inputs/`; a tour; commands; a docs map; troubleshooting.
+  - A short root **`README.md`** points to it, and so does `CLAUDE.md`.
+  - `test-inputs/` was already fully tracked and pushed (99 files, the 4 POC sets included); only the generated 55 MB oversized PDF is ignored, and the guide says how to rebuild it.
+  - The **POC guides were updated** to the current app: 10 / 14 steps with reports, the tabs Overview · RFP · Standards · Risks · Comparison · Reports · AI quality, the list views, the rule side panel, a Reports bullet per set, and new estimates from `estimateRun` on each set's real PDFs. Haiku: $0.08 / $0.07 / $0.11 / $0.11; the real set-3 run cost $0.12 with its reports.
+  - The `phase-N` READMEs were left as they were (historical click paths); the guide says so.

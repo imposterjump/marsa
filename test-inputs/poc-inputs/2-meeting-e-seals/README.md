@@ -83,15 +83,16 @@ Click **Create project**. The project page opens with the project ready to analy
 
    | Model | Cost | Time |
    |---|---|---|
-   | Haiku | ≈ $0.05 | ≈ 3–4 min |
-   | Sonnet | ≈ $0.59 | ≈ 3 min |
+   | Haiku | ≈ $0.07 | ≈ 4 min |
+   | Sonnet | ≈ $0.86 | ≈ 4 min |
 
-2. The **AI analysis results** page opens, and the sidebar folds away. Mission control shows the 8 steps live:
+2. The **AI analysis results** page opens, and the sidebar folds away. Mission control shows the 10 steps live:
    - **Checklist:** the RFP requirements and the 12 rules, each filed under a proposal section.
    - **Standards:** each vendor against CTS-2026.
    - **RFP:** each vendor against the RFP.
    - **Risk:** each vendor's risk register.
    - **Recommendation.**
+   - **Reports:** a consultant report on each vendor.
    - While it runs, open another page: the top-bar pill follows the run, and a toast says when it ends.
    - **Cancel** stops the run; finished steps stay saved, and **Resume** continues.
 3. **Later vendors:** you can add a vendor afterwards (**Proposals → Add vendor**) and click **Run a new analysis**. Earlier analyses stay available under **Latest analysis ▾**.
@@ -123,9 +124,10 @@ Use this to judge a live run. Nothing here is uploaded.
     - officers trained by the Directorate's own trainers (5.2);
     - CPI-indexed subscription (6.1);
     - 40 % at contract signature (6.2).
-- **Compliance tab:**
-  - **Section 3 · Security and data** should show the widest gap between the two vendors.
-  - Open a vendor's row to see its points, shortfalls first.
-  - Click **Technical … p. N** to open the vendor's sentence highlighted. Click the RFP chip to open the clause. Click a **TR-…** rule to open it in the standard.
+- **RFP and Standards tabs:**
+  - **Security & data** should show the widest gap between the two vendors.
+  - Click a vendor's header to open its card (only the first is open). **By section** shows each section's points; the red **Point list** shows all of them, worst first, with Status / Type / Section dropdowns.
+  - Click **Technical … p. N** to open the vendor's sentence highlighted. Click the RFP chip to open the clause. Click a **TR-…** rule to see it in a side panel.
 - **Risks tab:** Orbis's register should include data sovereignty, undetected tampering and the cost of unpriced mobile data, mostly under sections 2, 3 and 5.
 - **Comparison tab:** tick both vendors, click **Compare 2 vendors**. Sections 2, 3 and 5 should list the most differences.
+- **Reports tab:** Trakom should be the **Preferred bidder** and Orbis **Not recommended**. **View** opens the 2-page PDF; **Download PDF** saves it.

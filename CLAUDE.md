@@ -6,6 +6,8 @@ Marsa is a ports & customs procurement-evaluation prototype: customers publish R
 
 @AGENTS.md
 
+New to the repo (or a fresh clone)? [`docs/FRESHLY-CLONED.md`](docs/FRESHLY-CLONED.md) covers setup, sample data and the test tenders.
+
 ## Start every session here (in this order)
 1. **`docs/HANDOFF.md`**: environment quirks, gotchas (G-xx), open issues (I-xx), where the last session stopped. Read all of it.
 2. `docs/PROGRESS.md`: subtask status, what's waiting on the user, API spend.

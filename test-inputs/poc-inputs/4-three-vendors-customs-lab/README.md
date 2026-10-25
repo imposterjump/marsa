@@ -63,18 +63,19 @@ For each vendor: fill in the form, drop the two files, click **Save vendor**. Cl
 Click **Create project**.
 
 ## 4. Run the AI analysis
-Click **Run AI analysis**. It runs **11 steps**:
+Click **Run AI analysis**. It runs **14 steps**:
 - 1 checklist;
 - 3 standards checks;
 - 3 RFP checks;
 - 3 risk registers;
-- 1 recommendation.
+- 1 recommendation;
+- 3 consultant reports.
 
 | Model | Cost | Time |
 |---|---|---|
-| Haiku | ≈ $0.08 | ≈ 4–5 min |
-| Sonnet | ≈ $0.92 | — |
-| Opus | ≈ $2.05 | — |
+| Haiku | ≈ $0.11 | ≈ 5 min |
+| Sonnet | ≈ $1.33 | ≈ 4 min |
+| Opus | ≈ $2.92 | ≈ 7 min |
 
 ## 5. What a good result looks like
 For judging the run. Nothing here is uploaded.
@@ -110,3 +111,4 @@ For judging the run. Nothing here is uploaded.
     - certificates in English only (3.5, LQ-10);
     - next-business-day support (5.4, LQ-11);
     - 50 % with the order (7.2).
+- **Reports tab:** Qalamra should be the **Preferred bidder**; Veridane and Corvantis **Not recommended** (or acceptable only with conditions). Each report is a 2-page PDF: **View** or **Download PDF**.

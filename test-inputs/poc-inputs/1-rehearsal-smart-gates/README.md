@@ -58,7 +58,7 @@ Click **Continue**.
 
 **If POTS-2026 already exists**, skip **New standard** and just tick it.
 
-**Also try:** **Skip** leaves the project with no standard. The analysis then checks the RFP only (6 steps instead of 8), and the results show no Standards column.
+**Also try:** **Skip** leaves the project with no standard. The analysis then checks the RFP only (8 steps instead of 10), and the results show no Standards column.
 
 ## 3. Step 3 · Vendors
 Fill in the vendor form, drop the two files, and click **Save vendor**. Then click **Add another vendor** for the second one.
@@ -81,11 +81,11 @@ Click **Create project**. The project page opens.
 
    | Model | Cost | Time |
    |---|---|---|
-   | Haiku | ≈ $0.05 | ≈ 3–4 min |
-   | Sonnet | ≈ $0.66 | ≈ 3 min |
+   | Haiku | ≈ $0.08 | ≈ 5 min |
+   | Sonnet | ≈ $0.94 | ≈ 4 min |
 
-2. The **AI analysis results** page opens (the sidebar folds away). Mission control shows the 8 steps live: Checklist → Standards → RFP → Risk → Recommendation.
-3. When it ends, the tabs appear: **Overview · Compliance · Risks · Comparison · AI quality**.
+2. The **AI analysis results** page opens (the sidebar folds away). Mission control shows the 10 steps live: Checklist → Standards → RFP → Risk → Recommendation → Reports.
+3. When it ends, the tabs appear: **Overview · RFP · Standards · Risks · Comparison · Reports · AI quality**.
 
 ## 5. What a good result looks like
 Use this to judge a live run. Nothing here is uploaded.
@@ -109,9 +109,13 @@ Use this to judge a live run. Nothing here is uploaded.
     - UPS for 15 minutes (OT-06);
     - SIEM log forwarding not mentioned (OT-04);
     - no roof camera (3.2).
-- **Compliance tab:** open a vendor's row in a section to see its points, shortfalls first. In each point:
+- **RFP and Standards tabs:** one card per vendor; only the first is open, and clicking a vendor's header opens or folds it. Two views (the red switch):
+  - **By section:** open a section row to see its points, one status at a time.
+  - **Point list:** every point of the vendor in one list, worst first, with the vendor's own **Status / Type / Section** dropdowns (it opens on Non-compliant).
+  In each point:
   - **Technical … p. N** opens the vendor's sentence highlighted;
   - the RFP chip opens the clause;
-  - an **OT-…** rule opens in the standard.
+  - an **OT-…** rule opens in a side panel (**Open full standard** for the whole page).
 - **Risks tab:** Vector's register should include data leaving the country, warranty exposure and a delivery delay.
-- **Comparison tab:** tick both vendors and click **Compare 2 vendors**. Only the points where they differ are listed, section by section.
+- **Comparison tab:** tick both vendors and click **Compare 2 vendors**: one column per vendor, one row per aspect; a section row opens the points where they differ.
+- **Reports tab:** Sahel should be the **Preferred bidder** and Vector **Not recommended** (or acceptable only with conditions). **View** opens the 2-page PDF in the reader; **Download PDF** saves it.
