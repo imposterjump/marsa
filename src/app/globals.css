@@ -17,13 +17,15 @@
 @custom-variant collapsed (&:where([data-sidebar="collapsed"] .sidebar-rail *));
 
 @theme inline {
-  /* ── fonts (variables come from src/app/fonts.ts). Hanken has no Arabic letters, so Arabic text
-     (the Arabic UI, Arabic names) falls through to Noto Sans Arabic, before Segoe UI's own. ── */
+  /* ── fonts (variables come from src/app/fonts.ts). Noto Sans Arabic covers Arabic characters
+     only (unicode-range), so it goes first: Arabic text (the Arabic UI, Arabic names) uses it,
+     everything else Hanken. After Hanken it would never be reached: Hanken's Arial fallback has
+     Arabic letters too (2026-10-26). ── */
   --font-sans:
-    "RTA", var(--font-hanken), var(--font-noto-arabic), "Segoe UI", ui-sans-serif, sans-serif;
+    "RTA", var(--font-noto-arabic), var(--font-hanken), "Segoe UI", ui-sans-serif, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
   --font-heading:
-    "RTA", var(--font-hanken), var(--font-noto-arabic), "Segoe UI", ui-sans-serif, sans-serif;
+    "RTA", var(--font-noto-arabic), var(--font-hanken), "Segoe UI", ui-sans-serif, sans-serif;
 
   /* ── shadcn semantic aliases ── */
   --color-background: var(--background);

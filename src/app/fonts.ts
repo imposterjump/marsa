@@ -20,12 +20,28 @@ export const hanken = localFont({
   ],
 });
 
-/** Arabic content (UI is RTL-ready; AI reports can be Arabic). */
+/**
+ * Arabic letters (the Arabic UI, Arabic names, AI text). Only Arabic characters (unicode-range),
+ * so it comes first in the font stack (globals.css) while Latin text and digits still use Hanken;
+ * no Arial fallback, because Arial has Arabic letters too (until 2026-10-26 the Hanken fallback,
+ * Arial, drew all Arabic text, small). Drawn 10 % larger: Arabic letters look smaller than Latin
+ * ones at the same size (user, 2026-10-26: "all the arabic font size is very small just make it
+ * a bit bigger"). Layout, Latin text and numbers keep their sizes.
+ */
 export const notoArabic = localFont({
   variable: "--font-noto-arabic",
   display: "swap",
   weight: "100 900",
   src: "../../node_modules/@fontsource-variable/noto-sans-arabic/files/noto-sans-arabic-arabic-wght-normal.woff2",
+  adjustFontFallback: false,
+  declarations: [
+    { prop: "size-adjust", value: "110%" },
+    {
+      prop: "unicode-range",
+      value:
+        "U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200D, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC",
+    },
+  ],
 });
 
 /** IDs, codes, tabular references ("mono-for-data"). */
