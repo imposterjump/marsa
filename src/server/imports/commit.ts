@@ -50,7 +50,12 @@ export async function commitTender(
 
   const project = createProject(db, {
     name: input.name.trim().slice(0, 160),
-    description: scan.reference ? `Tender ${scan.reference}` : "",
+    // In the tender's own language: an Arabic tender gets an Arabic description.
+    description: scan.reference
+      ? /[؀-ۿ]/.test(input.name)
+        ? `مرجع المناقصة: ${scan.reference}`
+        : `Tender ${scan.reference}`
+      : "",
     category: input.category,
     deadline: null,
     notes: "",
